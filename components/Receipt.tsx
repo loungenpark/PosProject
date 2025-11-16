@@ -7,42 +7,65 @@ const formatCurrency = (amount: number) => {
 
 const Receipt: React.FC<{ sale: Sale }> = ({ sale }) => {
   return (
-    <div className="receipt-container">
-      <div className="text-center">
-        <h2 className="text-lg font-bold">Fatura</h2>
-        <p>123 Pizza Lane, Food City</p>
-        <p>Tel: (123) 456-7890</p>
+    <div className="receipt-container max-w-xs mx-auto text-xs">
+      <div className="text-center mb-2">
+        <h2 className="text-2xl font-bold">Fatura</h2>
         <hr className="my-2 border-t border-dashed border-black" />
       </div>
-      <div>
-        <p>ID e Shitjes: {sale.id}</p>
-        <p>Data: {new Date(sale.date).toLocaleString()}</p>
-        <p>Arkëtari: {sale.user.username}</p>
+      <div className="mt-8 mb-2">
+        <p>
+          Data: {new Date(sale.date).toLocaleString(undefined, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          })}
+        </p>
+        <p>Shfrytëzuesi: {sale.user.username}</p>
         <p>Tavolina: {sale.tableName}</p>
       </div>
       <hr className="my-2 border-t border-dashed border-black" />
       <table className="w-full">
         <thead>
-          <tr>
+          <tr className="text-[10px] font-bold">
             <th className="text-left">Artikulli</th>
             <th className="text-center">Sasia</th>
             <th className="text-right">Çmimi</th>
             <th className="text-right">Totali</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="mt-1">
           {sale.order.items.map((item) => (
-            <tr key={item.id}>
-              <td className="text-left">{item.name}</td>
+            <tr key={item.id} className="text-xs font-bold">
+              <td className="text-left whitespace-normal break-words max-w-[120px]">
+  {item.name}
+</td>
               <td className="text-center">{item.quantity}</td>
-              <td className="text-right">{parseFloat(item.price).toFixed(2)}</td>
-              <td className="text-right">{(item.quantity * parseFloat(item.price)).toFixed(2)}</td>
+              <td className="text-right">
+                {(
+                  typeof item.price === 'string'
+                    ? parseFloat(item.price)
+                    : item.price
+                ).toFixed(2)}
+              </td>
+              <td className="text-right">
+                {(
+                  item.quantity *
+                  (typeof item.price === 'string'
+                    ? parseFloat(item.price)
+                    : item.price)
+                ).toFixed(2)}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <hr className="my-2 border-t border-dashed border-black" />
-      <div className="space-y-1">
+      <div className="mt-2">
+        <hr className="my-2 border-t border-dashed border-black" />
+      </div>
+      <div className="space-y-2">
         {sale.order.tax > 0 ? (
           <>
             <div className="flex justify-between">
@@ -55,12 +78,14 @@ const Receipt: React.FC<{ sale: Sale }> = ({ sale }) => {
             </div>
           </>
         ) : null}
-        <div className="flex justify-between font-bold text-sm">
+        <div className="flex justify-between font-bold text-xl mt-1">
           <span>Totali:</span>
           <span>{formatCurrency(sale.order.total)}</span>
         </div>
       </div>
-      <hr className="my-2 border-t border-dashed border-black" />
+      <div className="mt-10">
+        <hr className="my-2 border-t border-dashed border-black" />
+      </div>
       <div className="text-center mt-4">
         <p>Faleminderit për vizitën!</p>
         <p>Ju lutemi, na vizitoni përsëri.</p>
