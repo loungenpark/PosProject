@@ -183,7 +183,6 @@ const PosScreen: React.FC = () => {
     
     setPaymentModalOpen(false);
     setActiveTableId(null);
-    logout();
   }, [activeTableId, currentOrderItems, calculateNewOrderState, addSale, setPaymentModalOpen, setActiveTableId, logout]);
   
   const groupedItems = useMemo(() => {
