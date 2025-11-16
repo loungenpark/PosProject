@@ -184,14 +184,19 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateOrderForTable = useCallback((tableId: number, order: Order | null) => {
     setTables(currentTables => {
-      const updatedTables = currentTables.map(table =>
+      const updatedTables = currentTables.map(table => 
         table.id === tableId ? { ...table, order } : table
       );
       localStorage.setItem('activeTables', JSON.stringify(updatedTables));
 
-      // Only emit the update if we're the master and socket is connected
-      if (socketRef.current?.connected && isMasterClient.current) {
-        socketRef.current.emit('order-update', updatedTables);
+      if (socketRef.current?.connected) {
+        if (isMasterClient.current) {
+          // If we're the master, emit the update directly
+          socketRef.current.emit('order-update', updatedTables);
+        } else {
+          // If we're a client, send the update to the master
+          socketRef.current.emit('client-order-update', { tableId, order });
+        }
       }
 
       return updatedTables;
@@ -324,6 +329,12 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     socket.on('print-order-ticket-from-server', handlePrintOrderTicket);
     socket.on('print-sale-receipt-from-server', handlePrintSaleReceipt);
     
+    // Handle order updates from other clients (master only)
+    socket.on('process-client-order-update', ({ tableId, order }) => {
+      console.log('Processing order update from client for table', tableId);
+      updateOrderForTable(tableId, order);
+    });
+    
     // Listen for state requests from the server
     socket.on('share-your-state', handleShareYourState);
     socket.on('request-initial-state', handleRequestInitialState);
@@ -381,41 +392,37 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         // Load tables from localStorage first for instant UI
         const savedTables = localStorage.getItem('activeTables');
+        let currentTables: Table[] = [];
+        
         if (savedTables) {
-          setTables(JSON.parse(savedTables));
+          const parsedTables = JSON.parse(savedTables);
+          currentTables = parsedTables;
         }
 
         // Then try to load from server
-        const data = await api.bootstrap();
+        const { users, menuItems, menuCategories, taxRate } = await api.bootstrap();
         
-        // Only update tables if we're not the master (master's state is the source of truth)
-        if (!isMasterClient.current) {
-          if (data.tables && data.tables.length > 0) {
-            setTables(data.tables);
-            localStorage.setItem('activeTables', JSON.stringify(data.tables));
-          }
-        }
-        
-        // Update other data regardless of master/client status
-        if (data.users) setUsers(data.users);
-        if (data.menuItems) setMenuItems(data.menuItems);
-        if (data.menuCategories) setMenuCategories(data.menuCategories);
-        if (data.taxRate !== undefined) setTaxRate(data.taxRate);
+        // Update users, menu items, categories, and tax rate
+        setUsers(users);
+        setMenuItems(menuItems);
+        setMenuCategories(menuCategories);
+        setTaxRate(taxRate);
         
         // If we're the master and have tables, ensure they're synced to the server
-        if (isMasterClient.current && tables.length > 0 && socketRef.current?.connected) {
-          socketRef.current.emit('order-update', tables);
+        if (isMasterClient.current && currentTables.length > 0 && socketRef.current?.connected) {
+          socketRef.current.emit('order-update', currentTables);
         }
         
       } catch (error) {
         console.error('Error loading data:', error);
         
         // If we're offline and have no tables in localStorage, create default tables
-        if (tables.length === 0) {
-          const defaultTables = Array.from({ length: 10 }, (_, i) => ({
+        const savedTables = localStorage.getItem('activeTables');
+        if (!savedTables) {
+          const defaultTables = Array.from({ length: 4 }, (_, i) => ({
             id: i + 1,
             name: `Tavolina ${i + 1}`,
-            order: null
+            order: null,
           }));
           setTables(defaultTables);
           localStorage.setItem('activeTables', JSON.stringify(defaultTables));

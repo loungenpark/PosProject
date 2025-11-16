@@ -129,6 +129,30 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle order updates from client devices
+  socket.on('client-order-update', ({ tableId, order }) => {
+    console.log(`Received order update for table ${tableId} from client ${socket.id}`);
+    if (masterClientId) {
+      // Forward to master for processing
+      console.log(`Forwarding update for table ${tableId} to master`);
+      socket.to(masterClientId).emit('process-client-order-update', { 
+        tableId, 
+        order,
+        clientId: socket.id 
+      });
+    } else {
+      console.log('No master client connected to process the update');
+    }
+  });
+
+  // Handle processed order updates from master
+  socket.on('process-client-order-update', ({ tableId, order }) => {
+    if (socket.id === masterClientId) {
+      console.log(`Master processing order update for table ${tableId} from client`);
+      // The master will handle this update in its own client code
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`🔌 Real-time client disconnected: ${socket.id}`);
     if (socket.id === masterClientId) {
