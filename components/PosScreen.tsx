@@ -77,7 +77,7 @@ const PosScreen: React.FC = () => {
 
   useEffect(() => {
     if (activeTable && activeTable.order) {
-        const itemsWithStatus = activeTable.order.items.map(item => ({ ...item, status: 'ordered' }));
+        const itemsWithStatus = activeTable.order.items.map(item => ({ ...item, status: 'ordered' as const }));
         setCurrentOrderItems(itemsWithStatus);
     } else { setCurrentOrderItems([]); }
   }, [activeTable]);
@@ -122,7 +122,7 @@ const PosScreen: React.FC = () => {
         const existingItem = prevItems.find(orderItem => orderItem.id === item.id && orderItem.addedBy === loggedInUser.username);
         if (existingItem) {
             return prevItems.map(orderItem => orderItem.id === item.id && orderItem.addedBy === loggedInUser.username ? { ...orderItem, quantity: orderItem.quantity + 1 } : orderItem);
-        } else { return [...prevItems, { ...item, quantity: 1, addedBy: loggedInUser.username, status: 'new' }]; }
+        } else { return [...prevItems, { ...item, quantity: 1, addedBy: loggedInUser.username, status: 'new' as const }]; }
     });
   };
 
@@ -240,7 +240,7 @@ const PosScreen: React.FC = () => {
         <Header />
       </header>
       <div className="flex flex-grow overflow-hidden">
-        <main className="flex-grow flex flex-col p-4 overflow-y-auto">
+        <main className="w-1/2 md:flex-grow flex flex-col p-4 overflow-y-auto">
              <div className="flex space-x-2 overflow-x-auto pb-2 mb-4 flex-shrink-0">
                 {menuCategories.map(category => (
                     <button key={category.id} onClick={() => setSelectedCategory(category.name)} className={`px-4 py-2 rounded-md text-base font-bold whitespace-nowrap transition-colors ${selectedCategory === category.name ? 'bg-highlight text-white' : 'bg-accent text-text-secondary hover:bg-highlight hover:text-white'}`}>{category.name}</button>
@@ -259,7 +259,7 @@ const PosScreen: React.FC = () => {
                 })}
             </div>
         </main>
-        <aside className="w-full md:w-1/3 lg:w-1/4 flex-shrink-0 bg-secondary flex flex-col p-4 shadow-inner">
+        <aside className="w-1/2 md:w-1/3 lg:w-1/4 flex-shrink-0 bg-secondary flex flex-col p-4 shadow-inner">
              <div className="flex justify-between items-center mb-4 border-b border-accent pb-2">
                 <h2 className="text-lg font-bold text-text-main">Porosia Aktuale</h2>
                 <button onClick={handleCancelOrder} className="p-1 text-text-secondary hover:text-text-main"><CloseIcon className="w-5 h-5" /></button>

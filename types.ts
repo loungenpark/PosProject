@@ -33,10 +33,11 @@ export interface MenuCategory {
   display_order: number | null; // --- MODIFIED: Added display_order
 }
 
-// --- MODIFIED: Added 'addedBy' to track who added an item to the order ---
+// --- MODIFIED: Added 'addedBy' and optional 'status' to track order item metadata ---
 export interface OrderItem extends MenuItem {
   quantity: number;
   addedBy: string; // Will store the username, e.g., "Admin"
+  status?: 'new' | 'ordered';
 }
 // --- END MODIFICATION ---
 
