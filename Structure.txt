@@ -1,0 +1,49 @@
+PS C:\Users\loung\PosProject> dir
+
+
+    Directory: C:\Users\loung\PosProject
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----        11/13/2025   8:25 PM                components
+d-----        11/12/2025  11:06 PM                context
+d-----        11/13/2025   9:10 AM                Copies
+d-----        11/14/2025  10:36 AM                node_modules
+d-----        11/11/2025   2:03 PM                other
+d-----        11/11/2025   2:02 PM                scripts
+d-----        11/14/2025  10:29 AM                server
+d-----        11/14/2025  10:39 AM                utils
+-a----        11/11/2025   2:02 PM            166 .env.local
+-a----        11/11/2025   2:02 PM            253 .gitignore
+-a----        11/11/2025   2:02 PM           5518 api.ts
+-a----        11/13/2025   3:07 PM           1510 App.tsx
+-a----        11/13/2025  11:23 PM            482 cd CUsersLounge Parkrestaurant-pos-local.txt
+-a----        11/11/2025   2:02 PM           2047 constants.ts
+-a----        11/13/2025   8:28 PM          15417 how to fix by google ai app.docx
+-a----        11/13/2025   8:21 PM           1578 index - Copy.css
+-a----        11/14/2025  12:16 AM           1618 index.css
+-a----        11/11/2025   2:02 PM           2198 index.html
+-a----        11/11/2025  11:36 PM            525 index.tsx
+-a----        11/11/2025   2:02 PM           3344 menu_import.csv
+-a----        11/11/2025   2:02 PM            385 metadata.json
+-a----        11/11/2025   2:02 PM           6190 New Microsoft Excel Worksheet.xlsx
+-a----        11/11/2025   2:02 PM          13904 New Microsoft Word Document.docx
+-a----        11/14/2025  10:35 AM         156828 package-lock.json
+-a----        11/14/2025  10:30 AM            923 package.json
+-a----        11/11/2025   2:02 PM           3054 README.md
+-a----        11/13/2025   1:17 PM          17805 recap for ai studio.docx
+-a----        11/11/2025   2:02 PM           3344 reorder_items.csv
+-a----        11/11/2025   2:22 PM              0 steps to install.docx
+-a----        11/11/2025   2:35 PM          20447 steps to install2.docx
+-a----        11/11/2025   5:11 PM              0 structure.sql
+-a----        11/11/2025   2:02 PM           1533 Structure.txt
+-a----        11/14/2025   1:16 PM          17931 Summary from app chat.docx
+-a----        11/13/2025   8:36 AM           4749 Summary from app chat.txt
+-a----        11/12/2025  10:37 PM           1035 Summary to Copy and Paste into a New Chat.txt
+-a----        11/11/2025   2:02 PM            542 tsconfig.json
+-a----        11/11/2025   2:02 PM           1800 types.ts
+-a----        11/11/2025   4:27 PM            630 vite.config.ts
+
+
+PS C:\Users\loung\PosProject>

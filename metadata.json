@@ -1,0 +1,5 @@
+{
+  "name": "Restaurant POS System2",
+  "description": "A comprehensive Point of Sale (POS) application for restaurants, featuring user roles for administrators and cashiers. Admins can manage menus, prices, and view sales reports, while cashiers can process orders. The app is designed for a touch-friendly experience and supports receipt printing.",
+  "requestFramePermissions": []
+}

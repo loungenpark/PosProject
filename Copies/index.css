@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* ==========================================================================
+   PRINT LAYOUT STYLES - Reverted Version
+   ========================================================================== */
+
+/* This rule controls the actual paper size and removes browser headers/footers. */
+/* index.css */
+
+/* ==========================================================================
+   CORRECTED PRINT LAYOUT STYLES
+   ========================================================================== */
+
+/* This rule controls the actual paper size and removes browser headers/footers. */
+@page {
+  size: 58mm auto;
+  margin: 0;
+}
+
+/* These rules apply ONLY when printing. */
+@media print {
+  /*
+   * Rule 1: Reset the main document container heights.
+   * This is the CRITICAL new addition. It overrides styles like "min-h-screen"
+   * from your App.tsx and tells the printer driver the page height
+   * is determined ONLY by the content, not the screen.
+   */
+  html, body, #root {
+    height: auto !important;
+    min-height: initial !important;
+    overflow: initial !important;
+  }
+
+  /*
+   * Rule 2: Completely remove the main application from the print layout.
+   */
+  #main-app {
+    display: none !important;
+  }
+
+  /*
+   * Rule 3: Position the printable area at the absolute top of the page.
+   */
+  #printable-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}
+/* ==========================================================================
+   PRINTABLE COMPONENT STYLES
+   ========================================================================== */
+
+/* These styles format the content inside the receipt/ticket. */
+.receipt-container,
+.order-ticket-container {
+  width: 58mm;
+  padding: 5px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 9pt;
+  color: black;
+  background: white;
+}

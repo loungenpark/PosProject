@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Restaurant POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'primary': '#1a202c',
+              'secondary': '#2d3748',
+              'accent': '#4a5568',
+              'highlight': '#4299e1',
+              'text-main': '#e2e8f0',
+              'text-secondary': '#a0aec0',
+            },
+          }
+        }
+      }
+    </script>
+    <script>
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
+          window.API_URL = `http://${hostname}:3001`;
+      }
+    </script>
+    <style>
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #2d3748; }
+      ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #4299e1; }
+    </style>
+
+    <!-- Browser-safe importmap (optional) -->
+    <script type="importmap">
+{
+  "imports": {
+    "qrcode": "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "pg": "https://aistudiocdn.com/pg@^8.16.3",
+    "dotenv": "https://aistudiocdn.com/dotenv@^17.2.3",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "url": "https://aistudiocdn.com/url@^0.11.4",
+    "os": "https://aistudiocdn.com/os@^0.1.2",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+  <body class="bg-primary text-text-main">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

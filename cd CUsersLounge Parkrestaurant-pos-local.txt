@@ -1,0 +1,17 @@
+cd "C:\Users\loung\PosProject"
+
+Get-ChildItem -Recurse | Where-Object { $_.FullName -notmatch "node_modules" } | ForEach-Object { $_.FullName.Replace($PWD.Path + "\", "") }
+
+
+npm run serve:all
+
+npm run build
+npm start
+
+./psql -U postgres -d posproject
+
+
+
+
+
+if you are ready, i will send index.js, you update it and send full

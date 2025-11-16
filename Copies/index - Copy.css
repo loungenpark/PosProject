@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* ==========================================================================
+   PRINT LAYOUT STYLES - Reverted Version
+   ========================================================================== */
+
+/* This rule controls the actual paper size and removes browser headers/footers. */
+@page {
+  size: 58mm auto;
+  margin: 0;
+}
+
+/* These rules apply ONLY when printing. */
+@media print {
+  /* This establishes a positioning context for the page. */
+  body {
+    position: relative;
+  }
+
+  /* This reset attempts to prevent blank space from the main app. */
+  html, body, #root {
+    width: 58mm;
+    height: auto !important;
+    min-height: initial !important;
+    overflow: initial !important;
+  }
+  
+  /* Hide the main application div completely. */
+  #main-app {
+    display: none !important;
+  }
+
+  /* Make our printable area the ONLY thing visible on the page. */
+  #printable-area, #printable-area * {
+    visibility: visible !important;
+  }
+  
+  /* Position the printable content at the absolute top-left of the paper. */
+  #printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}
+
+
+/* ==========================================================================
+   PRINTABLE COMPONENT STYLES
+   ========================================================================== */
+
+/* These styles format the content inside the receipt/ticket. */
+.receipt-container,
+.order-ticket-container {
+  width: 58mm;
+  padding: 5px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 9pt;
+  color: black;
+  background: white;
+}

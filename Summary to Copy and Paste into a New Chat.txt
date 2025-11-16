@@ -1,0 +1,11 @@
+Summary to Copy and Paste into a New Chat:
+Hello, we are debugging a printing issue in my React POS application. Here is the current situation:
+Goal: Fix a "long blank page" printing bug. The receipt content appears at the very end of a 2-meter-long printout. The printer paper size is 58mm.
+Current State: The application loads and works correctly. When I print, only one print dialog appears (the double-print bug is solved).
+Technology:
+Front-end: React with Vite.
+Styling: Tailwind CSS.
+The App.tsx file has two main divs: <div id="main-app"> for the UI and a separate <div id="printable-area"> for the receipt components.
+The window.print() command is being called from a useEffect inside PosContext.tsx.
+Problem: The CSS in index.css is failing to hide #main-app correctly during printing, which is causing the long blank page.
+Next Step: We have agreed on a diagnostic test. The plan is to temporarily add a simple "Print" button to the main screen to test our CSS in isolation, bypassing the PosContext print trigger.
