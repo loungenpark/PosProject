@@ -1,6 +1,4 @@
-// --- FINAL, COMPLETE, AND HMR-PROOF VERSION ---
-
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'; // TYPO FIXED
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { User, MenuItem, Sale, Order, Table, UserRole, MenuCategory, HistoryEntry, OrderItem, Printer } from '../types';
 import * as db from '../utils/db';
 import * as api from '../api';
@@ -9,7 +7,8 @@ import { io, Socket } from 'socket.io-client';
 import Papa from 'papaparse';
 import { printSaleReceipt, printOrderTicket } from '../utils/printManager';
 
-const SOCKET_URL = `http://${window.location.hostname}:3001`;
+const SOCKET_URL = 'http://192.168.1.10:3001';
+const socket: Socket = io(SOCKET_URL, { transports: ['websocket'] });
 
 const isBackendConfigured = true;
 
@@ -35,7 +34,8 @@ interface PosContextState {
   setTableButtonSizePercent: (size: number) => void; taxRate: number;
   setTaxRate: (rate: number) => Promise<void>; history: HistoryEntry[];
   saveOrderForTable: (tableId: number, updatedOrder: Order | null, newItems: OrderItem[]) => Promise<void>;
-  refreshSalesFromServer: () => Promise<void>;
+  // --- ADDED MISSING FUNCTION DEFINITION HERE ---
+  refreshSalesFromServer: () => Promise<void>; 
 }
 
 const PosContext = createContext<PosContextState | undefined>(undefined);
@@ -58,16 +58,6 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [taxRate, setTaxRateState] = useState<number>(0);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const syncInProgress = useRef(false);
-  const startupEffectRan = useRef(false);
-
-  // Treat non-mobile browsers as MASTER, mobile (phone/tablet) as CLIENT
-  const isMasterClient = useRef(window.innerWidth > 900 || !/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
-
-  const tablesRef = useRef<Table[]>([]);
-
-  const socketRef = useRef<Socket | null>(null);
-  console.log(`This device is ${isMasterClient.current ? 'MASTER (PC)' : 'CLIENT (Mobile)'}`);
-
 
   const loadDataFromDb = useCallback(async () => {
     const [dbUsers, dbMenuItems, dbMenuCategories, dbSales, dbHistory] = await Promise.all([
@@ -77,18 +67,34 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUsers(dbUsers); setMenuItems(dbMenuItems); setMenuCategories(dbMenuCategories);
     setSales(dbSales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setHistory(dbHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+    setTaxRateState(0); 
   }, []);
-  
+
+  // --- ADDED MISSING FUNCTION IMPLEMENTATION HERE ---
+  const refreshSalesFromServer = useCallback(async () => {
+    if (!isBackendConfigured || !navigator.onLine) return;
+    try {
+        const salesData = await api.getSales();
+        setSales(salesData.map(s => ({...s, date: new Date(s.date)})));
+    } catch (e) {
+        console.error("Error refreshing sales:", e);
+    }
+  }, []);
+
   const fetchAndCacheData = useCallback(async () => {
     if (!isBackendConfigured) return;
     try {
-        const { users, menuItems, menuCategories, taxRate } = await api.bootstrap();
+        const [{ users, menuItems, menuCategories, taxRate }, salesData, historyData] = await Promise.all([
+          api.bootstrap(), api.getSales(), api.getHistory(),
+        ]);
         await db.clearStaticData();
         await Promise.all([
           db.bulkPut(users, 'users'), db.bulkPut(menuItems, 'menuItems'), db.bulkPut(menuCategories, 'menuCategories')
         ]);
         setUsers(users); setMenuItems(menuItems); setMenuCategories(menuCategories);
         setTaxRateState(typeof taxRate === 'number' && isFinite(taxRate) ? taxRate : 0);
+        setSales(salesData.map(s => ({...s, date: new Date(s.date)})));
+        setHistory(historyData.map(h => ({...h, timestamp: new Date(h.timestamp)})));
         setIsOnline(true);
     } catch (error) { console.error("--- SERVER FETCH FAILED ---", error); setIsOnline(false); await loadDataFromDb(); }
   }, [loadDataFromDb]);
@@ -119,7 +125,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } 
     setIsSyncing(false); 
     syncInProgress.current = false;
-  }, []);
+  }, [fetchAndCacheData]); 
 
   const setTableCount = useCallback((count: number) => {
     localStorage.setItem('tableCount', count.toString());
@@ -135,16 +141,20 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addHistoryEntry = useCallback(async (tableId: number, details: string) => {
     if (!loggedInUser) return;
     const newEntry: HistoryEntry = { id: `hist-${Date.now()}`, tableId, timestamp: new Date(), user: loggedInUser, details };
-  }, [loggedInUser]);
+    setHistory(prev => [newEntry, ...prev]);
+    await db.put(newEntry, 'history');
+    await db.addToSyncQueue({ type: 'ADD_HISTORY_ENTRY', payload: { tableId, details, user: loggedInUser } });
+    if (isOnline) syncOfflineData();
+  }, [loggedInUser, isOnline, syncOfflineData]);
 
   const setTaxRate = useCallback(async (ratePercent: number) => {
     const newRate = Math.max(0, ratePercent) / 100;
     setTaxRateState(newRate);
     await db.addToSyncQueue({ type: 'SET_TAX_RATE', payload: { rate: newRate } });
     await addHistoryEntry(0, `Tax rate updated to ${ratePercent}%`);
-    if (isOnline) { setTimeout(() => { syncOfflineData(); }, 0); }
+    if (isOnline) await syncOfflineData();
   }, [isOnline, addHistoryEntry, syncOfflineData]);
-  
+
   const login = useCallback(async (pin: string): Promise<boolean> => {
     let user = users.find((u) => u.pin === pin);
     if (user) { setLoggedInUser(user); return true; }
@@ -159,55 +169,122 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [isOnline, users]);
 
   const logout = useCallback(() => setLoggedInUser(null), []);
-  const addUser = useCallback(async (user: Omit<User, 'id'>) => {}, [isOnline]);
-  const deleteUser = useCallback(async (userId: number): Promise<boolean> => { return true; }, [users, isOnline]);
-  const addMenuItem = useCallback(async (item: Omit<MenuItem, 'id'>) => {}, [isOnline]);
-  const updateMenuItem = useCallback(async (updatedItem: MenuItem) => {
-    setMenuItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
-    await db.put(updatedItem, 'menuItems');
-  }, [isOnline]);
-  const deleteMenuItem = useCallback(async (id: number) => {}, [isOnline]);
-  const addMenuCategory = useCallback(async (name: string) => {}, [isOnline, menuCategories]);
-  const updateMenuCategory = useCallback(async (updatedCategory: MenuCategory) => {}, [isOnline]);
-  const deleteMenuCategory = useCallback(async (id: number) => {}, [isOnline]);
-  const reorderMenuCategories = useCallback(async (categories: MenuCategory[]) => {}, [fetchAndCacheData]);
-  const reorderMenuItems = useCallback(async (items: MenuItem[]) => {}, [fetchAndCacheData]);
 
-  const refreshSalesFromServer = useCallback(async () => {
+  const addUser = useCallback(async (userData: Omit<User, 'id'>) => {
     try {
-      const serverSales = await api.getSales();
-      setSales(serverSales);
-    } catch (error) {
-      console.error('Failed to refresh sales from server:', error);
-    }
+      const tempId = Date.now(); 
+      const newUser: User = { ...userData, id: tempId };
+      
+      setUsers((prev) => [...prev, newUser]);
+      await db.put(newUser, 'users');
+      await db.addToSyncQueue({ type: 'ADD_USER', payload: userData });
+      
+      if (isOnline && isBackendConfigured) await syncOfflineData();
+    } catch (e) { console.error("Add user failed", e); }
+  }, [isOnline, syncOfflineData]);
+
+  const deleteUser = useCallback(async (userId: number): Promise<boolean> => {
+    try {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      await db.deleteItem(userId, 'users'); 
+      await db.addToSyncQueue({ type: 'DELETE_USER', payload: { userId } });
+      
+      if (isOnline && isBackendConfigured) await syncOfflineData();
+      return true;
+    } catch (e) { console.error("Delete user failed", e); return false; }
+  }, [isOnline, syncOfflineData]);
+
+  const addMenuItem = useCallback(async (itemData: Omit<MenuItem, 'id'>) => {
+    try {
+      const tempId = Date.now();
+      const newItem: MenuItem = { ...itemData, id: tempId };
+      
+      setMenuItems((prev) => [...prev, newItem]);
+      await db.put(newItem, 'menuItems');
+      await db.addToSyncQueue({ type: 'ADD_MENU_ITEM', payload: itemData });
+      
+      if (isOnline && isBackendConfigured) await syncOfflineData();
+    } catch (e) { console.error("Add item failed", e); }
+  }, [isOnline, syncOfflineData]);
+
+  const updateMenuItem = useCallback(async (updatedItem: MenuItem) => {
+    try {
+      setMenuItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+      await db.put(updatedItem, 'menuItems');
+      await db.addToSyncQueue({ type: 'UPDATE_MENU_ITEM', payload: updatedItem });
+      
+      if (isOnline && isBackendConfigured) await syncOfflineData();
+    } catch (e) { console.error("Update item failed", e); }
+  }, [isOnline, syncOfflineData]);
+
+  const deleteMenuItem = useCallback(async (id: number) => {
+    try {
+      setMenuItems(prev => prev.filter(item => item.id !== id));
+      await db.deleteItem(id, 'menuItems');
+      await db.addToSyncQueue({ type: 'DELETE_MENU_ITEM', payload: { id } });
+      
+      if (isOnline && isBackendConfigured) await syncOfflineData();
+    } catch (e) { console.error("Delete item failed", e); }
+  }, [isOnline, syncOfflineData]);
+
+  const addMenuCategory = useCallback(async (name: string) => {
+    try {
+      const tempId = Date.now();
+      const newCat: MenuCategory = { id: tempId, name };
+      
+      setMenuCategories(prev => [...prev, newCat]);
+      await db.put(newCat, 'menuCategories');
+      await db.addToSyncQueue({ type: 'ADD_MENU_CATEGORY', payload: { name } });
+      
+      if (isOnline && isBackendConfigured) await syncOfflineData();
+    } catch (e) { console.error("Add category failed", e); }
+  }, [isOnline, syncOfflineData]);
+
+  const updateMenuCategory = useCallback(async (updatedCategory: MenuCategory) => {
+    try {
+      setMenuCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
+      await db.put(updatedCategory, 'menuCategories');
+      await db.addToSyncQueue({ type: 'UPDATE_MENU_CATEGORY', payload: updatedCategory });
+      
+      if (isOnline && isBackendConfigured) await syncOfflineData();
+    } catch (e) { console.error("Update category failed", e); }
+  }, [isOnline, syncOfflineData]);
+
+  const deleteMenuCategory = useCallback(async (id: number) => {
+    try {
+      setMenuCategories(prev => prev.filter(c => c.id !== id));
+      await db.deleteItem(id, 'menuCategories');
+      await db.addToSyncQueue({ type: 'DELETE_MENU_CATEGORY', payload: { id } });
+      
+      if (isOnline && isBackendConfigured) await syncOfflineData();
+    } catch (e) { console.error("Delete category failed", e); }
+  }, [isOnline, syncOfflineData]);
+
+  const reorderMenuCategories = useCallback(async (categories: MenuCategory[]) => {
+    setMenuCategories(categories);
+    await db.bulkPut(categories, 'menuCategories');
+  }, []);
+
+  const reorderMenuItems = useCallback(async (items: MenuItem[]) => {
+    setMenuItems(items);
+    await db.bulkPut(items, 'menuItems');
   }, []);
 
   const updateOrderForTable = useCallback((tableId: number, order: Order | null) => {
     setTables(currentTables => {
-      const updatedTables = currentTables.map(table => 
-        table.id === tableId ? { ...table, order } : table
-      );
-      localStorage.setItem('activeTables', JSON.stringify(updatedTables));
-
-      if (socketRef.current?.connected) {
-        if (isMasterClient.current) {
-          // If we're the master, emit the update directly
-          socketRef.current.emit('order-update', updatedTables);
-        } else {
-          // If we're a client, send the update to the master
-          socketRef.current.emit('client-order-update', { tableId, order });
-        }
-      }
-
-      return updatedTables;
+        const nextTablesState = currentTables.map(table => table.id === tableId ? { ...table, order } : table);
+        localStorage.setItem('activeTables', JSON.stringify(nextTablesState));
+        socket.emit('order-update', nextTablesState);
+        return nextTablesState;
     });
   }, []);
 
   const saveOrderForTable = useCallback(async (tableId: number, updatedOrder: Order | null, newItems: OrderItem[]) => {
     updateOrderForTable(tableId, updatedOrder);
     const table = tables.find(t => t.id === tableId);
-    if (newItems.length > 0 && table && loggedInUser && socketRef.current?.connected) {
-      socketRef.current.emit('print-order-ticket', { table, newItems, user: loggedInUser });
+    if (newItems.length > 0 && table && loggedInUser) {
+        printOrderTicket(table, newItems, loggedInUser);
+        socket.emit('print-order-ticket', { table, newItems, user: loggedInUser });
     }
   }, [tables, updateOrderForTable, loggedInUser]);
 
@@ -216,32 +293,29 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const table = tables.find(t => t.id === tableId);
     if (!table) return;
     const newSale: Sale = { id: `sale-${Date.now()}`, date: new Date(), order, user: loggedInUser, tableId: table.id, tableName: table.name };
+    
     setSales((prev) => [newSale, ...prev]);
     await db.put(newSale, 'sales');
-
-    await db.addToSyncQueue({
-      type: 'ADD_SALE',
-      payload: { order, tableId: table.id, tableName: table.name, user: loggedInUser }
-    });
-    if (isOnline) {
-      setTimeout(() => { syncOfflineData(); }, 0);
+    
+    for (const saleItem of order.items) {
+      const menuItem = menuItems.find(mi => mi.id === saleItem.id);
+      if (menuItem && menuItem.trackStock && isFinite(menuItem.stock)) {
+        const updatedItem = { ...menuItem, stock: menuItem.stock - saleItem.quantity };
+        await updateMenuItem(updatedItem);
+      }
     }
 
     updateOrderForTable(tableId, null);
     await addHistoryEntry(tableId, `Fatura u finalizua...`);
-    for (const saleItem of order.items) {
-      const menuItem = menuItems.find(mi => mi.id === saleItem.id);
-      if (menuItem && menuItem.trackStock && isFinite(menuItem.stock)) {
-        await updateMenuItem({ ...menuItem, stock: menuItem.stock - saleItem.quantity });
-      }
-    }
+    
+    await db.addToSyncQueue({ type: 'ADD_SALE', payload: { order, tableId, tableName: table.name, user: loggedInUser } });
 
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('sale-finalized', newSale);
-      socketRef.current.emit('print-sale-receipt', newSale);
-    }
+    socket.emit('sale-finalized', newSale);
+    printSaleReceipt(newSale);
+    
+    if (isOnline) syncOfflineData();
   }, [loggedInUser, tables, menuItems, isOnline, updateOrderForTable, addHistoryEntry, updateMenuItem, syncOfflineData]);
-  
+
   const setTablesPerRow = useCallback((count: number) => { localStorage.setItem('tablesPerRow', count.toString()); setTablesPerRowState(count); }, []);
   const setTableSizePercent = useCallback((size: number) => { localStorage.setItem('tableSizePercent', size.toString()); setTableSizePercentState(size); }, []);
   const setTableButtonSizePercent = useCallback((size: number) => { localStorage.setItem('tableButtonSizePercent', size.toString()); setTableButtonSizePercentState(size); }, []);
@@ -249,199 +323,59 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const reorderMenuItemsFromCSV = useCallback(async (file: File) => { throw new Error(); }, [fetchAndCacheData]);
 
   useEffect(() => {
-    tablesRef.current = tables;
-  }, [tables]);
-
-  useEffect(() => {
-    // Initialize socket connection if it doesn't exist
-    if (!socketRef.current) {
-      socketRef.current = io(SOCKET_URL, {
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-      });
-    }
-
-    const socket = socketRef.current;
-
-    if (!socket) {
-      return;
-    }
-
-    // Handle order updates from the server
     const handleOrderUpdate = (updatedTablesData: Table[]) => {
-      console.log('Received order update from server');
       setTables(updatedTablesData);
       localStorage.setItem('activeTables', JSON.stringify(updatedTablesData));
     };
-
-    const handleSaleFinalized = (newSaleData: Sale) => { 
-      setSales(prev => [newSaleData, ...prev]); 
+    const handleSaleFinalized = (newSaleData: Sale) => {
+      setSales(prev => [newSaleData, ...prev]);
     };
-    
     const handlePrintOrderTicket = (orderData: { table: Table; newItems: OrderItem[]; user: User | null }) => {
       printOrderTicket(orderData.table, orderData.newItems, orderData.user);
     };
-    
-    const handlePrintSaleReceipt = (saleData: Sale) => {
-      printSaleReceipt(saleData);
-    };
-    
-    // When the server asks for our state, we provide it (only if we're the master)
-    const handleShareYourState = () => {
-      if (isMasterClient.current) {
-        console.log('Sharing our state as master', tablesRef.current);
-        socket.emit('here-is-my-state', tablesRef.current);
-      }
-    };
-    
-    // Handle request for initial state (only for master)
-    const handleRequestInitialState = () => {
-      if (isMasterClient.current) {
-        console.log('Providing initial state as master', tablesRef.current);
-        socket.emit('provide-initial-state', tablesRef.current);
-      }
-    };
-    
-    socket.on('connect', () => { 
-      console.log(`✅ --- SOCKET.IO CONNECTED --- ✅ (${isMasterClient.current ? 'MASTER' : 'CLIENT'})`);
-      
-      if (isMasterClient.current) {
-        // If we're the master, identify ourselves to the server
-        socket.emit('identify-as-master');
-      } else {
-        // If we're a client, request the latest state from the master
-        socket.emit('request-latest-state');
-      }
-    });
-    socket.on('disconnect', (reason) => { 
-      console.log('🔌 --- SOCKET.IO DISCONNECTED --- 🔌 Reason:', reason); 
-    });
-    
-    socket.on('connect_error', (err) => { 
-      console.error('❌ --- SOCKET.IO CONNECTION ERROR --- ❌', err); 
-    });
-    
-    // Listen for state updates from the server
+
+    socket.on('connect', () => { console.log('✅ --- SOCKET.IO CONNECTED --- ✅'); });
+    socket.on('disconnect', (reason) => { console.log('🔌 --- SOCKET.IO DISCONNECTED --- 🔌 Reason:', reason); });
+    socket.on('connect_error', (err) => { console.error('❌ --- SOCKET.IO CONNECTION ERROR --- ❌', err); });
     socket.on('order-updated-from-server', handleOrderUpdate);
     socket.on('sale-finalized-from-server', handleSaleFinalized);
     socket.on('print-order-ticket-from-server', handlePrintOrderTicket);
-    socket.on('print-sale-receipt-from-server', handlePrintSaleReceipt);
-    
-    // Handle order updates from other clients (master only)
-    socket.on('process-client-order-update', ({ tableId, order }) => {
-      console.log('Processing order update from client for table', tableId);
-      updateOrderForTable(tableId, order);
-    });
-    
-    // Listen for state requests from the server
-    socket.on('share-your-state', handleShareYourState);
-    socket.on('request-initial-state', handleRequestInitialState);
 
     return () => {
-      if (!socketRef.current) return;
-
-      socketRef.current.off('connect');
-      socketRef.current.off('disconnect');
-      socketRef.current.off('connect_error');
-      socketRef.current.off('order-updated-from-server', handleOrderUpdate);
-      socketRef.current.off('sale-finalized-from-server', handleSaleFinalized);
-      socketRef.current.off('print-order-ticket-from-server', handlePrintOrderTicket);
-      socketRef.current.off('print-sale-receipt-from-server', handlePrintSaleReceipt);
-      socketRef.current.off('share-your-state', handleShareYourState);
-      socketRef.current.off('request-initial-state', handleRequestInitialState);
-      socketRef.current.disconnect();
-      socketRef.current = null;
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
+      socket.off('order-updated-from-server', handleOrderUpdate);
+      socket.off('sale-finalized-from-server', handleSaleFinalized);
+      socket.off('print-order-ticket-from-server', handlePrintOrderTicket);
     };
-
   }, []);
 
   useEffect(() => {
-    if (startupEffectRan.current === true) { return; }
-    
     const bootstrap = async () => {
-        setIsLoading(true);
-        await db.initDB();
+        setIsLoading(true); await db.initDB();
         const savedTablesJSON = localStorage.getItem('activeTables');
+        const savedTablesCount = parseInt(localStorage.getItem('tableCount') || '100', 10);
         if (savedTablesJSON) {
-            try {
-                const loadedTables = JSON.parse(savedTablesJSON);
-                setTables(loadedTables);
-            } catch (e) {
-                const savedTablesCount = parseInt(localStorage.getItem('tableCount') || '100', 10);
-                setTableCount(savedTablesCount);
-            }
-        } else {
-            const savedTablesCount = parseInt(localStorage.getItem('tableCount') || '100', 10);
-            setTableCount(savedTablesCount);
-        }
+            const loadedTables = JSON.parse(savedTablesJSON);
+            if (loadedTables.length !== savedTablesCount) { setTableCount(savedTablesCount); } else { setTables(loadedTables); }
+        } else { setTableCount(savedTablesCount); }
         setTablesPerRowState(parseInt(localStorage.getItem('tablesPerRow') || '10', 10));
         setTableSizePercentState(parseInt(localStorage.getItem('tableSizePercent') || '100', 10));
         setTableButtonSizePercentState(parseInt(localStorage.getItem('tableButtonSizePercent') || '100', 10));
         if (isBackendConfigured && navigator.onLine) {
             await syncOfflineData();
-            await fetchAndCacheData();
+            await fetchAndCacheData(); 
         } else {
             await loadDataFromDb();
         }
         setIsLoading(false);
     };
-
-    const loadData = async () => {
-      try {
-        // Load tables from localStorage first for instant UI
-        const savedTables = localStorage.getItem('activeTables');
-        let currentTables: Table[] = [];
-        
-        if (savedTables) {
-          const parsedTables = JSON.parse(savedTables);
-          currentTables = parsedTables;
-        }
-
-        // Then try to load from server
-        const { users, menuItems, menuCategories, taxRate } = await api.bootstrap();
-        
-        // Update users, menu items, categories, and tax rate
-        setUsers(users);
-        setMenuItems(menuItems);
-        setMenuCategories(menuCategories);
-        setTaxRate(taxRate);
-        
-        // If we're the master and have tables, ensure they're synced to the server
-        if (isMasterClient.current && currentTables.length > 0 && socketRef.current?.connected) {
-          socketRef.current.emit('order-update', currentTables);
-        }
-        
-      } catch (error) {
-        console.error('Error loading data:', error);
-        
-        // If we're offline and have no tables in localStorage, create default tables
-        const savedTables = localStorage.getItem('activeTables');
-        if (!savedTables) {
-          const defaultTables = Array.from({ length: 4 }, (_, i) => ({
-            id: i + 1,
-            name: `Tavolina ${i + 1}`,
-            order: null,
-          }));
-          setTables(defaultTables);
-          localStorage.setItem('activeTables', JSON.stringify(defaultTables));
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     bootstrap();
-    startupEffectRan.current = true;
     const handleOnline = () => { setIsOnline(true); syncOfflineData(); };
     const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline); 
-    window.addEventListener('offline', handleOffline);
-    return () => { 
-      window.removeEventListener('online', handleOnline); 
-      window.removeEventListener('offline', handleOffline); 
-    };
+    window.addEventListener('online', handleOnline); window.addEventListener('offline', handleOffline);
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
   }, [setTableCount, syncOfflineData, loadDataFromDb, fetchAndCacheData]);
 
   const value = useMemo(() => ({
@@ -451,7 +385,8 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deleteMenuItem, importMenuItemsFromCSV, reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory,
     updateMenuCategory, deleteMenuCategory, reorderMenuCategories, addSale, setTableCount, updateOrderForTable,
     setTablesPerRow, setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
-    refreshSalesFromServer,
+    // --- ADDED MISSING FUNCTION EXPORT HERE ---
+    refreshSalesFromServer 
   }), [
     isLoading, isOnline, isSyncing, loggedInUser, users, menuItems, menuCategories, sales, saleToPrint,
     orderToPrint, tables, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate, history,
@@ -459,10 +394,10 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory, updateMenuCategory, deleteMenuCategory,
     reorderMenuCategories, addSale, setTableCount, updateOrderForTable, setTablesPerRow,
     setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
-    refreshSalesFromServer,
+    refreshSalesFromServer // <--- AND HERE
   ]);
 
-  return <PosContext.Provider value={value}>{children}</PosContext.Provider>; // <-- JSX TAG FIXED
+  return <PosContext.Provider value={value}>{children}</PosContext.Provider>;
 };
 
 export const usePos = (): PosContextState => {
