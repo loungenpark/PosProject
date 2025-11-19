@@ -55,13 +55,19 @@ Vere 0187 L,3,PIJET ALKOHOLIKE,Shank
 Vere 075 L,12,PIJET ALKOHOLIKE,Shank
 Vere 075 L Exclusive,18,PIJET ALKOHOLIKE,Shank
 Raki e shpise,0.5,PIJET ALKOHOLIKE,Shank
-Akullore 1K,0.8,AKULLORE,Shank
-Akullore 2K,1.5,AKULLORE,Shank
-Akullore 3K,2.3,AKULLORE,Shank
-Akullore 4K,3,AKULLORE,Shank
+----------------,0,AKULLORE,Shank
+Chocolate,0.8,AKULLORE,Shank
+Karamel,0.8,AKULLORE,Shank
+Vanilla,0.8,AKULLORE,Shank
+Fruta Mali,0.8,AKULLORE,Shank
+Dredhez,0.8,AKULLORE,Shank
+Pjeper,0.8,AKULLORE,Shank
+Straqatell,0.8,AKULLORE,Shank
+Banane,0.8,AKULLORE,Shank
 Hamburger,2,FAST FOOD,Kuzhina
 Hamburger me Veze,2.5,FAST FOOD,Kuzhina
 King Burger,3,FAST FOOD,Kuzhina
+Sanduich Pule,2.5,FAST FOOD,Kuzhina
 Pomfrit ,2,FAST FOOD,Kuzhina
 Pomfrit me Djath,2.5,FAST FOOD,Kuzhina
 Qofte Tradicionale 5she,2.5,FAST FOOD,Kuzhina

@@ -74,10 +74,20 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         db.getAll<User>('users'), db.getAll<MenuItem>('menuItems'), db.getAll<MenuCategory>('menuCategories'),
         db.getAll<Sale>('sales'), db.getAll<HistoryEntry>('history'),
     ]);
-    setUsers(dbUsers); setMenuItems(dbMenuItems); setMenuCategories(dbMenuCategories);
+    setUsers(dbUsers); 
+    // Sort menu items by display_order (null values go to end)
+    const sortedDbMenuItems = [...dbMenuItems].sort((a, b) => {
+      if (a.display_order === null && b.display_order === null) return 0;
+      if (a.display_order === null) return 1;
+      if (b.display_order === null) return -1;
+      return a.display_order - b.display_order;
+    });
+    setMenuItems(sortedDbMenuItems); 
+    setMenuCategories(dbMenuCategories);
     setSales(dbSales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setHistory(dbHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
   }, []);
+
   // from here - this is where we start the new logic
 
   // ✅ PASTE THIS NEW BLOCK ✅
@@ -145,7 +155,15 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           // 5. Update React State
           setUsers(serverUsers); 
-          setMenuItems(serverItems); 
+          // Sort menu items by display_order (null values go to end)
+          const sortedServerItems = [...serverItems].sort((a, b) => {
+            if (a.display_order === null && b.display_order === null) return 0;
+            if (a.display_order === null) return 1;
+            if (b.display_order === null) return -1;
+            return a.display_order - b.display_order;
+          });
+          
+          setMenuItems(sortedServerItems); 
           setMenuCategories(serverCats);
           setTaxRateState(typeof taxRate === 'number' && isFinite(taxRate) ? taxRate : 0);
           setSales(salesData.map(s => ({...s, date: new Date(s.date)})));
@@ -293,7 +311,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addMenuCategory = useCallback(async (name: string) => {
     try {
       const tempId = Date.now();
-      const newCat: MenuCategory = { id: tempId, name };
+      const newCat: MenuCategory = { id: tempId, name, display_order: null };
       
       setMenuCategories(prev => [...prev, newCat]);
       await db.put(newCat, 'menuCategories');
@@ -326,9 +344,36 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const reorderMenuItems = useCallback(async (items: MenuItem[]) => {
-    setMenuItems(items);
-    await db.bulkPut(items, 'menuItems');
-  }, []);
+    // Sort items by display_order before setting
+    const sortedItems = [...items].sort((a, b) => {
+      if (a.display_order === null && b.display_order === null) return 0;
+      if (a.display_order === null) return 1;
+      if (b.display_order === null) return -1;
+      return a.display_order - b.display_order;
+    });
+    setMenuItems(sortedItems);
+    await db.bulkPut(sortedItems, 'menuItems');
+    
+    // Also sync with server if online
+    if (isOnline && isBackendConfigured) {
+      const orderedIds = sortedItems
+        .filter(item => item.display_order !== null)
+        .sort((a, b) => a.display_order! - b.display_order!)
+        .map(item => item.id);
+      
+      if (orderedIds.length > 0) {
+        try {
+          await fetch(`${SOCKET_URL}/api/menu-items/reorder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderedIds })
+          });
+        } catch (error) {
+          console.error('Failed to sync reorder with server:', error);
+        }
+      }
+    }
+  }, [isOnline, isBackendConfigured]);
 
   const refreshSalesFromServer = useCallback(async () => {
     try {
@@ -402,8 +447,162 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setTablesPerRow = useCallback((count: number) => { localStorage.setItem('tablesPerRow', count.toString()); setTablesPerRowState(count); }, []);
   const setTableSizePercent = useCallback((size: number) => { localStorage.setItem('tableSizePercent', size.toString()); setTableSizePercentState(size); }, []);
   const setTableButtonSizePercent = useCallback((size: number) => { localStorage.setItem('tableButtonSizePercent', size.toString()); setTableButtonSizePercentState(size); }, []);
-  const importMenuItemsFromCSV = useCallback((file: File) => new Promise<any>((res, rej) => {}), [addMenuCategory, addMenuItem, fetchAndCacheData]);
-  const reorderMenuItemsFromCSV = useCallback(async (file: File) => { throw new Error(); }, [fetchAndCacheData]);
+  const importMenuItemsFromCSV = useCallback(async (file: File) => {
+    const text = await file.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      throw new Error('Skedari CSV është bosh ose i pavlefshëm');
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    const expectedHeaders = ['Name', 'Price', 'Category', 'Printer'];
+    
+    // Check if required headers exist
+    for (const header of expectedHeaders) {
+      if (!headers.includes(header)) {
+        throw new Error(`Kolona e nevojshme "${header}" mungon në CSV`);
+      }
+    }
+
+    let itemsAdded = 0;
+    let categoriesAdded = 0;
+    let itemsSkipped = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const item: any = {};
+      
+      headers.forEach((header, index) => {
+        item[header] = values[index] || '';
+      });
+
+      // Validate required fields
+      if (!item.Name || !item.Price || !item.Category) {
+        itemsSkipped++;
+        continue;
+      }
+
+      // Parse price
+      const price = parseFloat(item.Price);
+      if (isNaN(price) || price < 0) {
+        itemsSkipped++;
+        continue;
+      }
+
+      // Check if item already exists
+      const existingItem = menuItems.find(mi => mi.name.toLowerCase() === item.Name.toLowerCase());
+      if (existingItem) {
+        itemsSkipped++;
+        continue;
+      }
+
+      // Find or create category
+      let category = menuCategories.find(cat => cat.name.toLowerCase() === item.Category.toLowerCase());
+      if (!category) {
+        await addMenuCategory(item.Category);
+        await fetchAndCacheData(); // Refresh categories
+        category = menuCategories.find(cat => cat.name.toLowerCase() === item.Category.toLowerCase());
+        if (!category) {
+          itemsSkipped++;
+          continue;
+        }
+        categoriesAdded++;
+      }
+
+      // Add the menu item
+      await addMenuItem({
+        name: item.Name,
+        price: price,
+        category: category.name,
+        printer: item.Printer || 'kitchen',
+        stock: 0,
+        stockThreshold: 10,
+        trackStock: false,
+        display_order: null
+      });
+      
+      itemsAdded++;
+    }
+
+    await fetchAndCacheData(); // Refresh menu items
+    
+    return {
+      itemsAdded,
+      categoriesAdded,
+      itemsSkipped
+    };
+  }, [addMenuCategory, addMenuItem, fetchAndCacheData, menuItems, menuCategories]);
+  const reorderMenuItemsFromCSV = useCallback(async (file: File) => {
+    const text = await file.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      throw new Error('Skedari CSV është bosh ose i pavlefshëm');
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    
+    // Check if Name header exists
+    if (!headers.includes('Name')) {
+      throw new Error('Kolona "Name" është e nevojshme në CSV');
+    }
+
+    let reorderedCount = 0;
+    let notFoundCount = 0;
+    const reorderedItems: MenuItem[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const itemName = values[headers.indexOf('Name')];
+      
+      if (!itemName) {
+        notFoundCount++;
+        continue;
+      }
+
+      // Find the existing menu item
+      const existingItem = menuItems.find(mi => mi.name.toLowerCase() === itemName.toLowerCase());
+      if (existingItem) {
+        // Update display_order based on CSV row position
+        const updatedItem = {
+          ...existingItem,
+          display_order: i - 1 // Start from 0
+        };
+        reorderedItems.push(updatedItem);
+        reorderedCount++;
+      } else {
+        notFoundCount++;
+      }
+    }
+
+    // Update items that weren't in the CSV to have no display order
+    const updatedItems = menuItems.map(item => {
+      const reorderedItem = reorderedItems.find(ri => ri.id === item.id);
+      if (reorderedItem) {
+        return reorderedItem;
+      }
+      // Keep items not in CSV with their current order or null
+      return item;
+    });
+
+    // Sort by display_order (null values go to end)
+    const sortedItems = [...updatedItems].sort((a, b) => {
+      if (a.display_order === null && b.display_order === null) return 0;
+      if (a.display_order === null) return 1;
+      if (b.display_order === null) return -1;
+      return a.display_order - b.display_order;
+    });
+
+    await reorderMenuItems(sortedItems);
+    await fetchAndCacheData();
+    
+    return {
+      success: true,
+      reorderedCount,
+      notFoundCount
+    };
+  }, [fetchAndCacheData, menuItems, reorderMenuItems]);
 
   useEffect(() => {
     tablesRef.current = tables;
