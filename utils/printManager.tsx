@@ -12,6 +12,13 @@ import { Sale, Table, OrderItem, User } from '../types';
  */
 export const printSaleReceipt = (sale: Sale): void => {
   const isPrintStation = localStorage.getItem('isPrintStation') === 'true';
+  const isReceiptPrintingEnabled = localStorage.getItem('isReceiptPrintingEnabled') !== 'false';
+  
+  if (!isReceiptPrintingEnabled) {
+    console.log('--- PrintManager: Receipt printing is disabled in settings ---');
+    return;
+  }
+  
   if (isPrintStation) {
     console.log('--- PrintManager: Printing sale receipt directly ---', sale);
     printComponent(<Receipt sale={sale} />);
@@ -21,13 +28,20 @@ export const printSaleReceipt = (sale: Sale): void => {
 };
 
 /**
- * ✅ Handles printing an order ticket for the kitchen/bar.
+ * Handles printing an order ticket for the kitchen/bar.
  * @param table The table the order is for.
  * @param newItems The new items to be printed on the ticket.
  * @param user The user who placed the order.
  */
 export const printOrderTicket = (table: Table, newItems: OrderItem[], user: User | null): void => {
   const isPrintStation = localStorage.getItem('isPrintStation') === 'true';
+  const isOrderTicketPrintingEnabled = localStorage.getItem('isOrderTicketPrintingEnabled') !== 'false';
+  
+  if (!isOrderTicketPrintingEnabled) {
+    console.log('--- PrintManager: Order ticket printing is disabled in settings ---');
+    return;
+  }
+  
   if (isPrintStation && newItems.length > 0) {
     console.log('--- PrintManager: Printing order ticket directly ---', { table, newItems });
     printComponent(<OrderTicket table={table} newItems={newItems} user={user} />);

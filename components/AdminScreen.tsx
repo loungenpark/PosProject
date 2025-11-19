@@ -905,8 +905,9 @@ const TableSettings: React.FC = ({}) => {
 
 // --- DeviceSettings Component ---
 const DeviceSettings: React.FC = ({}) => {
-    // ... (This component is unchanged)
     const [isPrintStation, setIsPrintStation] = useState(localStorage.getItem('isPrintStation') === 'true');
+    const [isOrderTicketPrintingEnabled, setIsOrderTicketPrintingEnabled] = useState(localStorage.getItem('isOrderTicketPrintingEnabled') !== 'false');
+    const [isReceiptPrintingEnabled, setIsReceiptPrintingEnabled] = useState(localStorage.getItem('isReceiptPrintingEnabled') !== 'false');
 
     const handleSetPrintStation = () => {
         localStorage.setItem('isPrintStation', 'true');
@@ -919,11 +920,24 @@ const DeviceSettings: React.FC = ({}) => {
         setIsPrintStation(false);
         alert('Kjo pajisje nuk është më stacioni i printimit.');
     };
+
+    const toggleOrderTicketPrinting = (enabled: boolean) => {
+        localStorage.setItem('isOrderTicketPrintingEnabled', String(enabled));
+        setIsOrderTicketPrintingEnabled(enabled);
+        alert(`Printimi i urdhrave është ${enabled ? 'aktivizuar' : 'çaktivizuar'}.`);
+    };
+    
+    const toggleReceiptPrinting = (enabled: boolean) => {
+        localStorage.setItem('isReceiptPrintingEnabled', String(enabled));
+        setIsReceiptPrintingEnabled(enabled);
+        alert(`Printimi i faturës është ${enabled ? 'aktivizuar' : 'çaktivizuar'}.`);
+    };
     
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
             <h3 className="text-xl font-semibold mb-4 text-text-main">Cilësimet e Pajisjes</h3>
             <div className="space-y-6 bg-primary p-6 rounded-lg">
+                {/* Print Station Setting */}
                 <div>
                     <p className="text-text-secondary mb-4">
                         Caktoni këtë pajisje (kompjuterin tuaj) si stacionin kryesor për printimin e faturave. 
@@ -931,7 +945,7 @@ const DeviceSettings: React.FC = ({}) => {
                         pavarësisht se nga cila pajisje është bërë shitja.
                     </p>
                 </div>
-                 <div className="flex justify-center pt-2">
+                <div className="flex justify-center pt-2">
                     {isPrintStation ? (
                         <div className="text-center">
                             <p className="text-green-400 font-bold mb-4">✅ Kjo pajisje është stacioni i printimit.</p>
@@ -950,7 +964,81 @@ const DeviceSettings: React.FC = ({}) => {
                             Cakto si Stacion Printimi
                         </button>
                     )}
-                 </div>
+                </div>
+                
+                {/* Order Ticket Printing Setting */}
+                <div className="pt-6 mt-6 border-t border-accent">
+                    <h4 className="text-lg font-semibold text-text-main mb-2">Printimi i Urdhrave</h4>
+                    <p className="text-text-secondary mb-4">
+                        Aktivizoni ose çaktivizoni printimin e urdhrave për kuzhinë/bar.
+                    </p>
+                    <div className="flex items-center justify-between pt-2">
+                        <span className="text-text-main font-medium">
+                            {isOrderTicketPrintingEnabled ? '✅ Printimi i urdhrave është aktivizuar' : '❌ Printimi i urdhrave është çaktivizuar'}
+                        </span>
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={() => toggleOrderTicketPrinting(true)}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                                    isOrderTicketPrintingEnabled 
+                                        ? 'bg-green-600 text-white' 
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                                disabled={isOrderTicketPrintingEnabled}
+                            >
+                                Aktivizo
+                            </button>
+                            <button
+                                onClick={() => toggleOrderTicketPrinting(false)}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                                    !isOrderTicketPrintingEnabled 
+                                        ? 'bg-red-600 text-white' 
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                                disabled={!isOrderTicketPrintingEnabled}
+                            >
+                                Çaktivizo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Receipt Printing Setting */}
+                <div className="pt-6 mt-6 border-t border-accent">
+                    <h4 className="text-lg font-semibold text-text-main mb-2">Printimi i Faturave</h4>
+                    <p className="text-text-secondary mb-4">
+                        Aktivizoni ose çaktivizoni printimin e faturave pas përfundimit të shitjes.
+                    </p>
+                    <div className="flex items-center justify-between pt-2">
+                        <span className="text-text-main font-medium">
+                            {isReceiptPrintingEnabled ? '✅ Printimi i faturave është aktivizuar' : '❌ Printimi i faturave është çaktivizuar'}
+                        </span>
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={() => toggleReceiptPrinting(true)}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                                    isReceiptPrintingEnabled 
+                                        ? 'bg-green-600 text-white' 
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                                disabled={isReceiptPrintingEnabled}
+                            >
+                                Aktivizo
+                            </button>
+                            <button
+                                onClick={() => toggleReceiptPrinting(false)}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                                    !isReceiptPrintingEnabled 
+                                        ? 'bg-red-600 text-white' 
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                                disabled={!isReceiptPrintingEnabled}
+                            >
+                                Çaktivizo
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
