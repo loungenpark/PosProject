@@ -78,20 +78,88 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSales(dbSales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setHistory(dbHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
   }, []);
-  
+  // from here - this is where we start the new logic
+
+  // ✅ PASTE THIS NEW BLOCK ✅
   const fetchAndCacheData = useCallback(async () => {
-    if (!isBackendConfigured) return;
-    try {
-        const { users, menuItems, menuCategories, taxRate } = await api.bootstrap();
-        await db.clearStaticData();
-        await Promise.all([
-          db.bulkPut(users, 'users'), db.bulkPut(menuItems, 'menuItems'), db.bulkPut(menuCategories, 'menuCategories')
-        ]);
-        setUsers(users); setMenuItems(menuItems); setMenuCategories(menuCategories);
-        setTaxRateState(typeof taxRate === 'number' && isFinite(taxRate) ? taxRate : 0);
-        setIsOnline(true);
-    } catch (error) { console.error("--- SERVER FETCH FAILED ---", error); setIsOnline(false); await loadDataFromDb(); }
-  }, [loadDataFromDb]);
+      if (!isBackendConfigured) return;
+      try {
+          // 1. Get fresh data from server
+          let { users: serverUsers, menuItems: serverItems, menuCategories: serverCats, taxRate } = await api.bootstrap();
+          const salesData = await api.getSales();
+          const historyData = await api.getHistory();
+
+          // 2. Get pending local changes (Sync Queue)
+          const queue = await db.getSyncQueue();
+
+          // 3. Apply local overrides (Merge Queue into Server Data)
+          if (queue.length > 0) {
+            queue.forEach(action => {
+              // Generate a temp ID for display purposes if needed
+              const tempId = Date.now() + Math.floor(Math.random() * 1000);
+              
+              switch (action.type) {
+                // --- DELETES (Remove from server list) ---
+                case 'DELETE_USER':
+                  serverUsers = serverUsers.filter(u => u.id !== action.payload.userId);
+                  break;
+                case 'DELETE_MENU_ITEM':
+                  serverItems = serverItems.filter(i => i.id !== action.payload.id);
+                  break;
+                case 'DELETE_MENU_CATEGORY':
+                  serverCats = serverCats.filter(c => c.id !== action.payload.id);
+                  break;
+
+                // --- ADDS (Append to server list so they don't vanish) ---
+                case 'ADD_USER':
+                  // Check if not already in list to avoid duplicates
+                  if (!serverUsers.some(u => u.pin === action.payload.pin)) {
+                    serverUsers.push({ ...action.payload, id: tempId });
+                  }
+                  break;
+                case 'ADD_MENU_ITEM':
+                  serverItems.push({ ...action.payload, id: tempId });
+                  break;
+                case 'ADD_MENU_CATEGORY':
+                  serverCats.push({ ...action.payload, id: tempId });
+                  break;
+
+                // --- UPDATES ---
+                case 'UPDATE_MENU_ITEM':
+                  serverItems = serverItems.map(i => i.id === action.payload.id ? { ...i, ...action.payload } : i);
+                  break;
+                case 'SET_TAX_RATE':
+                  taxRate = action.payload.rate;
+                  break;
+              }
+            });
+          }
+
+          // 4. Save to Local Database
+          await db.clearStaticData();
+          await Promise.all([
+            db.bulkPut(serverUsers, 'users'), 
+            db.bulkPut(serverItems, 'menuItems'), 
+            db.bulkPut(serverCats, 'menuCategories')
+          ]);
+
+          // 5. Update React State
+          setUsers(serverUsers); 
+          setMenuItems(serverItems); 
+          setMenuCategories(serverCats);
+          setTaxRateState(typeof taxRate === 'number' && isFinite(taxRate) ? taxRate : 0);
+          setSales(salesData.map(s => ({...s, date: new Date(s.date)})));
+          setHistory(historyData.map(h => ({...h, timestamp: new Date(h.timestamp)})));
+          
+          setIsOnline(true);
+      } catch (error) { 
+          console.error("--- SERVER FETCH FAILED ---", error); 
+          setIsOnline(false); 
+          await loadDataFromDb(); 
+      }
+    }, [loadDataFromDb]);
+
+  // to here - this is where we end the new logic
 
   const syncOfflineData = useCallback(async () => {
     if (syncInProgress.current || !isBackendConfigured) return;
@@ -469,8 +537,10 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTableSizePercentState(parseInt(localStorage.getItem('tableSizePercent') || '100', 10));
         setTableButtonSizePercentState(parseInt(localStorage.getItem('tableButtonSizePercent') || '100', 10));
         if (isBackendConfigured && navigator.onLine) {
+            // 1. Fetch and Merge first (Guarantees UI is correct based on Queue)
+            await fetchAndCacheData();            
+            // 2. Then Sync in background (Pushes changes to server)
             await syncOfflineData();
-            await fetchAndCacheData();
         } else {
             await loadDataFromDb();
         }

@@ -7,7 +7,7 @@ npm run serve:all
 
 npm run build
 npm start
-
+npm run electron:dev
 ./psql -U postgres -d posproject
 
 

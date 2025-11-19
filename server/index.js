@@ -16,6 +16,28 @@ const __dirname_index = path.dirname(__filename_index);
 const projectRoot = path.join(__dirname_index, '..');
 dotenv.config({ path: path.join(projectRoot, '.env.local') });
 
+// --- ADD THIS BLOCK TO UPDATE DATABASE SCHEMA AUTOMATICALLY ---
+(async () => {
+  try {
+    // Check if 'active' column exists, if not, add it
+    await query(`
+      DO $$
+      BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='active') THEN
+              ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT TRUE;
+          END IF;
+      END
+      $$;
+    `);
+    console.log('✅ Database schema checked: "active" column exists for users.');
+  } catch (e) {
+    console.error('⚠️ Database schema update warning:', e.message);
+  }
+})();
+
+
+
+
 const app = express();
 const port = process.env.PORT || 3001;
 const host = '0.0.0.0';
@@ -176,7 +198,8 @@ io.on('connection', (socket) => {
 app.post('/api/login', asyncHandler(async (req, res) => {
   const { pin } = req.body;
   try {
-    const { rows } = await query('SELECT * FROM users WHERE pin = $1', [pin]);
+    // CHANGED: Added "AND active = TRUE"
+    const { rows } = await query('SELECT * FROM users WHERE pin = $1 AND active = TRUE', [pin]);
     if (rows.length > 0) {
       res.json({ user: rows[0] });
     } else {
@@ -186,11 +209,11 @@ app.post('/api/login', asyncHandler(async (req, res) => {
     console.error('!!! DATABASE QUERY FAILED !!!', error);
     res.status(500).json({ message: 'Database query failed.' });
   }
-}));
+})); 
 
 app.get('/api/bootstrap', asyncHandler(async (req, res) => {
   const [users, menuItems, menuCategories, settings] = await Promise.all([
-    query('SELECT * FROM users ORDER BY username ASC'),
+    query('SELECT * FROM users WHERE active = TRUE ORDER BY username ASC'),
     query('SELECT *, category_name as category, stock_threshold as "stockThreshold", track_stock as "trackStock" FROM menu_items ORDER BY display_order ASC, name ASC'),
     query('SELECT * FROM menu_categories ORDER BY display_order ASC, name ASC'),
     query("SELECT value FROM settings WHERE key = 'taxRate'")
@@ -287,7 +310,7 @@ app.post('/api/users', asyncHandler(async (req, res) => {
 
 app.delete('/api/users/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
-    await query('DELETE FROM users WHERE id = $1', [id]);
+    await query('UPDATE users SET active = FALSE WHERE id = $1', [id]);
     res.json({ success: true });
 }));
 

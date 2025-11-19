@@ -137,3 +137,12 @@ export const getSyncQueue = (): Promise<SyncQueueItem[]> => {
 export const removeFromSyncQueue = (id: number): Promise<void> => {
     return remove(id, 'syncQueue');
 };
+
+
+
+// --- Add this to the bottom of src/utils/db.ts ---
+
+// This makes "deleteItem" work by calling your existing "remove" function
+export const deleteItem = (id: number | string, storeName: string): Promise<void> => {
+    return remove(id, storeName as keyof typeof STORES);
+};
