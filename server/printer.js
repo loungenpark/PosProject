@@ -1,3 +1,5 @@
+// FILE: server/printer.js
+
 import { ThermalPrinter, PrinterTypes, CharacterSet } from 'node-thermal-printer';
 
 // 1. Configure Printer
@@ -10,7 +12,9 @@ const printer = new ThermalPrinter({
   options: { timeout: 5000 }
 });
 
-// 2. KITCHEN TICKET (Unchanged)
+// ==========================================
+// 2. KITCHEN TICKET (The Kitchen Order)
+// ==========================================
 export const printOrderTicket = async (orderData) => {
   try {
     const isConnected = await printer.isPrinterConnected();
@@ -40,7 +44,7 @@ export const printOrderTicket = async (orderData) => {
     ]);
     printer.println("--------------------------------");
 
-    // ITEMS (Separated)
+    // ITEMS LOOP (One by one)
     let totalSum = 0;
     if (orderData.items) {
       orderData.items.forEach(item => {
@@ -75,7 +79,9 @@ export const printOrderTicket = async (orderData) => {
   }
 };
 
-// 3. CUSTOMER RECEIPT (Updated: Separated Items)
+// ==========================================
+// 3. CUSTOMER RECEIPT (The Final Bill)
+// ==========================================
 export const printSaleReceipt = async (saleData) => {
   try {
     const isConnected = await printer.isPrinterConnected();
@@ -84,17 +90,26 @@ export const printSaleReceipt = async (saleData) => {
 
     // HEADER
     printer.alignCenter();
-    printer.setTextSize(1, 1); // Huge Title
+    printer.setTextSize(1, 1); 
     printer.println("Fatura");
     printer.setTextSize(0, 0); 
     printer.println("--------------------------------");
 
-    // INFO
+    // --- INFO SECTION (MATCHES KITCHEN TICKET) ---
     printer.alignLeft();
-    printer.println(`Order #: ${saleData.id.substring(0, 8)}`);
-    printer.println(`Date: ${new Date(saleData.date).toLocaleString()}`);
-    printer.println(`Server: ${saleData.user?.username || 'Staff'}`);
+
+    // 1. Table
+    printer.println(`Tavolina: ${saleData.tableName || '?'}`);
+
+    // 2. User
+    printer.println(`User: ${saleData.user?.username || 'Staff'}`);
+    
+    // 3. Date
+    const dateObj = new Date(saleData.date);
+    printer.println(`${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`);
+    
     printer.println("--------------------------------");
+    // --------------------------------------------
 
     // COLUMNS
     printer.tableCustom([
@@ -103,13 +118,12 @@ export const printSaleReceipt = async (saleData) => {
     ]);
     printer.println("--------------------------------");
 
-    // ITEMS LOOP (Now Separated like Kitchen Ticket)
+    // ITEMS LOOP (One by one)
     if (saleData.order && saleData.order.items) {
         saleData.order.items.forEach(item => {
           const qty = item.quantity || 1;
-          const price = Number(item.price) || 0; // Unit Price
+          const price = Number(item.price) || 0; 
 
-          // Loop through quantity to print separate lines
           for (let i = 0; i < qty; i++) {
              printer.tableCustom([
                { text: item.name, align: "LEFT", width: 0.60 },
@@ -123,7 +137,7 @@ export const printSaleReceipt = async (saleData) => {
 
     // TOTAL
     printer.alignRight();
-    printer.setTextSize(0, 1); // Double Height
+    printer.setTextSize(0, 1); 
     printer.bold(true);
     
     const totalVal = Number(saleData.order?.total) || 0;
@@ -132,11 +146,11 @@ export const printSaleReceipt = async (saleData) => {
     printer.setTextSize(0, 0); 
     printer.bold(false);
 
-    // FOOTER (Albanian)
+    // FOOTER
     printer.println("--------------------------------");
     printer.alignCenter();
-    printer.println("Faleminderit për vizitën!");
-    printer.println("Ju lutemi, na vizitoni përsëri.");
+    printer.println("Faleminderit per viziten!");
+    printer.println("Ju lutemi, na vizitoni perseri.");
     
     printer.cut();
     await printer.execute();
