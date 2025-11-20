@@ -1,151 +1,72 @@
-// C:\Users\loung\PosProject\utils\print.ts
-// --- ENHANCED WITH DEBUG LOGGING ---
+// server/printer.js - PARTIAL UPDATE (Replace printOrderTicket)
 
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-
-// Enhanced Electron detection with multiple fallbacks and debugging
-const isElectron = (): boolean => {
+export const printOrderTicket = async (orderData) => {
   try {
-    // Check for Electron in multiple ways
-    const userAgent = navigator.userAgent.toLowerCase();
-    const isElectronApp = Boolean(
-      // Method 1: Check for Electron's process.versions
-      (window as any).process?.versions?.electron || 
-      // Method 2: Check for Electron's userAgent
-      userAgent.includes(' electron/') ||
-      // Method 3: Check for Electron's context
-      (window as any).electron !== undefined ||
-      // Method 4: Check for Electron's process type
-      (window as any).process?.type === 'renderer' ||
-      // Method 5: Check for Electron's require
-      (window as any).require?.('electron')
-    );
-
-    // Debug information
-    console.log('[PRINT] Electron environment check:', {
-      isElectron: isElectronApp,
-      hasElectronObject: !!(window as any).electron,
-      userAgent: userAgent,
-      processExists: !!(window as any).process,
-      processType: (window as any).process?.type,
-      processVersions: (window as any).process?.versions,
-      canRequireElectron: !!(window as any).require?.('electron'),
-      // Additional debug info
-      electronKeys: (window as any).electron ? Object.keys((window as any).electron) : 'N/A',
-      windowKeys: Object.keys(window).filter(k => k.toLowerCase().includes('electron') || k === 'process')
-    });
-
-    return isElectronApp;
-  } catch (error) {
-    console.error('[PRINT] Error checking Electron environment:', error);
-    return false;
-  }
-};
-
-/**
- * Prints a React component, with silent printing in Electron
- * Falls back to browser printing if not in Electron
- */
-export const printComponent = async (component: React.ReactElement): Promise<void> => {
-  console.log('[PRINT] Starting print process...');
-  
-  // Log window object for debugging
-  console.log('[PRINT] Window object:', {
-    electron: (window as any).electron,
-    process: (window as any).process ? 'exists' : 'does not exist',
-    require: !!(window as any).require
-  });
-
-  // Check for Electron environment
-  const electronPrint = isElectron() && (window as any).electron;
-  console.log('[PRINT] Using Electron for printing:', !!electronPrint);
-  
-  // Create a temporary container for the component
-  const tempContainer = document.createElement('div');
-  tempContainer.style.position = 'fixed';
-  tempContainer.style.left = '-9999px';
-  document.body.appendChild(tempContainer);
-  
-  // Render the component to the temporary container
-  console.log('[PRINT] Rendering component...');
-  const root = createRoot(tempContainer);
-  root.render(component);
-  
-  try {
-    // Wait for the component to render
-    await new Promise(resolve => setTimeout(resolve, 100));
+    const isConnected = await printer.isPrinterConnected();
     
-    // Get the HTML content
-    const content = tempContainer.innerHTML;
-    console.log(`[PRINT] Rendered content length: ${content.length} characters`);
+    printer.clear();
+    printer.bold(true); // Global Bold
+
+    // --- HEADER ---
+    printer.alignCenter();
+    printer.setTextSize(1, 1); // Title (Huge)
+    printer.println("Porosia");
+    printer.setTextSize(0, 0); // Reset
+    printer.println("--------------------------------");
+
+    // --- METADATA ---
+    printer.alignLeft();
+    printer.println(`Tavolina: ${orderData.tableName}`);
+    printer.println(`User: ${orderData.user?.username || 'Staff'}`);
     
-    if (electronPrint) {
-      console.log('[PRINT] Attempting Electron silent print...');
-      try {
-        console.log('[PRINT] Sending to Electron main process...');
-        const result = await (window as any).electron.printReceipt(content);
-        console.log('[PRINT] Electron print successful:', result);
-        return;
-      } catch (error) {
-        console.error('[PRINT] Electron print failed, falling back to browser:', error);
-      }
-    }
+    // Date & Time
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateString = now.toLocaleDateString();
+    printer.println(`${dateString} ${timeString}`);
+    printer.println("--------------------------------");
+
+    // --- COLUMNS HEADERS ---
+    // Widths reduced to 0.55 + 0.35 = 0.90 (Safe for POS58)
+    printer.tableCustom([
+      { text: "Artikulli", align: "LEFT", width: 0.55 }, 
+      { text: "Cmimi", align: "RIGHT", width: 0.35 }     
+    ]);
     
-    console.log('[PRINT] Using browser fallback printing...');
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      throw new Error('Please allow popups for printing');
+    printer.println("--------------------------------");
+
+    // --- ITEMS LOOP ---
+    let totalSum = 0;
+    if (orderData.items) {
+      orderData.items.forEach(item => {
+        const qty = item.quantity || 1;
+        const price = Number(item.price) || 0;
+
+        // Print items separately (Loop through quantity)
+        for (let i = 0; i < qty; i++) {
+          printer.tableCustom([
+            { text: item.name, align: "LEFT", width: 0.55 },
+            { text: price.toFixed(2), align: "RIGHT", width: 0.35 }
+          ]);
+          totalSum += price;
+        }
+      });
     }
 
-    console.log('[PRINT] Preparing print window...');
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Print</title>
-          <style>
-            @page {
-              size: 58mm auto;
-              margin: 0;
-            }
-            body {
-              margin: 0;
-              padding: 5px;
-              font-family: 'Courier New', monospace;
-              font-size: 10pt;
-              -webkit-print-color-adjust: exact;
-            }
-          </style>
-        </head>
-        <body>${content}</body>
-      </html>
-    `;
+    printer.println("--------------------------------");
 
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    console.log('[PRINT] Print window ready');
+    // --- GRAND TOTAL ---
+    printer.alignRight();       // Align Right
+    printer.setTextSize(0, 1);  // Double Height Only (Not Huge)
+    printer.println(`Total: ${totalSum.toFixed(2)} EUR`);
+    printer.setTextSize(0, 0);  // Reset
 
-    // Wait for content to load
-    await new Promise<void>((resolve) => {
-      printWindow.onload = () => {
-        console.log('[PRINT] Print window loaded, showing print dialog...');
-        printWindow.print();
-        printWindow.close();
-        resolve();
-      };
-    });
-    
+    // --- EXECUTE ---
+    printer.cut();
+    await printer.execute();
+    console.log("✅ Order Ticket Printed (Fixed Layout)");
+
   } catch (error) {
-    console.error('[PRINT] Print error:', error);
-    throw error;
-  } finally {
-    // Always clean up
-    console.log('[PRINT] Cleaning up...');
-    root.unmount();
-    document.body.removeChild(tempContainer);
-    console.log('[PRINT] Cleanup complete');
+    console.error("❌ Printer Error:", error);
   }
 };
-
-console.log('[PRINT] Print module initialized');

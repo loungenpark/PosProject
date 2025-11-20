@@ -1,4 +1,4 @@
-import { MenuItem, Order, Sale, User, UserRole, MenuCategory } from "./types";
+import { MenuItem, Order, Sale, User, UserRole, MenuCategory } from "../types";
 
 // --- ✅ START: MODIFIED API URL ✅ ---
 const API_URL = 'http://192.168.1.10:3001';

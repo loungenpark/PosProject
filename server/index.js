@@ -1,5 +1,3 @@
-// --- FINAL, CORRECTED SERVER CODE ---
-
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -11,15 +9,17 @@ import http from 'http';
 import { Server } from 'socket.io';
 import multer from 'multer';
 
+// --- 1. IMPORT PRINTER LIBRARY ---
+import { printOrderTicket, printSaleReceipt } from './printer.js';
+
 const __filename_index = fileURLToPath(import.meta.url);
 const __dirname_index = path.dirname(__filename_index);
 const projectRoot = path.join(__dirname_index, '..');
 dotenv.config({ path: path.join(projectRoot, '.env.local') });
 
-// --- ADD THIS BLOCK TO UPDATE DATABASE SCHEMA AUTOMATICALLY ---
+// --- DATABASE CHECK ---
 (async () => {
   try {
-    // Check if 'active' column exists, if not, add it
     await query(`
       DO $$
       BEGIN
@@ -35,11 +35,11 @@ dotenv.config({ path: path.join(projectRoot, '.env.local') });
   }
 })();
 
-
-
+// --- 2. CONFIGURE PRINTER ---
+// ⚠️ CHANGE 'interface' TO YOUR ACTUAL PRINTER PATH
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3001; // Keeps your Port 3001
 const host = '0.0.0.0';
 
 const allowedOrigins = [
@@ -51,8 +51,8 @@ const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+      // Allow dynamic local IPs for development convenience
+      return callback(null, true);
     }
     return callback(null, true);
   },
@@ -66,20 +66,17 @@ const upload = multer({ storage: multer.memoryStorage() });
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: "*", // simplified for local dev
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
-const distPath = path.join(projectRoot, 'dist');
-app.use(express.static(distPath));
+// const distPath = path.join(projectRoot, 'dist');
+// app.use(express.static(distPath));
 
 const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
-
-
-
 
 // Track the master client (PC)
 let masterClientId = null;
@@ -87,128 +84,100 @@ let masterClientId = null;
 io.on('connection', (socket) => {
   console.log(`✅ Real-time client connected: ${socket.id}`);
   
-  // When a client connects, check if it's the master (PC)
   socket.on('identify-as-master', () => {
     console.log(`Client ${socket.id} identified as master (PC)`);
     masterClientId = socket.id;
-    
-    // When master connects, request its state
     socket.emit('request-initial-state');
   });
   
-  // Only accept order updates from the master client
   socket.on('order-update', (updatedTablesData) => {
     if (socket.id === masterClientId) {
-      console.log('Received order update from master, broadcasting to all clients');
       socket.broadcast.emit('order-updated-from-server', updatedTablesData);
-    } else {
-      console.log('Ignoring order update from non-master client');
     }
   });
 
-  // Sales can be finalized from any device
   socket.on('sale-finalized', (newSaleData) => {
     socket.broadcast.emit('sale-finalized-from-server', newSaleData);
   });
 
-  // Printing events
-  socket.on('print-order-ticket', (orderData) => {
+  // --- 3. NEW PRINTING LOGIC ---
+  
+  // A. KITCHEN TICKET / ORDER TICKET
+  socket.on('print-order-ticket', async (orderData) => {
+    console.log(`🖨️ Printing Order Ticket for Table: ${orderData.tableName}`);
+    
+    // 1. Broadcast to other screens (optional, if needed)
     io.emit('print-order-ticket-from-server', orderData);
+
+    // 2. Call the new file
+    printOrderTicket(orderData);    
+
   });
   
-  socket.on('print-sale-receipt', (saleData) => {
+  // B. SALES RECEIPT
+  socket.on('print-sale-receipt', async (saleData) => {
+    console.log(`🖨️ Printing Receipt for Sale #${saleData.id}`);
+
+    // 1. Broadcast
     io.emit('print-sale-receipt-from-server', saleData);
+
+    // 2. Call the new file
+    printSaleReceipt(saleData);
   });
 
   socket.on('tax-rate-update', (newTaxRate) => {
     socket.broadcast.emit('tax-rate-updated-from-server', newTaxRate);
   });
 
-  // Handle state synchronization
   socket.on('request-latest-state', () => {
-    console.log(`Client ${socket.id} is requesting the latest state.`);
     if (masterClientId) {
-      // Only the master can provide the latest state
       socket.to(masterClientId).emit('share-your-state');
-    } else {
-      console.log('No master client connected to provide state');
     }
   });
 
-  // Handle state shared by the master client
   socket.on('here-is-my-state', (tablesData) => {
     if (socket.id === masterClientId) {
-      console.log('Received state from master, broadcasting to all clients');
       io.emit('order-updated-from-server', tablesData);
     }
   });
 
-  // Handle initial state request from master
   socket.on('provide-initial-state', (tablesData) => {
     if (socket.id === masterClientId) {
-      console.log('Received initial state from master, broadcasting to all clients');
       io.emit('order-updated-from-server', tablesData);
     }
   });
 
-  // Handle order updates from client devices
   socket.on('client-order-update', ({ tableId, order }) => {
-    console.log(`Received order update for table ${tableId} from client ${socket.id}`);
     if (masterClientId) {
-      // Forward to master for processing
-      console.log(`Forwarding update for table ${tableId} to master`);
       socket.to(masterClientId).emit('process-client-order-update', { 
         tableId, 
         order,
         clientId: socket.id 
       });
-    } else {
-      console.log('No master client connected to process the update');
     }
   });
 
-  // Handle processed order updates from master
   socket.on('process-client-order-update', ({ tableId, order }) => {
     if (socket.id === masterClientId) {
-      console.log(`Master processing order update for table ${tableId} from client`);
-      // The master will handle this update in its own client code
+      // Master handled it
     }
   });
 
   socket.on('disconnect', () => {
     console.log(`🔌 Real-time client disconnected: ${socket.id}`);
     if (socket.id === masterClientId) {
-      console.log('Master client disconnected, clearing master reference');
       masterClientId = null;
     }
   });
-
-
 });
 
 
-
-
-
-
-// --- Your REST API endpoints remain unchanged ---
-// (The rest of your file is correct and doesn't need to be pasted here again)
-// ... all your app.get, app.post, etc. endpoints ...
-
+// --- API ENDPOINTS (Unchanged) ---
 app.post('/api/login', asyncHandler(async (req, res) => {
   const { pin } = req.body;
-  try {
-    // CHANGED: Added "AND active = TRUE"
-    const { rows } = await query('SELECT * FROM users WHERE pin = $1 AND active = TRUE', [pin]);
-    if (rows.length > 0) {
-      res.json({ user: rows[0] });
-    } else {
-      res.json({ user: null });
-    }
-  } catch (error) {
-    console.error('!!! DATABASE QUERY FAILED !!!', error);
-    res.status(500).json({ message: 'Database query failed.' });
-  }
+  const { rows } = await query('SELECT * FROM users WHERE pin = $1 AND active = TRUE', [pin]);
+  if (rows.length > 0) res.json({ user: rows[0] });
+  else res.json({ user: null });
 })); 
 
 app.get('/api/bootstrap', asyncHandler(async (req, res) => {
@@ -216,14 +185,26 @@ app.get('/api/bootstrap', asyncHandler(async (req, res) => {
     query('SELECT * FROM users WHERE active = TRUE ORDER BY username ASC'),
     query('SELECT *, category_name as category, stock_threshold as "stockThreshold", track_stock as "trackStock" FROM menu_items ORDER BY display_order ASC, name ASC'),
     query('SELECT * FROM menu_categories ORDER BY display_order ASC, name ASC'),
-    query("SELECT value FROM settings WHERE key = 'taxRate'")
+    // CHANGED: Get ALL settings (key, value), not just taxRate
+    query("SELECT key, value FROM settings") 
   ]);
-  const taxRate = settings.rows.length > 0 ? parseFloat(settings.rows[0].value) : 0.09;
+
+  // Helper to find a setting from the DB rows
+  const findSetting = (key, defaultValue) => {
+    const row = settings.rows.find(r => r.key === key);
+    return row ? row.value : defaultValue;
+  };
+
+  const taxRate = parseFloat(findSetting('taxRate', '0.09'));
+  // Load Table Count (Default to 50 if database is empty)
+  const tableCount = parseInt(findSetting('tableCount', '50'), 10);
+
   res.json({
     users: users.rows,
     menuItems: menuItems.rows,
     menuCategories: menuCategories.rows,
     taxRate: taxRate,
+    tableCount: tableCount // <--- Sending this to Frontend
   });
 }));
 
@@ -372,7 +353,7 @@ app.delete('/api/menu-categories/:id', asyncHandler(async (req, res) => {
 
 app.post('/api/menu-categories/reorder', asyncHandler(async (req, res) => {
     const { orderedIds } = req.body; 
-    if (!Array.isArray(orderedIds)) { return res.status(400).json({ message: 'Invalid payload. Expected an array of IDs.' }); }
+    if (!Array.isArray(orderedIds)) { return res.status(400).json({ message: 'Invalid payload.' }); }
     let queryText = 'UPDATE menu_categories SET display_order = CASE id ';
     orderedIds.forEach((id, index) => { queryText += `WHEN ${parseInt(id, 10)} THEN ${index + 1} `; });
     queryText += 'END WHERE id = ANY($1::int[])';
@@ -382,7 +363,7 @@ app.post('/api/menu-categories/reorder', asyncHandler(async (req, res) => {
 
 app.post('/api/menu-items/reorder', asyncHandler(async (req, res) => {
     const { orderedIds } = req.body; 
-    if (!Array.isArray(orderedIds)) { return res.status(400).json({ message: 'Invalid payload. Expected an array of IDs.' }); }
+    if (!Array.isArray(orderedIds)) { return res.status(400).json({ message: 'Invalid payload.' }); }
     let queryText = 'UPDATE menu_items SET display_order = CASE id ';
     orderedIds.forEach((id, index) => { queryText += `WHEN ${parseInt(id, 10)} THEN ${index + 1} `; });
     queryText += 'END WHERE id = ANY($1::int[])';
@@ -413,22 +394,46 @@ app.post('/api/menu-items/reorder-from-csv', upload.single('reorderFile'), async
 
 app.post('/api/settings/tax', asyncHandler(async (req, res) => {
     const { rate } = req.body;
-    if (typeof rate !== 'number' || rate < 0) {
-        return res.status(400).json({ message: 'Invalid tax rate provided.' });
-    }
-    const upsertQuery = `
-        INSERT INTO settings (key, value) 
-        VALUES ('taxRate', $1) 
-        ON CONFLICT (key) 
-        DO UPDATE SET value = EXCLUDED.value;
-    `;
+    if (typeof rate !== 'number' || rate < 0) { return res.status(400).json({ message: 'Invalid tax rate.' }); }
+    const upsertQuery = `INSERT INTO settings (key, value) VALUES ('taxRate', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`;
     await query(upsertQuery, [rate.toString()]);
     res.json({ success: true, newRate: rate });
 }));
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-});
+app.post('/api/settings/table-count', asyncHandler(async (req, res) => {
+    const { count } = req.body;
+    if (typeof count !== 'number' || count < 1) { 
+        return res.status(400).json({ message: 'Invalid table count.' }); 
+    }
+    
+    // Insert or Update the tableCount setting
+    const upsertQuery = `
+        INSERT INTO settings (key, value) 
+        VALUES ('tableCount', $1) 
+        ON CONFLICT (key) 
+        DO UPDATE SET value = EXCLUDED.value;
+    `;
+    await query(upsertQuery, [count.toString()]);
+    
+    console.log(`✅ Database: Table count updated to ${count}`);
+    res.json({ success: true, newCount: count });
+}));
+
+// Checks if we are in Production (npm start) or Development (npm run dev)
+if (process.env.NODE_ENV === 'production') {
+    // In Production: Serve the React app
+    const distPath = path.join(projectRoot, 'dist');
+    app.use(express.static(distPath));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+    });
+} else {
+    // In Development: Just show a message
+    app.get('/', (req, res) => {
+        res.send('Backend API is running. Use localhost:3000 for frontend.');
+    });
+}
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -4,33 +4,49 @@
   "type": "module",
   "description": "Backend for the Restaurant POS System",
   "main": "server/index.js",
+  "electronMain": "electron/main.mjs",
   "scripts": {
     "start": "node server/index.js",
-    "dev-frontend": "vite",
+    "dev-frontend": "npx vite",
     "dev": "concurrently \"npm start\" \"npm run dev-frontend\"",
-    "build": "tsc && vite build"
+    "build": "npx vite build",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "vite build",
+    "electron:package": "electron-builder",
+    "electron:start": "electron ."
+  },
+  "build": {
+    "appId": "com.yourcompany.pos",
+    "productName": "Restaurant POS",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "server/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
   },
   "dependencies": {
     "@types/multer": "^2.0.0",
     "@types/react-beautiful-dnd": "^13.1.8",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "escpos": "^3.0.0-alpha.6",
     "express": "^4.19.2",
     "multer": "^2.0.2",
-    "node-thermal-printer": "^4.4.0",
     "papaparse": "^5.5.3",
     "pg": "^8.11.5",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.2.0",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "usb": "^2.16.0"
   },
   "devDependencies": {
     "@types/papaparse": "^5.5.0",
     "@vitejs/plugin-react": "^4.2.1",
-    "concurrently": "^8.2.2",
-    "typescript": "^5.2.2",
     "vite": "^5.2.0"
   }
 }
