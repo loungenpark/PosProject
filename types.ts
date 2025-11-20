@@ -38,6 +38,7 @@ export interface OrderItem extends MenuItem {
   quantity: number;
   addedBy: string; // Will store the username, e.g., "Admin"
   status?: 'new' | 'ordered';
+  uniqueId?: string; // Made optional with ?
 }
 // --- END MODIFICATION ---
 

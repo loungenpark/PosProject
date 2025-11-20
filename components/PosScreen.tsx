@@ -114,16 +114,21 @@ const PosScreen: React.FC = () => {
 
   const addToOrder = (item: MenuItem) => {
     if (!loggedInUser) return;
-    const totalCurrentQuantity = currentOrderItems.find(i => i.id === item.id)?.quantity || 0;
+    const totalCurrentQuantity = currentOrderItems.filter(i => i.id === item.id).reduce((sum, i) => sum + i.quantity, 0);
     if (item.trackStock && isFinite(item.stock) && totalCurrentQuantity >= item.stock) {
-        alert(`Stoku i pamjaftueshëm për ${item.name}. Në stok: ${item.stock}`); return;
+        alert(`Stoku i pamjaftueshëm për ${item.name}. Në stok: ${item.stock}`); 
+        return;
     }
-    setCurrentOrderItems(prevItems => {
-        const existingItem = prevItems.find(orderItem => orderItem.id === item.id && orderItem.addedBy === loggedInUser.username);
-        if (existingItem) {
-            return prevItems.map(orderItem => orderItem.id === item.id && orderItem.addedBy === loggedInUser.username ? { ...orderItem, quantity: orderItem.quantity + 1 } : orderItem);
-        } else { return [...prevItems, { ...item, quantity: 1, addedBy: loggedInUser.username, status: 'new' as const }]; }
-    });
+    setCurrentOrderItems(prevItems => [
+        ...prevItems, 
+        { 
+            ...item, 
+            quantity: 1, 
+            addedBy: loggedInUser.username, 
+            status: 'new' as const,
+            uniqueId: `${item.id}-${Date.now()}` // Add unique ID
+        }
+    ]);
   };
 
   const updateQuantity = (itemId: number, addedByUser: string, change: number) => {
@@ -185,14 +190,11 @@ const PosScreen: React.FC = () => {
     setActiveTableId(null);
   }, [activeTableId, currentOrderItems, calculateNewOrderState, addSale, setPaymentModalOpen, setActiveTableId, logout]);
   
-  const groupedItems = useMemo(() => {
-    const groups = new Map<string, OrderItem[]>();
-    currentOrderItems.forEach(item => {
-        const group = groups.get(item.addedBy) || [];
-        group.push(item);
-        groups.set(item.addedBy, group);
-    });
-    return Array.from(groups.entries()).map(([user, items]) => ({ user, items }));
+  const orderedItems = useMemo(() => {
+    return currentOrderItems.map((item, index) => ({
+      ...item,
+      uniqueId: `${item.id}-${index}-${Date.now()}` // Add a unique identifier for React keys
+    }));
   }, [currentOrderItems]);
 
   const Header = () => (
@@ -266,29 +268,26 @@ const PosScreen: React.FC = () => {
             <div className="flex-grow overflow-y-auto">
                 {currentOrderItems.length === 0 ? <p className="text-text-secondary text-center mt-8">Zgjidhni artikujt për të filluar porosinë.</p> : (
                     <ul className="space-y-4">
-                        {groupedItems.map(group => (
-                            <li key={group.user}>
-                                <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-2">Shtuar nga: {group.user}</h3>
-                                <ul className="space-y-3">
-                                    {group.items.map(item => (
-                                        <li key={`${item.id}-${group.user}`} className={`flex items-center p-2 rounded-md ${item.status === 'ordered' ? 'bg-accent' : 'bg-primary'}`}>
-                                            <div className="flex-grow">
-                                                <p className="text-sm font-semibold text-text-main">{item.name}</p>
-                                                <p className="text-xs text-text-secondary">{formatCurrency(item.price)}</p>
-                                            </div>
-                                            {item.status === 'new' ? (
-                                                <div className="flex items-center space-x-2">
-                                                    <button onClick={() => updateQuantity(item.id, item.addedBy, -1)} className="p-1 rounded-full bg-secondary hover:bg-highlight transition-colors"><MinusIcon className="w-4 h-4 text-text-main"/></button>
-                                                    <span className="w-6 text-center text-sm font-bold text-text-main">{item.quantity}</span>
-                                                    <button onClick={() => updateQuantity(item.id, item.addedBy, 1)} className="p-1 rounded-full bg-secondary hover:bg-highlight transition-colors"><PlusIcon className="w-4 h-4 text-text-main"/></button>
-                                                    <button onClick={() => removeFromOrder(item.id, item.addedBy)} className="p-1 text-red-400 hover:text-red-300 transition-colors"><TrashIcon className="w-4 h-4"/></button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center"><span className="text-sm text-text-secondary mr-1">Qty:</span><span className="text-base font-bold text-text-main">{item.quantity}</span></div>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
+                        {orderedItems.map((item) => (
+                            <li key={item.uniqueId} className={`flex items-center p-2 rounded-md ${item.status === 'ordered' ? 'bg-accent' : 'bg-primary'}`}>
+                                <div className="flex-grow">
+                                    <p className="text-sm font-semibold text-text-main">{item.name}</p>
+                                    <p className="text-xs text-text-secondary">{formatCurrency(item.price)}</p>
+                                    <p className="text-xs text-text-secondary">Shtuar nga: {item.addedBy}</p>
+                                </div>
+                                {item.status === 'new' ? (
+                                    <div className="flex items-center space-x-2">
+                                        <button onClick={() => updateQuantity(item.id, item.addedBy, -1)} className="p-1 rounded-full bg-secondary hover:bg-highlight transition-colors"><MinusIcon className="w-4 h-4 text-text-main"/></button>
+                                        <span className="w-6 text-center text-sm font-bold text-text-main">{item.quantity}</span>
+                                        <button onClick={() => updateQuantity(item.id, item.addedBy, 1)} className="p-1 rounded-full bg-secondary hover:bg-highlight transition-colors"><PlusIcon className="w-4 h-4 text-text-main"/></button>
+                                        <button onClick={() => removeFromOrder(item.id, item.addedBy)} className="p-1 text-red-400 hover:text-red-300 transition-colors"><TrashIcon className="w-4 h-4"/></button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center">
+                                        <span className="text-sm text-text-secondary mr-1">Qty:</span>
+                                        <span className="text-base font-bold text-text-main">{item.quantity}</span>
+                                    </div>
+                                )}
                             </li>
                         ))}
                     </ul>
