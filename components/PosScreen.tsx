@@ -152,9 +152,17 @@ const PosScreen: React.FC = () => {
 
   const handleSaveOrder = useCallback(async () => {
     if (activeTableId === null) return;
-    const savedItems = new Set(activeTable?.order?.items.map(i => `${i.id}-${i.addedBy}-${i.quantity}`) || []);
-    const newItemsForTicket = currentOrderItems.filter(currentItem => !savedItems.has(`${currentItem.id}-${currentItem.addedBy}-${currentItem.quantity}`));
+
+    // 1. Identify items to print (Look for status: 'new')
+    const newItemsForTicket = currentOrderItems.filter(item => item.status === 'new');
+
+    // 2. Calculate the total order value (THIS WAS MISSING)
     const newOrderState = calculateNewOrderState(currentOrderItems);
+
+    // Debug Log
+    console.log(`🛒 Saving Order. Found ${newItemsForTicket.length} new items to print.`);
+
+    // 3. Save to database and trigger print 
     await saveOrderForTable(activeTableId, newOrderState, newItemsForTicket);
     setActiveTableId(null);
   }, [activeTableId, currentOrderItems, activeTable, saveOrderForTable, calculateNewOrderState]);

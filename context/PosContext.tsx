@@ -375,14 +375,18 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (error) { console.error('Failed to refresh sales:', error); }
   }, []);
 
-  const updateOrderForTable = useCallback((tableId: number, order: Order | null) => {
+
+
+
+// Added 'emitToSocket' parameter, defaulted to true
+  const updateOrderForTable = useCallback((tableId: number, order: Order | null, emitToSocket = true) => {
     setTables(currentTables => {
       const updatedTables = currentTables.map(table => 
         table.id === tableId ? { ...table, order } : table
       );
-      // Auto-save handled by useEffect now
       
-      if (socketRef.current?.connected) {
+      // Only emit if we initiated this change locally (emitToSocket is true)
+      if (emitToSocket && socketRef.current?.connected) {
         if (isMasterClient.current) {
           socketRef.current.emit('order-update', updatedTables);
         } else {
@@ -394,11 +398,13 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const saveOrderForTable = useCallback(async (tableId: number, updatedOrder: Order | null, newItems: OrderItem[]) => {
-    updateOrderForTable(tableId, updatedOrder);
+    updateOrderForTable(tableId, updatedOrder, true);
     const table = tables.find(t => t.id === tableId);
 
-    if (newItems.length > 0 && table && loggedInUser && socketRef.current?.connected) {
+    if (newItems.length > 0 && table && loggedInUser) {
+      const uniquePrintId = `${tableId}-${Date.now()}`;
       const ticketPayload = {
+        printId: uniquePrintId, // <--- THIS IS THE FIX        
         tableName: table.name,
         user: loggedInUser,
         items: newItems.map(item => ({
@@ -407,7 +413,15 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           price: item.price,
         }))
       };
-      socketRef.current.emit('print-order-ticket', ticketPayload);
+      // 3. DELAY: Wait 200ms. 
+      // This allows the Master PC to finish processing the Table Update 
+      // before the Print Command arrives.
+      setTimeout(() => {
+          const uniquePrintId = `${tableId}-${Date.now()}`;
+          if (socketRef.current?.connected) {
+           socketRef.current.emit('print-order-ticket', ticketPayload);
+          }
+      }, 200);
     }
   }, [tables, updateOrderForTable, loggedInUser]);
 
@@ -480,7 +494,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     socket.on('order-updated-from-server', handleOrderUpdate);
     socket.on('sale-finalized-from-server', handleSaleFinalized);
-    socket.on('process-client-order-update', ({ tableId, order }) => updateOrderForTable(tableId, order));
+    socket.on('process-client-order-update', ({ tableId, order }) => updateOrderForTable(tableId, order, false));
     socket.on('share-your-state', handleShareYourState);
     socket.on('request-initial-state', handleRequestInitialState);
 
