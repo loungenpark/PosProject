@@ -20,6 +20,7 @@ dotenv.config({ path: path.join(projectRoot, '.env.local') });
 // --- DATABASE CHECK ---
 (async () => {
   try {
+    // 1. Ensure Users table has 'active' column
     await query(`
       DO $$
       BEGIN
@@ -30,16 +31,30 @@ dotenv.config({ path: path.join(projectRoot, '.env.local') });
       $$;
     `);
     console.log('✅ Database schema checked: "active" column exists for users.');
+
+    // 2. Create ORDER TICKETS table (For the "Blue P" history)
+    // This stores every "Round" sent to the kitchen permanently.
+    await query(`
+      CREATE TABLE IF NOT EXISTS order_tickets (
+        id SERIAL PRIMARY KEY,
+        ticket_uuid VARCHAR(50) UNIQUE NOT NULL,
+        table_id INT NOT NULL,
+        table_name VARCHAR(50),
+        user_id INT,
+        items JSONB NOT NULL,
+        total NUMERIC(10, 2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Database schema checked: "order_tickets" table exists.');
+
   } catch (e) {
     console.error('⚠️ Database schema update warning:', e.message);
   }
 })();
 
-// --- 2. CONFIGURE PRINTER ---
-// ⚠️ CHANGE 'interface' TO YOUR ACTUAL PRINTER PATH
-
 const app = express();
-const port = process.env.PORT || 3001; // Keeps your Port 3001
+const port = process.env.PORT || 3001; 
 const host = '0.0.0.0';
 
 const allowedOrigins = [
@@ -49,12 +64,7 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      // Allow dynamic local IPs for development convenience
-      return callback(null, true);
-    }
-    return callback(null, true);
+    return callback(null, true); // Allow all origins for local LAN ease
   },
   credentials: true,
 };
@@ -64,64 +74,69 @@ app.use(express.json());
 
 const upload = multer({ storage: multer.memoryStorage() });
 const httpServer = http.createServer(app);
+
+// --- SOCKET.IO CONFIGURATION ---
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // simplified for local dev
+    origin: "*", 
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
-// const distPath = path.join(projectRoot, 'dist');
-// app.use(express.static(distPath));
-
 const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-// Track the master client (PC)
-let masterClientId = null;
+// --- SOCKET LOGIC ---
+let masterClientId = null; // We still track it for Initial State requests
 
 io.on('connection', (socket) => {
-  console.log(`✅ Real-time client connected: ${socket.id}`);
+  console.log(`✅ Client connected: ${socket.id}`);
   
+  // 1. Identification
   socket.on('identify-as-master', () => {
-    console.log(`Client ${socket.id} identified as master (PC)`);
+    console.log(`👑 Client ${socket.id} identified as MASTER (PC)`);
     masterClientId = socket.id;
-    socket.emit('request-initial-state');
   });
-  
-  socket.on('order-update', (updatedTablesData) => {
-    if (socket.id === masterClientId) {
-      socket.broadcast.emit('order-updated-from-server', updatedTablesData);
+
+  // 2. Client asking for state (Waiter connects)
+  socket.on('request-latest-state', () => {
+    if (masterClientId) {
+      socket.to(masterClientId).emit('share-your-state');
+    } else {
+        console.log("⚠️ No Master found to provide state.");
     }
   });
 
+  // 3. Master providing state
+  socket.on('here-is-my-state', (tablesData) => {
+    io.emit('order-updated-from-server', tablesData);
+  });
+
+  // 4. ORDER UPDATES (Active Table State)
+  socket.on('client-order-update', ({ tableId, order }) => {
+    console.log(`🔄 Update received for Table ${tableId}`);
+    socket.broadcast.emit('process-client-order-update', { tableId, order });
+  });
+
+  socket.on('order-update', (updatedTablesData) => {
+    socket.broadcast.emit('order-updated-from-server', updatedTablesData);
+  });
+
+  // 5. SALES & PRINTING
   socket.on('sale-finalized', (newSaleData) => {
     socket.broadcast.emit('sale-finalized-from-server', newSaleData);
   });
 
-  // --- 3. NEW PRINTING LOGIC ---
-  
-  // A. KITCHEN TICKET / ORDER TICKET
   socket.on('print-order-ticket', async (orderData) => {
     console.log(`🖨️ Printing Order Ticket for Table: ${orderData.tableName}`);
-    
-    // 1. Broadcast to other screens (optional, if needed)
     io.emit('print-order-ticket-from-server', orderData);
-
-    // 2. Call the new file
     printOrderTicket(orderData);    
-
   });
   
-  // B. SALES RECEIPT
   socket.on('print-sale-receipt', async (saleData) => {
     console.log(`🖨️ Printing Receipt for Sale #${saleData.id}`);
-
-    // 1. Broadcast
     io.emit('print-sale-receipt-from-server', saleData);
-
-    // 2. Call the new file
     printSaleReceipt(saleData);
   });
 
@@ -129,50 +144,26 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('tax-rate-updated-from-server', newTaxRate);
   });
 
-  socket.on('request-latest-state', () => {
-    if (masterClientId) {
-      socket.to(masterClientId).emit('share-your-state');
-    }
-  });
-
-  socket.on('here-is-my-state', (tablesData) => {
-    if (socket.id === masterClientId) {
-      io.emit('order-updated-from-server', tablesData);
-    }
-  });
-
-  socket.on('provide-initial-state', (tablesData) => {
-    if (socket.id === masterClientId) {
-      io.emit('order-updated-from-server', tablesData);
-    }
-  });
-
-  socket.on('client-order-update', ({ tableId, order }) => {
-    if (masterClientId) {
-      socket.to(masterClientId).emit('process-client-order-update', { 
-        tableId, 
-        order,
-        clientId: socket.id 
-      });
-    }
-  });
-
-  socket.on('process-client-order-update', ({ tableId, order }) => {
-    if (socket.id === masterClientId) {
-      // Master handled it
-    }
+  // 6. NEW: TICKET CREATED (For Admin Dashboard real-time update)
+  socket.on('ticket-created', (data) => {
+      // Broadcast to everyone so Admin dashboard updates instantly without refresh
+      socket.broadcast.emit('ticket-created-from-server', data);
   });
 
   socket.on('disconnect', () => {
-    console.log(`🔌 Real-time client disconnected: ${socket.id}`);
     if (socket.id === masterClientId) {
+      console.log(`👑 Master disconnected: ${socket.id}`);
       masterClientId = null;
+    } else {
+       console.log(`🔌 Client disconnected: ${socket.id}`);
     }
   });
 });
 
 
-// --- API ENDPOINTS (Unchanged) ---
+// --- API ENDPOINTS ---
+
+// 1. LOGIN
 app.post('/api/login', asyncHandler(async (req, res) => {
   const { pin } = req.body;
   const { rows } = await query('SELECT * FROM users WHERE pin = $1 AND active = TRUE', [pin]);
@@ -180,23 +171,21 @@ app.post('/api/login', asyncHandler(async (req, res) => {
   else res.json({ user: null });
 })); 
 
+// 2. BOOTSTRAP
 app.get('/api/bootstrap', asyncHandler(async (req, res) => {
   const [users, menuItems, menuCategories, settings] = await Promise.all([
     query('SELECT * FROM users WHERE active = TRUE ORDER BY username ASC'),
     query('SELECT *, category_name as category, stock_threshold as "stockThreshold", track_stock as "trackStock" FROM menu_items ORDER BY display_order ASC, name ASC'),
     query('SELECT * FROM menu_categories ORDER BY display_order ASC, name ASC'),
-    // CHANGED: Get ALL settings (key, value), not just taxRate
     query("SELECT key, value FROM settings") 
   ]);
 
-  // Helper to find a setting from the DB rows
   const findSetting = (key, defaultValue) => {
     const row = settings.rows.find(r => r.key === key);
     return row ? row.value : defaultValue;
   };
 
   const taxRate = parseFloat(findSetting('taxRate', '0.09'));
-  // Load Table Count (Default to 50 if database is empty)
   const tableCount = parseInt(findSetting('tableCount', '50'), 10);
 
   res.json({
@@ -204,10 +193,38 @@ app.get('/api/bootstrap', asyncHandler(async (req, res) => {
     menuItems: menuItems.rows,
     menuCategories: menuCategories.rows,
     taxRate: taxRate,
-    tableCount: tableCount // <--- Sending this to Frontend
+    tableCount: tableCount
   });
 }));
 
+// 3. ORDER TICKETS (NEW - The "Blue P" History Routes)
+app.get('/api/order-tickets', asyncHandler(async (req, res) => {
+    const { rows } = await query(`
+        SELECT 
+            t.ticket_uuid as id, t.table_id as "tableId", t.table_name as "tableName", 
+            t.items, t.total, t.created_at as date,
+            json_build_object('id', u.id, 'username', u.username) as user
+        FROM order_tickets t
+        LEFT JOIN users u ON t.user_id = u.id
+        ORDER BY t.created_at DESC
+    `);
+    res.json(rows);
+}));
+
+app.post('/api/order-tickets', asyncHandler(async (req, res) => {
+    const { tableId, tableName, userId, items, total } = req.body;
+    const ticket_uuid = `ticket-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+    
+    await query(
+        'INSERT INTO order_tickets (ticket_uuid, table_id, table_name, user_id, items, total) VALUES ($1, $2, $3, $4, $5, $6)',
+        [ticket_uuid, tableId, tableName, userId, JSON.stringify(items), total]
+    );
+
+    const newTicket = { id: ticket_uuid, tableId, tableName, userId, items, total, date: new Date() };
+    res.status(201).json(newTicket);
+}));
+
+// 4. SALES
 app.get('/api/sales', asyncHandler(async (req, res) => {
     const { rows } = await query(`
         SELECT
@@ -262,6 +279,7 @@ app.post('/api/sales', asyncHandler(async (req, res) => {
     res.status(201).json(newSale);
 }));
 
+// 5. HISTORY
 app.get('/api/history', asyncHandler(async (req, res) => {
   const { rows } = await query(`
     SELECT h.id, h.table_id AS "tableId", h.timestamp, h.details,
@@ -283,6 +301,7 @@ app.post('/api/history', asyncHandler(async (req, res) => {
     res.status(201).json({ id: rows[0].id, tableId, timestamp, user, details });
 }));
 
+// 6. USERS
 app.post('/api/users', asyncHandler(async (req, res) => {
     const { username, pin, role } = req.body;
     const { rows } = await query('INSERT INTO users (username, pin, role) VALUES ($1, $2, $3) RETURNING *', [username, pin, role]);
@@ -295,6 +314,7 @@ app.delete('/api/users/:id', asyncHandler(async (req, res) => {
     res.json({ success: true });
 }));
 
+// 7. MENU ITEMS
 app.post('/api/menu-items', asyncHandler(async (req, res) => {
     const { name, price, category, printer, stock, stockThreshold, trackStock } = req.body;
     const { rows } = await query(
@@ -328,6 +348,7 @@ app.delete('/api/menu-items/:id', asyncHandler(async (req, res) => {
     res.json({ success: true });
 }));
 
+// 8. MENU CATEGORIES
 app.post('/api/menu-categories', asyncHandler(async (req, res) => {
     const { name } = req.body;
     const { rows } = await query('INSERT INTO menu_categories (name, display_order) VALUES ($1, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM menu_categories)) RETURNING *', [name]);
@@ -392,6 +413,7 @@ app.post('/api/menu-items/reorder-from-csv', upload.single('reorderFile'), async
     res.json({ success: true, message: 'Reordering complete.', reorderedCount: orderedIds.length, notFoundCount });
 }));
 
+// 9. SETTINGS
 app.post('/api/settings/tax', asyncHandler(async (req, res) => {
     const { rate } = req.body;
     if (typeof rate !== 'number' || rate < 0) { return res.status(400).json({ message: 'Invalid tax rate.' }); }
@@ -406,7 +428,6 @@ app.post('/api/settings/table-count', asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'Invalid table count.' }); 
     }
     
-    // Insert or Update the tableCount setting
     const upsertQuery = `
         INSERT INTO settings (key, value) 
         VALUES ('tableCount', $1) 
@@ -419,17 +440,14 @@ app.post('/api/settings/table-count', asyncHandler(async (req, res) => {
     res.json({ success: true, newCount: count });
 }));
 
-// Checks if we are in Production (npm start) or Development (npm run dev)
+// --- SERVE FRONTEND (Production) ---
 if (process.env.NODE_ENV === 'production') {
-    // In Production: Serve the React app
     const distPath = path.join(projectRoot, 'dist');
     app.use(express.static(distPath));
-
     app.get('*', (req, res) => {
         res.sendFile(path.join(distPath, 'index.html'));
     });
 } else {
-    // In Development: Just show a message
     app.get('/', (req, res) => {
         res.send('Backend API is running. Use localhost:3000 for frontend.');
     });
@@ -456,5 +474,4 @@ httpServer.listen(port, host, () => {
   Object.values(results).flat().forEach(address => {
       console.log(`   - Network: http://${address}:${port}`);
   });
-  console.log('\nUse the Network URL to connect from other devices on the same Wi-Fi.');
 });

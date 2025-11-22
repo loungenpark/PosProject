@@ -59,13 +59,14 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const syncInProgress = useRef(false);
   const startupEffectRan = useRef(false);
 
+  // We consider "Desktop" or non-mobile to be the potential "Master" (usually the Admin/Cashier PC)
   const isMasterClient = useRef(window.innerWidth > 900 || !/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
-  const tablesRef = useRef<Table[]>([]); // Keeps track of tables for Socket callbacks
+  
+  // Ref to keep track of tables for Socket callbacks without dependency cycles
+  const tablesRef = useRef<Table[]>([]); 
   const socketRef = useRef<Socket | null>(null);
   
-  // --- 1. AUTO-SAVE ACTIVE TABLES ---
-  // This replaces all the manual localStorage.setItem calls for tables.
-  // Whenever 'tables' state changes (via socket, manual update, etc), it saves.
+  // --- 1. AUTO-SAVE ACTIVE TABLES & UPDATE REF ---
   useEffect(() => {
     tablesRef.current = tables; // Update ref for socket access
     if (tables.length > 0) {
@@ -73,7 +74,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [tables]);
 
-  // --- 2. SET TABLE COUNT (With Merge Logic) ---
+  // --- 2. SET TABLE COUNT ---
   const setTableCount = useCallback((count: number) => {
     if (!count || count < 1) {
         console.warn("Attempted to set table count to 0. Defaulting to 50.");
@@ -83,20 +84,17 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('tableCount', count.toString());
 
     setTables(prevTables => {
-        // Create new array of tables
         const newTables = Array.from({ length: count }, (_, i) => {
             const tableId = i + 1;
-            // CRITICAL FIX: Check if this table already exists and has an order!
             const existingTable = prevTables.find(t => t.id === tableId);
             if (existingTable && existingTable.order) {
-                return existingTable; // Keep the existing order
+                return existingTable; 
             }
             return { id: tableId, name: `${tableId}`, order: null };
         });
         return newTables;
     });
 
-    // Save to Server Database
     if (isBackendConfigured && navigator.onLine) {
         fetch(`${SOCKET_URL}/api/settings/table-count`, {
             method: 'POST',
@@ -129,11 +127,8 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
           let { users: serverUsers, menuItems: serverItems, menuCategories: serverCats, taxRate, tableCount } = await api.bootstrap();
           
-          // --- SYNC TABLE COUNT (FIXED TO MERGE) ---
           if (typeof tableCount === 'number' && tableCount > 0) {
             const currentLocal = parseInt(localStorage.getItem('tableCount') || '0', 10);
-            
-            // Only update if server count is different, but MERGE orders
             if (tableCount !== currentLocal) {
                 console.log(`📥 Syncing Table Count from DB: ${tableCount}`);
                 localStorage.setItem('tableCount', tableCount.toString());
@@ -141,7 +136,6 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 setTables(prevTables => {
                     return Array.from({ length: tableCount }, (_, i) => {
                         const tableId = i + 1;
-                        // PRESERVE LOCAL ORDERS
                         const existing = prevTables.find(t => t.id === tableId);
                         if (existing && existing.order) {
                             return existing;
@@ -156,7 +150,6 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const historyData = await api.getHistory();
           const queue = await db.getSyncQueue();
 
-          // Apply local overrides
           if (queue.length > 0) {
             queue.forEach(action => {
               const tempId = Date.now() + Math.floor(Math.random() * 1000);
@@ -173,7 +166,6 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
           }
 
-          // Save to Local Database
           await db.clearStaticData();
           await Promise.all([
             db.bulkPut(serverUsers, 'users'), 
@@ -375,21 +367,23 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (error) { console.error('Failed to refresh sales:', error); }
   }, []);
 
-
-
-
-// Added 'emitToSocket' parameter, defaulted to true
+  // --- UPDATED: Order Logic with better Socket Communication ---
   const updateOrderForTable = useCallback((tableId: number, order: Order | null, emitToSocket = true) => {
     setTables(currentTables => {
+      // 1. Calculate New State
       const updatedTables = currentTables.map(table => 
         table.id === tableId ? { ...table, order } : table
       );
       
-      // Only emit if we initiated this change locally (emitToSocket is true)
+      // 2. Emit if initiated locally
       if (emitToSocket && socketRef.current?.connected) {
         if (isMasterClient.current) {
+          // Admin/Master broadcasts to everyone
+          console.log(`📡 MASTER: Broadcasting update for Table ${tableId}`);
           socketRef.current.emit('order-update', updatedTables);
         } else {
+          // Waiter/Client sends request to server -> server tells Master -> Master broadcasts
+          console.log(`📡 CLIENT: Sending update for Table ${tableId} to Server`);
           socketRef.current.emit('client-order-update', { tableId, order });
         }
       }
@@ -398,32 +392,58 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const saveOrderForTable = useCallback(async (tableId: number, updatedOrder: Order | null, newItems: OrderItem[]) => {
+    // 1. Update the "Active" state (for Waiter view) - keeps local sync working
     updateOrderForTable(tableId, updatedOrder, true);
-    const table = tables.find(t => t.id === tableId);
 
-    if (newItems.length > 0 && table && loggedInUser) {
-      const uniquePrintId = `${tableId}-${Date.now()}`;
-      const ticketPayload = {
-        printId: uniquePrintId, // <--- THIS IS THE FIX        
-        tableName: table.name,
-        user: loggedInUser,
-        items: newItems.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-        }))
-      };
-      // 3. DELAY: Wait 200ms. 
-      // This allows the Master PC to finish processing the Table Update 
-      // before the Print Command arrives.
-      setTimeout(() => {
-          const uniquePrintId = `${tableId}-${Date.now()}`;
-          if (socketRef.current?.connected) {
-           socketRef.current.emit('print-order-ticket', ticketPayload);
-          }
-      }, 200);
+    // 2. CREATE HISTORY TICKET (For Admin "Blue P")
+    if (newItems.length > 0 && loggedInUser) {
+        const table = tables.find(t => t.id === tableId);
+        
+        // Calculate the total cost of ONLY the new items being sent
+        const ticketTotal = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+        const ticketPayload = {
+            tableId: tableId,
+            tableName: table ? table.name : `${tableId}`,
+            userId: loggedInUser.id,
+            items: newItems,
+            total: ticketTotal
+        };
+
+        // Save to DB
+        if (isBackendConfigured && navigator.onLine) {
+            try {
+                const savedTicket = await api.saveOrderTicket(ticketPayload);
+                // Emit so Admin updates instantly
+                if (socketRef.current?.connected) {
+                    socketRef.current.emit('ticket-created', savedTicket);
+                }
+            } catch (e) {
+                console.error("Failed to save order ticket to DB:", e);
+                // Optional: queue for offline sync if you want strict offline support for this feature
+            }
+        }
+
+        // 3. PRINTING (Existing Logic)
+        const uniquePrintId = `${tableId}-${Date.now()}`;
+        const printPayload = {
+            printId: uniquePrintId,    
+            tableName: table ? table.name : `${tableId}`,
+            user: loggedInUser,
+            items: newItems.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+            }))
+        };
+      
+        setTimeout(() => {
+            if (socketRef.current?.connected) {
+               socketRef.current.emit('print-order-ticket', printPayload);
+            }
+        }, 200);
     }
-  }, [tables, updateOrderForTable, loggedInUser]);
+  }, [tables, updateOrderForTable, loggedInUser, isOnline]);
 
   const addSale = useCallback(async (order: Order, tableId: number) => {
     if (!loggedInUser) return;
@@ -460,7 +480,6 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setTableButtonSizePercent = useCallback((size: number) => { localStorage.setItem('tableButtonSizePercent', size.toString()); setTableButtonSizePercentState(size); }, []);
   
   const importMenuItemsFromCSV = useCallback(async (file: File) => {
-    // Basic implementation for type satisfaction
     return { itemsAdded: 0, categoriesAdded: 0, itemsSkipped: 0 };
   }, []);
 
@@ -468,44 +487,79 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true, reorderedCount: 0, notFoundCount: 0 };
   }, []);
 
-  // --- SOCKET CONNECTION LOGIC ---
+  // --- SOCKET CONNECTION (ROBUST) ---
   useEffect(() => {
+    // 1. Establish Connection
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL, {
-        reconnection: true, reconnectionAttempts: 5, reconnectionDelay: 1000
+        reconnection: true, 
+        reconnectionAttempts: 10, 
+        reconnectionDelay: 1000,
+        transports: ['websocket', 'polling'] // Force stable transport
       });
     }
     const socket = socketRef.current;
-    if (!socket) return;
 
+    // 2. Define Handlers
     const handleOrderUpdate = (updatedTablesData: Table[]) => {
-      console.log('Received order update from server');
+      console.log('📥 RECEIVED ORDER UPDATE from Server', updatedTablesData.length);
       setTables(updatedTablesData);
-      // No need to manually save to LS here, the useEffect([tables]) will do it
     };
-    const handleSaleFinalized = (newSaleData: Sale) => { setSales(prev => [newSaleData, ...prev]); };
-    const handleShareYourState = () => { if (isMasterClient.current) socket.emit('here-is-my-state', tablesRef.current); };
-    const handleRequestInitialState = () => { if (isMasterClient.current) socket.emit('provide-initial-state', tablesRef.current); };
     
+    const handleSaleFinalized = (newSaleData: Sale) => { 
+        setSales(prev => [newSaleData, ...prev]); 
+    };
+    
+    // Logic for Master (Admin) to share state with new Clients
+    const handleShareYourState = () => { 
+        if (isMasterClient.current) {
+            console.log('📤 MASTER: Sharing state with new client...');
+            socket.emit('here-is-my-state', tablesRef.current); 
+        }
+    };
+    
+    // Logic for Client (Waiter) to ask for state
+    const handleRequestInitialState = () => { 
+        if (isMasterClient.current) {
+             socket.emit('provide-initial-state', tablesRef.current); 
+        }
+    };
+    
+    // 3. Attach Listeners (Remove duplicates first)
+    socket.off('connect');
+    socket.off('order-updated-from-server');
+    socket.off('sale-finalized-from-server');
+    socket.off('process-client-order-update');
+    socket.off('share-your-state');
+    socket.off('request-initial-state');
+
     socket.on('connect', () => { 
-      console.log(`✅ SOCKET CONNECTED (${isMasterClient.current ? 'MASTER' : 'CLIENT'})`);
+      console.log(`✅ SOCKET CONNECTED (${isMasterClient.current ? 'MASTER/ADMIN' : 'CLIENT/WAITER'})`);
       if (isMasterClient.current) socket.emit('identify-as-master');
       else socket.emit('request-latest-state');
     });
+
     socket.on('order-updated-from-server', handleOrderUpdate);
     socket.on('sale-finalized-from-server', handleSaleFinalized);
-    socket.on('process-client-order-update', ({ tableId, order }) => updateOrderForTable(tableId, order, false));
+    
+    // Critical: Listen for client updates and route them correctly
+    socket.on('process-client-order-update', ({ tableId, order }) => {
+        console.log(`🔄 Processing Client Update for Table ${tableId}`);
+        updateOrderForTable(tableId, order, false); // false = Don't re-emit to avoid loops
+    });
+
     socket.on('share-your-state', handleShareYourState);
     socket.on('request-initial-state', handleRequestInitialState);
 
+    // 4. Cleanup (Only disconnect on actual unmount, not re-render)
     return () => {
-      socket.off('connect');
-      socket.off('order-updated-from-server');
-      socket.off('sale-finalized-from-server');
-      socket.disconnect();
-      socketRef.current = null;
+       // We INTENTIONALLY do not disconnect here in development to prevent 
+       // flickering connections during hot-reloads.
+       // However, we must remove listeners to prevent duplicates.
+       socket.off('order-updated-from-server', handleOrderUpdate);
+       socket.off('sale-finalized-from-server', handleSaleFinalized);
     };
-  }, []);
+  }, []); // Empty dependency array = Run once on mount
 
   // --- BOOTSTRAP (INIT) LOGIC ---
   useEffect(() => {
@@ -515,7 +569,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsLoading(true);
         await db.initDB();
         
-        // 1. LOAD FROM LOCALSTORAGE FIRST (Restore Active Orders)
+        // 1. LOAD FROM LOCALSTORAGE
         let countToLoad = parseInt(localStorage.getItem('tableCount') || '50', 10);
         if (!countToLoad || countToLoad < 1) countToLoad = 50;
         
@@ -531,22 +585,19 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             } catch (e) { console.error("Error parsing activeTables", e); } 
         }
 
-        // If LS was empty (first run), create empty tables
         if (initialTables.length === 0) {
             initialTables = Array.from({ length: countToLoad }, (_, i) => ({
                 id: i + 1, name: `${i + 1}`, order: null
             }));
         }
 
-        // Set State (this restores the view immediately)
         setTables(initialTables);
 
-        // Load UI settings
         setTablesPerRowState(parseInt(localStorage.getItem('tablesPerRow') || '5', 10));
         setTableSizePercentState(parseInt(localStorage.getItem('tableSizePercent') || '100', 10));
         setTableButtonSizePercentState(parseInt(localStorage.getItem('tableButtonSizePercent') || '100', 10));
 
-        // 2. THEN SYNC WITH SERVER (Merge Logic handled in fetchAndCacheData)
+        // 2. SERVER SYNC
         if (isBackendConfigured && navigator.onLine) {
             try {          
                 await fetchAndCacheData();            

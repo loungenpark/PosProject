@@ -1,6 +1,7 @@
 import { MenuItem, Order, Sale, User, UserRole, MenuCategory } from "../types";
 
 // --- ✅ START: MODIFIED API URL ✅ ---
+// Ensure this IP matches your Server PC's IP address
 const API_URL = 'http://192.168.1.10:3001';
 // --- ✅ END: MODIFIED API URL ✅ ---
 
@@ -75,8 +76,8 @@ export const login = (pin: string): Promise<{user: User | null}> => requestJSON(
     body: JSON.stringify({ pin }),
 });
 
-// --- MODIFIED: Bootstrap return type now includes taxRate ---
-export const bootstrap = (): Promise<{ users: User[], menuItems: MenuItem[], menuCategories: MenuCategory[], taxRate: number }> => requestJSON('/api/bootstrap');
+// --- Bootstrap (Updated with tableCount) ---
+export const bootstrap = (): Promise<{ users: User[], menuItems: MenuItem[], menuCategories: MenuCategory[], taxRate: number, tableCount: number }> => requestJSON('/api/bootstrap');
 
 // --- Users ---
 export const addUser = (user: Omit<User, 'id'>): Promise<User> => requestJSON('/api/users', {
@@ -154,3 +155,11 @@ export const reorderMenuItemsFromCSV = (file: File): Promise<{ success: boolean,
     formData.append('reorderFile', file);
     return requestFormData('/api/menu-items/reorder-from-csv', formData);
 };
+
+// --- ✅ NEW: ORDER TICKET FUNCTIONS (Blue P History) ✅ ---
+export const saveOrderTicket = (ticketData: { tableId: number; tableName: string; userId: number; items: any[]; total: number }): Promise<any> => requestJSON('/api/order-tickets', {
+    method: 'POST',
+    body: JSON.stringify(ticketData),
+});
+
+export const getOrderTickets = (): Promise<any[]> => requestJSON('/api/order-tickets');

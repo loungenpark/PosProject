@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { usePos } from '../context/PosContext';
+import * as api from '../utils/api'; // <--- ADD THIS LINE
 import { MenuItem, MenuCategory, Printer, User, Sale } from '../types';
 import { EditIcon, TrashIcon, PlusIcon, CloseIcon, ChartBarIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, UploadIcon, DragHandleIcon, SortIcon } from './common/Icons';
 import UserManagement from './UserManagement';
@@ -175,42 +176,87 @@ const MenuForm: React.FC<MenuFormProps> = ({ menu, onSave, onCancel }) => {
     );
 };
 
-
 // --- Sales Dashboard ---
 const SalesDashboard: React.FC = ({}) => {
     const { sales, users, refreshSalesFromServer } = usePos();
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    
+    // --- NEW: State for Order Tickets (History) ---
+    const [orderTickets, setOrderTickets] = useState<any[]>([]);
+
+    // Date States
+    const todayStr = new Date().toISOString().split('T')[0];
+    const [startDate, setStartDate] = useState(todayStr);
+    const [endDate, setEndDate] = useState(todayStr);
+    
     const [summaryStartDate, setSummaryStartDate] = useState('');
     const [summaryEndDate, setSummaryEndDate] = useState('');
     const [selectedUserId, setSelectedUserId] = useState('');
 
+    // --- 1. DATA FETCHING ---
     useEffect(() => {
         refreshSalesFromServer();
+        
+        // Fetch the new Order Tickets (Blue P History)
+        // We use the api function we just added to utils/api.ts
+        api.getOrderTickets()
+            .then(data => {
+                // Ensure dates are proper Date objects
+                const formatted = data.map((t: any) => ({ ...t, date: new Date(t.date) }));
+                setOrderTickets(formatted);
+            })
+            .catch(err => console.error("Failed to load order tickets:", err));
+            
     }, [refreshSalesFromServer]);
 
-// THIS IS THE NEW, CORRECTED CODE BLOCK (REPLACEMENT FOR LINE 240)
-    const filteredSales = useMemo(() => {
-	let startFilter: Date | null = startDate ? new Date(`${startDate}T00:00:00`) : null;
-	let endFilter: Date | null = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+    // --- 2. MERGE LOGIC (The Timeline) ---
+    // Combines Tickets (P) and Sales (F) into one chronological list
+    const allTransactions = useMemo(() => {
+        // A. Convert TICKETS to Transaction format
+        const ticketEvents = orderTickets.map(t => ({
+            id: `ticket-${t.id}`, 
+            type: 'ORDER', // Blue P
+            tableName: t.tableName,
+            user: t.user,
+            date: t.date, // The time the waiter sent the order
+            items: t.items, 
+            total: parseFloat(t.total) 
+        }));
 
-	// If no date range is selected by the user, default the filter to today.
-	if (!startDate && !endDate) {
-            startFilter = new Date();
-            startFilter.setHours(0, 0, 0, 0);
-	    endFilter = new Date();
-	    endFilter.setHours(23, 59, 59, 999);
-	}
+        // B. Convert SALES to Transaction format
+        const saleEvents = sales.map(s => ({
+            id: `sale-${s.id}`,
+            type: 'RECEIPT', // Green F
+            tableName: s.tableName,
+            user: s.user,
+            date: new Date(s.date), // The time payment was made
+            items: s.order.items,
+            total: s.order.total
+        }));
 
-	return sales.filter(sale => {
-	    const saleDate = new Date(sale.date);
-	    // This handles all cases: a full range, only a start date, only an end date, or the default 'today' range.
-	    if (startFilter && saleDate < startFilter) return false;
-	    if (endFilter && saleDate > endFilter) return false;
-	    return true;
-	});
-    }, [sales, startDate, endDate]);
+        // C. Combine and Sort by Date (Newest First)
+        return [...ticketEvents, ...saleEvents].sort((a, b) => 
+            b.date.getTime() - a.date.getTime()
+        );
+    }, [sales, orderTickets]);
 
+    // --- 3. LIST FILTERING ---
+    const filteredTransactions = useMemo(() => {
+        let startFilter: Date | null = startDate ? new Date(startDate) : null;
+        let endFilter: Date | null = endDate ? new Date(endDate) : null;
+
+        if (startFilter) startFilter.setHours(0, 0, 0, 0);
+        if (endFilter) endFilter.setHours(23, 59, 59, 999);
+
+        return allTransactions.filter(tx => {
+            const txDate = new Date(tx.date);
+            if (startFilter && txDate < startFilter) return false;
+            if (endFilter && txDate > endFilter) return false;
+            return true;
+        });
+    }, [allTransactions, startDate, endDate]);
+
+    // --- 4. SUMMARY FILTERING (Revenue Only from SALES) ---
+    // We intentionally exclude 'orderTickets' here because revenue comes from finalized sales (F), not kitchen tickets.
     const summaryFilteredSales = useMemo(() => {
         let start: Date | null = summaryStartDate ? new Date(summaryStartDate) : null;
         let end: Date | null = summaryEndDate ? new Date(summaryEndDate) : null;
@@ -231,12 +277,15 @@ const SalesDashboard: React.FC = ({}) => {
         });
     }, [sales, summaryStartDate, summaryEndDate, selectedUserId]);
 
+    // --- 5. REVENUE CALCULATION (Restored Full Logic) ---
     const salesSummary = useMemo(() => {
         let totalShankRevenue = 0;
         let totalKuzhinaRevenue = 0;
+        
         summaryFilteredSales.forEach(sale => {
             let subtotalShank = 0;
             let subtotalKuzhina = 0;
+            
             sale.order.items.forEach(item => {
                 const itemPrice = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
                 if (item.printer === Printer.BAR) {
@@ -245,29 +294,32 @@ const SalesDashboard: React.FC = ({}) => {
                     subtotalKuzhina += itemPrice * item.quantity;
                 }
             });
+
             if (sale.order.subtotal > 0) {
                 const shankRatio = isFinite(sale.order.subtotal) && sale.order.subtotal !== 0 ? subtotalShank / sale.order.subtotal : 0;
                 const kuzhinaRatio = isFinite(sale.order.subtotal) && sale.order.subtotal !== 0 ? subtotalKuzhina / sale.order.subtotal : 0;
+                
                 totalShankRevenue += sale.order.total * shankRatio;
                 totalKuzhinaRevenue += sale.order.total * kuzhinaRatio;
             }
         });
+        
         const totalRevenue = totalShankRevenue + totalKuzhinaRevenue;
         return { totalShankRevenue, totalKuzhinaRevenue, totalRevenue };
     }, [summaryFilteredSales]);
 
     return (
         <div className="space-y-6">
+            {/* --- SUMMARY HEADER --- */}
             <div className="bg-secondary p-4 rounded-lg">
                 <div className="flex flex-wrap items-center gap-4">
-                    <h3 className="text-lg font-semibold text-text-main">Filtro</h3>
+                    <h3 className="text-lg font-semibold text-text-main">Filtro Raportin (Të Ardhurat)</h3>
                     <div className="flex items-center gap-2 flex-grow">
                         <input 
                             type="datetime-local" 
                             value={summaryStartDate}
                             onChange={e => setSummaryStartDate(e.target.value)}
                             className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                            aria-label="Data dhe Ora e Fillimit"
                         />
                         <span className="text-text-secondary">deri</span>
                         <input 
@@ -275,13 +327,11 @@ const SalesDashboard: React.FC = ({}) => {
                             value={summaryEndDate}
                             onChange={e => setSummaryEndDate(e.target.value)}
                             className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                            aria-label="Data dhe Ora e Mbarimit"
                         />
                         <select 
                             value={selectedUserId}
                             onChange={(e) => setSelectedUserId(e.target.value)}
                             className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                            aria-label="Filtro sipas përdoruesit"
                         >
                             <option value="">Të gjithë Përdoruesit</option>
                             {users.map(user => (
@@ -298,6 +348,7 @@ const SalesDashboard: React.FC = ({}) => {
                 </div>
             </div>
             
+            {/* --- REVENUE BOXES --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div className="bg-secondary p-6 rounded-lg">
                     <h3 className="text-text-secondary">Shank</h3>
@@ -313,16 +364,16 @@ const SalesDashboard: React.FC = ({}) => {
                 </div>
             </div>
 
+            {/* --- TIMELINE LIST (Transactions) --- */}
             <div className="bg-secondary p-6 rounded-lg">
                 <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
-                    <h3 className="text-lg font-semibold">Transaksionet</h3>
+                    <h3 className="text-lg font-semibold">Transaksionet (Historiku)</h3>
                     <div className="flex items-center gap-2">
                         <input 
                             type="date" 
                             value={startDate}
                             onChange={e => setStartDate(e.target.value)}
                             className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                            aria-label="Data e Fillimit"
                         />
                         <span className="text-text-secondary">deri</span>
                         <input 
@@ -330,7 +381,6 @@ const SalesDashboard: React.FC = ({}) => {
                             value={endDate}
                             onChange={e => setEndDate(e.target.value)}
                             className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                            aria-label="Data e Mbarimit"
                         />
                         <button 
                             onClick={() => { setStartDate(''); setEndDate(''); }}
@@ -340,41 +390,69 @@ const SalesDashboard: React.FC = ({}) => {
                         </button>
                     </div>
                 </div>
+
                 <div className="max-h-96 overflow-y-auto">
-                    {filteredSales.length > 0 ? (
+                    {filteredTransactions.length > 0 ? (
                         <ul className="space-y-4">
-                            {filteredSales.map(sale => (
-                                <li key={sale.id}>
-                                    <div className="bg-primary p-4 rounded-lg shadow-inner">
-                                        <div className="flex justify-between text-sm font-semibold text-text-secondary mb-3">
-                                            <span>Tavolina: {sale.tableName} | Shfrytëzuesi: {sale.user.username}</span>
-                                            <span>{new Date(sale.date).toLocaleString('de-DE')}</span>
+                            {filteredTransactions.map(tx => (
+                                <li key={tx.id}>
+                                    {/* Conditional Styling for Blue (Order) or Green (Receipt) */}
+                                    <div className={`bg-primary p-4 rounded-lg shadow-inner border-l-4 ${tx.type === 'ORDER' ? 'border-blue-500' : 'border-green-500'}`}>
+                                        
+                                        {/* Header Row */}
+                                        <div className="flex justify-between text-sm font-semibold text-text-secondary mb-3 items-center">
+                                            <div className="flex items-center">
+                                                {/* ICONS */}
+                                                {tx.type === 'ORDER' ? (
+                                                    <div className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full text-sm font-bold mr-3 shadow-sm" title="Porosi (Kuzhinë/Bar)">
+                                                        P
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-8 h-8 flex items-center justify-center bg-green-600 text-white rounded-full text-sm font-bold mr-3 shadow-sm" title="Faturë e Paguar">
+                                                        F
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="flex flex-col">
+                                                    <span className="text-text-main text-base font-bold">
+                                                        Tavolina: {tx.tableName} 
+                                                    </span>
+                                                    <span className="font-normal text-xs">
+                                                        {tx.type === 'ORDER' ? 'Porosi e dërguar' : 'Pagesë e kryer'} nga: {tx.user?.username || '...'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-text-main font-bold">{tx.date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className="text-xs">{tx.date.toLocaleDateString('de-DE')}</span>
+                                            </div>
                                         </div>
                                         
-                                        <table className="w-full text-sm mb-4">
+                                        {/* Items Table */}
+                                        <table className="w-full text-sm mb-4 bg-secondary/30 rounded-md">
                                             <thead>
-                                                <tr className="border-b border-accent">
-                                                    <th className="text-left font-semibold text-text-main py-2">Artikulli</th>
-                                                    <th className="text-center font-semibold text-text-main py-2">Sasia</th>
-                                                    <th className="text-right font-semibold text-text-main py-2">Çmimi</th>
-                                                    <th className="text-right font-semibold text-text-main py-2">Totali</th>
+                                                <tr className="border-b border-accent text-xs uppercase text-text-secondary">
+                                                    <th className="text-left py-2 px-2">Artikulli</th>
+                                                    <th className="text-center py-2 px-2">Sasia</th>
+                                                    <th className="text-right py-2 px-2">Totali</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-accent/50">
-                                                {sale.order.items.map((item, index) => (
-                                                    <tr key={`${sale.id}-${item.id}-${index}`} className="text-text-secondary">
-                                                        <td className="py-2">{item.name}</td>
-                                                        <td className="text-center py-2">{item.quantity}</td>
-                                                        <td className="text-right py-2">{formatCurrency(item.price)}</td>
-                                                        <td className="text-right py-2">{formatCurrency((typeof item.price === 'string' ? parseFloat(item.price) : item.price) * item.quantity)}</td>
+                                                {tx.items.map((item: any, index: number) => (
+                                                    <tr key={`${tx.id}-${index}`} className="text-text-main">
+                                                        <td className="py-2 px-2">{item.name}</td>
+                                                        <td className="text-center py-2 px-2 font-bold">x{item.quantity}</td>
+                                                        <td className="text-right py-2 px-2">{formatCurrency((typeof item.price === 'string' ? parseFloat(item.price) : item.price) * item.quantity)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
                                 
-                                        <div className="flex justify-between font-bold text-base text-text-main mt-2 pt-2 border-t border-accent">
-                                            <span>Shuma Totale:</span>
-                                            <span>{formatCurrency(sale.order.total)}</span>
+                                        {/* Total Footer */}
+                                        <div className="flex justify-end font-bold text-base text-text-main mt-2 pt-2 border-t border-accent">
+                                            <span className="mr-4 text-text-secondary">Totali i {tx.type === 'ORDER' ? 'Porosisë' : 'Faturës'}:</span>
+                                            <span className={tx.type === 'ORDER' ? 'text-blue-500' : 'text-green-500'}>{formatCurrency(tx.total)}</span>
                                         </div>
                                     </div>
                                 </li>
