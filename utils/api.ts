@@ -1,8 +1,9 @@
+console.log("⚠️ API IS POINTING TO:", import.meta.env.VITE_API_URL || "http://localhost:3001");
 import { MenuItem, Order, Sale, User, UserRole, MenuCategory } from "../types";
 
 // --- ✅ START: MODIFIED API URL ✅ ---
 // Ensure this IP matches your Server PC's IP address
-const API_URL = 'http://192.168.1.10:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 // --- ✅ END: MODIFIED API URL ✅ ---
 
 

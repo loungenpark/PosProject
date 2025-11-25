@@ -25,6 +25,7 @@ export interface MenuItem {
   stockThreshold: number;
   trackStock: boolean;
   display_order: number | null; // --- MODIFIED: Added display_order
+  stockGroupId?: string; // <--- Add this line
 }
 
 export interface MenuCategory {

@@ -5,7 +5,7 @@ import * as api from '../utils/api';
 import { io, Socket } from 'socket.io-client';
 
 // Ensure API URL works on phones (dynamic IP)
-const SOCKET_URL = `http://${window.location.hostname}:3001`;
+const SOCKET_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`;
 const isBackendConfigured = true;
 
 interface OrderToPrint { table: Table; newItems: OrderItem[]; }
@@ -252,6 +252,17 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = useCallback(() => setLoggedInUser(null), []);
 
+  // ADD THE FOLLOWING FUNCTION DIRECTLY AFTER IT:
+  const handleAutoLogout = useCallback(() => {
+    const isEnabled = localStorage.getItem('autoLogoutAfterAction') === 'true';
+    if (isEnabled) {
+      // Use a small delay to ensure other operations like printing are triggered first
+      setTimeout(() => {
+        logout();
+      }, 500);
+    }
+  }, [logout]);
+
   const addUser = useCallback(async (userData: Omit<User, 'id'>) => {
     try {
       const tempId = Date.now();
@@ -277,7 +288,15 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const tempId = Date.now();
       const newItem: MenuItem = { ...itemData, id: tempId };
-      setMenuItems((prev) => [...prev, newItem]);
+      
+      // 1. Local State Update
+      setMenuItems((prev) => {
+        // If the new item belongs to a group, we should sync its stock to the group's existing stock (if any)
+        // OR if we are setting a new stock, update the group.
+        // For simplicity in creation: we just add it. The sync usually happens on update or refresh.
+        return [...prev, newItem]; 
+      });
+
       await db.put(newItem, 'menuItems');
       await db.addToSyncQueue({ type: 'ADD_MENU_ITEM', payload: itemData });
       if (isOnline && isBackendConfigured) await syncOfflineData();
@@ -286,9 +305,41 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateMenuItem = useCallback(async (updatedItem: MenuItem) => {
     try {
-      setMenuItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+      // 1. SMART STATE UPDATE: Update this item AND any siblings in the same Stock Group
+      setMenuItems((prev) => prev.map((item) => {
+        // Case A: It is the exact item being updated
+        if (item.id === updatedItem.id) return updatedItem;
+        
+        // Case B: It is a "sibling" sharing the same Stock Group ID
+        if (updatedItem.stockGroupId && 
+            item.stockGroupId === updatedItem.stockGroupId && 
+            updatedItem.trackStock) {
+           // Sync the stock value
+           return { ...item, stock: updatedItem.stock };
+        }
+        
+        return item;
+      }));
+
+      // 2. Persist Main Item to Local DB
       await db.put(updatedItem, 'menuItems');
+
+      // 3. Persist Siblings to Local DB (for offline consistency)
+      if (updatedItem.stockGroupId) {
+         // We fetch all items to find siblings because 'menuItems' state might be stale in this async block
+         const allItems = await db.getAll<MenuItem>('menuItems');
+         const siblings = allItems.filter(i => 
+             i.stockGroupId === updatedItem.stockGroupId && i.id !== updatedItem.id
+         );
+         for (const sibling of siblings) {
+             const updatedSibling = { ...sibling, stock: updatedItem.stock };
+             await db.put(updatedSibling, 'menuItems');
+         }
+      }
+
+      // 4. Queue Sync (Server handles the group update logic automatically, so we just send the main item)
       await db.addToSyncQueue({ type: 'UPDATE_MENU_ITEM', payload: updatedItem });
+      
       if (isOnline && isBackendConfigured) await syncOfflineData();
     } catch (e) { console.error("Update menu item failed", e); }
   }, [isOnline, syncOfflineData]);
@@ -443,49 +494,191 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
         }, 200);
     }
-  }, [tables, updateOrderForTable, loggedInUser, isOnline]);
+    handleAutoLogout();
+
+  }, [tables, updateOrderForTable, loggedInUser, isOnline, handleAutoLogout]);
+
+  
 
   const addSale = useCallback(async (order: Order, tableId: number) => {
     if (!loggedInUser) return;
     const table = tables.find(t => t.id === tableId);
     if (!table) return;
+
+    // 1. Create Sale Object
     const newSale: Sale = { id: `sale-${Date.now()}`, date: new Date(), order, user: loggedInUser, tableId: table.id, tableName: table.name };
+    
+    // 2. Optimistic UI Update for Sales list
     setSales((prev) => [newSale, ...prev]);
     await db.put(newSale, 'sales');
 
+    // 3. Queue Sync
     await db.addToSyncQueue({
       type: 'ADD_SALE',
       payload: { order, tableId: table.id, tableName: table.name, user: loggedInUser }
     });
     if (isOnline) { setTimeout(() => { syncOfflineData(); }, 0); }
 
+    // 4. Clear Table Order
     updateOrderForTable(tableId, null);
     await addHistoryEntry(tableId, `Fatura u finalizua...`);
+
+    // --- 5. SMART STOCK DEDUCTION (Shared Groups) ---
+    
+    // Step A: Calculate total deductions per "Stock Identity" (Group ID or Item ID)
+    const deductions = new Map<string | number, number>();
+
     for (const saleItem of order.items) {
-      const menuItem = menuItems.find(mi => mi.id === saleItem.id);
-      if (menuItem && menuItem.trackStock && isFinite(menuItem.stock)) {
-        await updateMenuItem({ ...menuItem, stock: menuItem.stock - saleItem.quantity });
-      }
+        // Find the real item in our current state (to check for group ID)
+        const realItem = menuItems.find(i => i.id === saleItem.id);
+        if (!realItem || !realItem.trackStock) continue;
+
+        // Key is GroupID (string) if it exists, otherwise ItemID (number)
+        const key = realItem.stockGroupId ? realItem.stockGroupId : realItem.id;
+        const currentDeduction = deductions.get(key) || 0;
+        deductions.set(key, currentDeduction + saleItem.quantity);
     }
 
+    // Step B: Apply updates to React State (Bulk Update)
+    setMenuItems(prev => {
+        const nextState = prev.map(item => ({ ...item })); // Shallow copy
+        
+        deductions.forEach((qtyToRemove, key) => {
+            if (typeof key === 'string') {
+                 // It's a Group ID -> Update ALL items in this group
+                 // 1. Find current stock from any item in this group
+                 const sampleItem = nextState.find(i => i.stockGroupId === key);
+                 if (sampleItem && isFinite(sampleItem.stock)) {
+                     const newStock = Math.max(0, sampleItem.stock - qtyToRemove);
+                     // 2. Apply to all siblings
+                     nextState.forEach(i => {
+                         if (i.stockGroupId === key) i.stock = newStock;
+                     });
+                 }
+            } else {
+                // It's a specific Item ID
+                const target = nextState.find(i => i.id === key);
+                if (target && isFinite(target.stock)) {
+                    target.stock = Math.max(0, target.stock - qtyToRemove);
+                }
+            }
+        });
+        return nextState;
+    });
+
+    // Step C: Apply updates to Local DB (IndexedDB)
+    // We re-iterate deductions to ensure DB is consistent
+    const allDbItems = await db.getAll<MenuItem>('menuItems');
+    
+    deductions.forEach((qtyToRemove, key) => {
+        if (typeof key === 'string') {
+            const sample = allDbItems.find(i => i.stockGroupId === key);
+            if (sample && isFinite(sample.stock)) {
+                const newStock = Math.max(0, sample.stock - qtyToRemove);
+                // Update all siblings in DB
+                allDbItems.forEach(i => {
+                    if (i.stockGroupId === key) {
+                        i.stock = newStock;
+                        db.put(i, 'menuItems'); 
+                    }
+                });
+            }
+        } else {
+             const target = allDbItems.find(i => i.id === key);
+             if (target && isFinite(target.stock)) {
+                 target.stock = Math.max(0, target.stock - qtyToRemove);
+                 db.put(target, 'menuItems');
+             }
+        }
+    });
+
+    // 6. Socket Emission
     if (socketRef.current?.connected) {
       socketRef.current.emit('sale-finalized', newSale);
       console.log("Sent print request for Sale ID:", newSale.id);
       socketRef.current.emit('print-sale-receipt', newSale);
     }
-  }, [loggedInUser, tables, menuItems, isOnline, updateOrderForTable, addHistoryEntry, updateMenuItem, syncOfflineData]);
-  
+  // ADD these lines in its place. We are adding the handleAutoLogout() call and updating the dependency array.
+    // --- AUTO-LOGOUT ---
+    handleAutoLogout();
+    
+  }, [loggedInUser, tables, menuItems, isOnline, updateOrderForTable, addHistoryEntry, syncOfflineData, handleAutoLogout]);
+
+
+
+
+
   const setTablesPerRow = useCallback((count: number) => { localStorage.setItem('tablesPerRow', count.toString()); setTablesPerRowState(count); }, []);
   const setTableSizePercent = useCallback((size: number) => { localStorage.setItem('tableSizePercent', size.toString()); setTableSizePercentState(size); }, []);
   const setTableButtonSizePercent = useCallback((size: number) => { localStorage.setItem('tableButtonSizePercent', size.toString()); setTableButtonSizePercentState(size); }, []);
   
+
+
+
+
+
+  // --- REPLACEMENT CODE ---
+    
   const importMenuItemsFromCSV = useCallback(async (file: File) => {
-    return { itemsAdded: 0, categoriesAdded: 0, itemsSkipped: 0 };
-  }, []);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${SOCKET_URL}/api/menu-items/import-csv`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Refresh local data to show new items immediately
+      await fetchAndCacheData();
+      
+      return { 
+        itemsAdded: data.added || 0, 
+        categoriesAdded: 0, 
+        itemsSkipped: data.skipped || 0 
+      };
+    } catch (error) {
+      console.error("CSV Import failed:", error);
+      throw error;
+    }
+  }, [fetchAndCacheData]);
 
   const reorderMenuItemsFromCSV = useCallback(async (file: File) => {
-      return { success: true, reorderedCount: 0, notFoundCount: 0 };
-  }, []);
+    const formData = new FormData();
+    formData.append('reorderFile', file);
+
+    try {
+      const response = await fetch(`${SOCKET_URL}/api/menu-items/reorder-from-csv`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Refresh local data to show new order
+      await fetchAndCacheData();
+      
+      return { 
+        success: data.success, 
+        reorderedCount: data.reorderedCount || 0, 
+        notFoundCount: data.notFoundCount || 0 
+      };
+    } catch (error) {
+      console.error("Reorder import failed:", error);
+      throw error;
+    }
+  }, [fetchAndCacheData]);
+
 
   // --- SOCKET CONNECTION (ROBUST) ---
   useEffect(() => {

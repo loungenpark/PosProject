@@ -51,6 +51,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
         stock: item?.stock ?? Infinity,
         stockThreshold: item?.stockThreshold ?? 0,
         trackStock: item?.trackStock ?? true,
+        stockGroupId: item?.stockGroupId || '', // <--- NEW FIELD
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -83,6 +84,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
             if (!dataToSave.trackStock) {
                 dataToSave.stock = Infinity;
                 dataToSave.stockThreshold = 0;
+                dataToSave.stockGroupId = ''; 
             }
             await onSave({ ...item, ...dataToSave });
         } catch (error) {
@@ -123,6 +125,14 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
                 <input type="checkbox" name="trackStock" id="trackStock" checked={formData.trackStock} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-highlight focus:ring-highlight" />
                 <label htmlFor="trackStock" className="text-sm font-medium text-text-secondary">Ndjek Stokun</label>
             </div>
+            
+            {/* --- NEW SECTION FOR STOCK GROUP --- */}
+            <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
+                <label htmlFor="stockGroupId" className="block text-sm font-medium text-text-secondary">Grupi i Stokut (ID e Përbashkët)</label>
+                <input type="text" name="stockGroupId" id="stockGroupId" value={formData.stockGroupId} onChange={handleChange} placeholder="psh. CAFFE (për të ndarë stokun)" className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
+                <p className="text-xs text-text-secondary mt-1">Artikujt me të njëjtin ID grupi (psh. "CAFFE") do të kenë stok të përbashkët.</p>
+            </div>
+
              <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
                 <label htmlFor="stock" className="block text-sm font-medium text-text-secondary">Stoku Fillestar</label>
                 <input type="number" name="stock" id="stock" value={isFinite(formData.stock) ? formData.stock : ''} onChange={handleChange} placeholder="Bosh për stok pa limit" min="0" className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
@@ -138,6 +148,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
         </form>
     )
 }
+
 
 // --- Menu Form ---
 interface MenuFormProps {
@@ -736,7 +747,6 @@ const MenuManagement: React.FC = () => {
 
 // --- Stock Management ---
 const StockManagement: React.FC = ({}) => {
-    // ... (This component is unchanged)
     const { menuItems, updateMenuItem } = usePos();
     const [localItems, setLocalItems] = useState<MenuItem[]>([]);
     const [isSaving, setIsSaving] = useState<{[key: number]: boolean}>({});
@@ -746,17 +756,31 @@ const StockManagement: React.FC = ({}) => {
     }, [menuItems]);
 
     const handleInputChange = (itemId: number, field: 'stock' | 'stockThreshold' | 'trackStock', value: string | boolean) => {
+        // 1. Get the group ID of the item being changed
+        const changingItem = localItems.find(i => i.id === itemId);
+        const targetGroupId = changingItem?.stockGroupId;
+
         setLocalItems(prev => prev.map(item => {
-            if (item.id === itemId) {
+            // We update the item if:
+            // 1. It is the exact item being edited
+            // 2. OR it shares the same Stock Group ID and we are editing the 'stock' value
+            const shouldUpdate = item.id === itemId || (targetGroupId && item.stockGroupId === targetGroupId && field === 'stock');
+
+            if (shouldUpdate) {
                 if (field === 'trackStock') {
-                    return { ...item, trackStock: !!value };
+                    // For checkboxes, we only update the specific item clicked to avoid accidents
+                    if (item.id === itemId) return { ...item, trackStock: !!value };
+                    return item;
                 }
+
                 let finalValue: number;
                 if (field === 'stock') {
                     finalValue = value === '' ? Infinity : parseInt(value as string, 10);
                 } else {
                     finalValue = parseInt(value as string, 10) || 0;
                 }
+                
+                // Return updated item
                 return { ...item, [field]: isNaN(finalValue) ? item[field] : finalValue };
             }
             return item;
@@ -772,7 +796,10 @@ const StockManagement: React.FC = ({}) => {
                 dataToSave.stock = Infinity;
                 dataToSave.stockThreshold = 0;
             }
+            
+            // Note: The backend is smart enough to update all items in the group
             await updateMenuItem(dataToSave);
+            
             setIsSaving(prev => ({ ...prev, [itemId]: false }));
         }
     };
@@ -796,7 +823,16 @@ const StockManagement: React.FC = ({}) => {
                             const isLowStock = item.trackStock && isFinite(item.stock) && item.stockThreshold > 0 && item.stock <= item.stockThreshold;
                             return (
                                 <tr key={item.id} className={isLowStock ? 'bg-red-900/40' : ''}>
-                                    <td className="p-3">{item.name}</td>
+                                    <td className="p-3">
+                                        <div className="flex flex-col">
+                                            <span>{item.name}</span>
+                                            {item.stockGroupId && (
+                                                <span className="text-xs text-blue-400 font-mono mt-0.5">
+                                                    🔗 {item.stockGroupId}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="p-3">
                                         <label htmlFor={`track-${item.id}`} className="flex items-center cursor-pointer">
                                             <div className="relative">

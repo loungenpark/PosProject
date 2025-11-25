@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePos } from '../context/PosContext';
 import { User, UserRole } from '../types';
 import { PlusIcon, TrashIcon, CloseIcon } from './common/Icons';
@@ -78,11 +78,24 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel }) => {
     );
 };
 
-
+// ADD THIS PART in its place
 // --- Main User Management Component ---
 const UserManagement: React.FC = () => {
     const { users, addUser, deleteUser } = usePos();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [autoLogoutEnabled, setAutoLogoutEnabled] = useState(false);
+
+    // Load the setting from localStorage when the component mounts
+    useEffect(() => {
+        const isEnabled = localStorage.getItem('autoLogoutAfterAction') === 'true';
+        setAutoLogoutEnabled(isEnabled);
+    }, []);
+
+    const handleToggleAutoLogout = () => {
+        const newValue = !autoLogoutEnabled;
+        setAutoLogoutEnabled(newValue);
+        localStorage.setItem('autoLogoutAfterAction', newValue.toString());
+    };
 
     const handleSaveUser = async (user: Omit<User, 'id'>) => {
         await addUser(user);
@@ -102,12 +115,33 @@ const UserManagement: React.FC = () => {
         <div className="bg-secondary p-6 rounded-lg">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Përdoruesit</h3>
-                <button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-blue-600">
-                    <PlusIcon className="w-5 h-5" />
-                    <span>Shto Përdorues</span>
-                </button>
+                <div className="flex items-center space-x-4">
+                    {/* Auto Logout Toggle Switch */}
+                    <div className="flex items-center space-x-2">
+                         <span className="text-sm font-medium text-text-secondary">Auto-Logout pas Veprimit:</span>
+                         <button
+                             onClick={handleToggleAutoLogout}
+                             className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-highlight ${
+                                 autoLogoutEnabled ? 'bg-green-500' : 'bg-gray-400'
+                             }`}
+                         >
+                             <span
+                                 className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
+                                     autoLogoutEnabled ? 'translate-x-6' : 'translate-x-1'
+                                 }`}
+                             />
+                         </button>
+                     </div>
+
+                    {/* Add User Button */}
+                    <button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-blue-600">
+                        <PlusIcon className="w-5 h-5" />
+                        <span>Shto Përdorues</span>
+                    </button>
+                </div>
             </div>
             <div className="max-h-[70vh] overflow-y-auto">
+
                 <table className="w-full text-left">
                     <thead className="bg-accent">
                         <tr>
