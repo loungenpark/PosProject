@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { usePos } from '../context/PosContext';
+import ToggleSwitch from './common/ToggleSwitch';
 import * as api from '../utils/api'; // <--- ADD THIS LINE
 import { MenuItem, MenuCategory, Printer, User, Sale } from '../types';
 import { EditIcon, TrashIcon, PlusIcon, CloseIcon, ChartBarIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, UploadIcon, DragHandleIcon, SortIcon } from './common/Icons';
@@ -1017,142 +1018,60 @@ const TableSettings: React.FC = ({}) => {
     );
 };
 
-// --- DeviceSettings Component ---
-const DeviceSettings: React.FC = ({}) => {
-    const [isPrintStation, setIsPrintStation] = useState(localStorage.getItem('isPrintStation') === 'true');
-    const [isOrderTicketPrintingEnabled, setIsOrderTicketPrintingEnabled] = useState(localStorage.getItem('isOrderTicketPrintingEnabled') !== 'false');
-    const [isReceiptPrintingEnabled, setIsReceiptPrintingEnabled] = useState(localStorage.getItem('isReceiptPrintingEnabled') !== 'false');
 
-    const handleSetPrintStation = () => {
-        localStorage.setItem('isPrintStation', 'true');
-        setIsPrintStation(true);
-        alert('Kjo pajisje është caktuar si stacioni i printimit.');
+
+
+// --- Printing Settings Component ---
+const PrintingSettings: React.FC = () => {
+    const [isPrintStation, setIsPrintStation] = useState(false);
+    const [printOrdersEnabled, setPrintOrdersEnabled] = useState(false);
+    const [printReceiptsEnabled, setPrintReceiptsEnabled] = useState(false);
+    
+    useEffect(() => {
+        // Load initial state from localStorage, respecting defaults
+        setIsPrintStation(localStorage.getItem('isPrintStation') === 'true');
+        setPrintOrdersEnabled(localStorage.getItem('isOrderTicketPrintingEnabled') !== 'false');
+        setPrintReceiptsEnabled(localStorage.getItem('isReceiptPrintingEnabled') !== 'false');
+    }, []);
+
+    const handlePrintStationChange = (enabled: boolean) => {
+        setIsPrintStation(enabled);
+        localStorage.setItem('isPrintStation', String(enabled));
     };
-
-    const handleUnsetPrintStation = () => {
-        localStorage.removeItem('isPrintStation');
-        setIsPrintStation(false);
-        alert('Kjo pajisje nuk është më stacioni i printimit.');
-    };
-
-    const toggleOrderTicketPrinting = (enabled: boolean) => {
+    
+    const handleOrderPrintingChange = (enabled: boolean) => {
+        setPrintOrdersEnabled(enabled);
         localStorage.setItem('isOrderTicketPrintingEnabled', String(enabled));
-        setIsOrderTicketPrintingEnabled(enabled);
-        alert(`Printimi i urdhrave është ${enabled ? 'aktivizuar' : 'çaktivizuar'}.`);
     };
-    
-    const toggleReceiptPrinting = (enabled: boolean) => {
+
+    const handleReceiptPrintingChange = (enabled: boolean) => {
+        setPrintReceiptsEnabled(enabled);
         localStorage.setItem('isReceiptPrintingEnabled', String(enabled));
-        setIsReceiptPrintingEnabled(enabled);
-        alert(`Printimi i faturës është ${enabled ? 'aktivizuar' : 'çaktivizuar'}.`);
     };
-    
+
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-4 text-text-main">Cilësimet e Pajisjes</h3>
-            <div className="space-y-6 bg-primary p-6 rounded-lg">
-                {/* Print Station Setting */}
-                <div>
-                    <p className="text-text-secondary mb-4">
-                        Caktoni këtë pajisje (kompjuterin tuaj) si stacionin kryesor për printimin e faturave. 
-                        Vetëm stacioni i printimit do të hapë dialogun e printimit kur një faturë finalizohet, 
-                        pavarësisht se nga cila pajisje është bërë shitja.
-                    </p>
-                </div>
-                <div className="flex justify-center pt-2">
-                    {isPrintStation ? (
-                        <div className="text-center">
-                            <p className="text-green-400 font-bold mb-4">✅ Kjo pajisje është stacioni i printimit.</p>
-                            <button 
-                                onClick={handleUnsetPrintStation} 
-                                className="px-6 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 transition-colors"
-                            >
-                                Hiq si Stacion Printimi
-                            </button>
-                        </div>
-                    ) : (
-                        <button 
-                            onClick={handleSetPrintStation} 
-                            className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-blue-600 transition-colors"
-                        >
-                            Cakto si Stacion Printimi
-                        </button>
-                    )}
-                </div>
-                
-                {/* Order Ticket Printing Setting */}
-                <div className="pt-6 mt-6 border-t border-accent">
-                    <h4 className="text-lg font-semibold text-text-main mb-2">Printimi i Urdhrave</h4>
-                    <p className="text-text-secondary mb-4">
-                        Aktivizoni ose çaktivizoni printimin e urdhrave për kuzhinë/bar.
-                    </p>
-                    <div className="flex items-center justify-between pt-2">
-                        <span className="text-text-main font-medium">
-                            {isOrderTicketPrintingEnabled ? '✅ Printimi i urdhrave është aktivizuar' : '❌ Printimi i urdhrave është çaktivizuar'}
-                        </span>
-                        <div className="flex space-x-2">
-                            <button
-                                onClick={() => toggleOrderTicketPrinting(true)}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
-                                    isOrderTicketPrintingEnabled 
-                                        ? 'bg-green-600 text-white' 
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                                disabled={isOrderTicketPrintingEnabled}
-                            >
-                                Aktivizo
-                            </button>
-                            <button
-                                onClick={() => toggleOrderTicketPrinting(false)}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
-                                    !isOrderTicketPrintingEnabled 
-                                        ? 'bg-red-600 text-white' 
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                                disabled={!isOrderTicketPrintingEnabled}
-                            >
-                                Çaktivizo
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                {/* Receipt Printing Setting */}
-                <div className="pt-6 mt-6 border-t border-accent">
-                    <h4 className="text-lg font-semibold text-text-main mb-2">Printimi i Faturave</h4>
-                    <p className="text-text-secondary mb-4">
-                        Aktivizoni ose çaktivizoni printimin e faturave pas përfundimit të shitjes.
-                    </p>
-                    <div className="flex items-center justify-between pt-2">
-                        <span className="text-text-main font-medium">
-                            {isReceiptPrintingEnabled ? '✅ Printimi i faturave është aktivizuar' : '❌ Printimi i faturave është çaktivizuar'}
-                        </span>
-                        <div className="flex space-x-2">
-                            <button
-                                onClick={() => toggleReceiptPrinting(true)}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
-                                    isReceiptPrintingEnabled 
-                                        ? 'bg-green-600 text-white' 
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                                disabled={isReceiptPrintingEnabled}
-                            >
-                                Aktivizo
-                            </button>
-                            <button
-                                onClick={() => toggleReceiptPrinting(false)}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
-                                    !isReceiptPrintingEnabled 
-                                        ? 'bg-red-600 text-white' 
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                                disabled={!isReceiptPrintingEnabled}
-                            >
-                                Çaktivizo
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            <h3 className="text-xl font-semibold mb-2 text-text-main">Konfigurimi i Printimit</h3>
+            <p className="text-gray-400 mb-6">Menaxho se si dhe ku printohen porositë dhe faturat për këtë pajisje.</p>
+            <div className="bg-primary rounded-lg p-6">
+                <ToggleSwitch
+                    label="Stacion Printimi"
+                    description="Aktivizo këtë nëse ky kompjuter është i lidhur direkt me printerët."
+                    enabled={isPrintStation}
+                    onChange={handlePrintStationChange}
+                />
+                <ToggleSwitch
+                    label="Printimi i Porosisë (Kuzhinë/Shank)"
+                    description="Printo automatikisht një fletë-porosi kur dërgohen artikuj të rinj."
+                    enabled={printOrdersEnabled}
+                    onChange={handleOrderPrintingChange}
+                />
+                <ToggleSwitch
+                    label="Printimi i Faturës"
+                    description="Printo automatikisht faturën për klientin pasi të finalizohet shitja."
+                    enabled={printReceiptsEnabled}
+                    onChange={handleReceiptPrintingChange}
+                />
             </div>
         </div>
     );
@@ -1160,7 +1079,7 @@ const DeviceSettings: React.FC = ({}) => {
 
 
 // --- Main Admin Screen Component ---
-type AdminTab = 'sales' | 'menu' | 'stock' | 'users' | 'tax' | 'tables' | 'device';
+type AdminTab = 'sales' | 'menu' | 'stock' | 'users' | 'tax' | 'tables' | 'printimi';
 
 interface AdminScreenProps {
     onClose: () => void;
@@ -1208,10 +1127,12 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ onClose }) => {
                 <PercentIcon className="w-6 h-6"/>
                 <span>Tatimi</span>
             </button>
-            <button onClick={() => setActiveTab('device')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'device' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+
+            <button onClick={() => setActiveTab('printimi')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'printimi' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
                 <PrinterIcon className="w-6 h-6"/>
-                <span>Pajisja</span>
+                <span>Printimi</span>
             </button>
+
         </nav>
 
         <main className="flex-grow p-6 overflow-y-auto">
@@ -1221,7 +1142,7 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ onClose }) => {
             {activeTab === 'users' && <UserManagement />}
             {activeTab === 'tax' && <TaxSettings />}
             {activeTab === 'tables' && <TableSettings />}
-            {activeTab === 'device' && <DeviceSettings />}
+            {activeTab === 'printimi' && <PrintingSettings />}
         </main>
       </div>
     </div>

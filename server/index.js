@@ -58,19 +58,8 @@ const app = express();
 const port = process.env.PORT || 3001; 
 const host = '0.0.0.0';
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://192.168.1.10:3000'
-];
+app.use(cors());
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    return callback(null, true); // Allow all origins for local LAN ease
-  },
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
 app.use(express.json());
 
 const upload = multer({ storage: multer.memoryStorage() });

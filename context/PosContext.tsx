@@ -488,11 +488,17 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }))
         };
       
+        // --- START: Add this block ---
         setTimeout(() => {
-            if (socketRef.current?.connected) {
-               socketRef.current.emit('print-order-ticket', printPayload);
-            }
+          // REMOVED: const isStation = localStorage.getItem('isPrintStation') === 'true';
+          const isOrderTicketPrintingEnabled = localStorage.getItem('isOrderTicketPrintingEnabled') !== 'false'; // Default to true
+
+          // LOGIC CHANGE: We removed '&& isStation'. Now any device can request a print if the toggle is ON.
+          if (socketRef.current?.connected && isOrderTicketPrintingEnabled) {
+            socketRef.current.emit('print-order-ticket', printPayload);
+          }
         }, 200);
+        // --- END: Add this block ---
     }
     handleAutoLogout();
 
@@ -596,7 +602,15 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (socketRef.current?.connected) {
       socketRef.current.emit('sale-finalized', newSale);
       console.log("Sent print request for Sale ID:", newSale.id);
-      socketRef.current.emit('print-sale-receipt', newSale);
+      // --- START: MODIFIED BLOCK ---
+      // REMOVED: const isStation = localStorage.getItem('isPrintStation') === 'true';
+      const isReceiptPrintingEnabled = localStorage.getItem('isReceiptPrintingEnabled') !== 'false'; // Default to true
+
+      // LOGIC CHANGE: Removed '&& isStation'.       
+      if (isReceiptPrintingEnabled) {
+        socketRef.current.emit('print-sale-receipt', newSale);
+      }
+      // --- END: Add this block ---
     }
   // ADD these lines in its place. We are adding the handleAutoLogout() call and updating the dependency array.
     // --- AUTO-LOGOUT ---
