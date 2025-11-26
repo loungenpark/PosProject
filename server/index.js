@@ -317,10 +317,32 @@ app.post('/api/history', asyncHandler(async (req, res) => {
 
 // 6. USERS
 app.post('/api/users', asyncHandler(async (req, res) => {
-    const { username, pin, role } = req.body;
-    const { rows } = await query('INSERT INTO users (username, pin, role) VALUES ($1, $2, $3) RETURNING *', [username, pin, role]);
-    res.status(201).json(rows[0]);
+  const { username, pin, role } = req.body;
+
+  // 1. Check if user already exists (active or inactive)
+  const checkResult = await query('SELECT * FROM users WHERE username = $1', [username]);
+
+  if (checkResult.rows.length > 0) {
+      const existingUser = checkResult.rows[0];
+
+      if (existingUser.active) {
+          // User exists and is currently active
+          return res.status(400).json({ message: 'Ky përdorues ekziston tashmë!' });
+      } else {
+          // User exists but was "deleted" -> Reactivate them and update PIN/Role
+          const { rows } = await query(
+              'UPDATE users SET active = TRUE, pin = $1, role = $2 WHERE id = $3 RETURNING *',
+              [pin, role, existingUser.id]
+          );
+          return res.json(rows[0]);
+      }
+  }
+
+  // 2. If user doesn't exist, create new
+  const { rows } = await query('INSERT INTO users (username, pin, role) VALUES ($1, $2, $3) RETURNING *', [username, pin, role]);
+  res.status(201).json(rows[0]);
 }));
+
 
 app.delete('/api/users/:id', asyncHandler(async (req, res) => {
     const { id } = req.params;
