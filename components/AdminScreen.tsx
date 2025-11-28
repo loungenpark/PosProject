@@ -1100,42 +1100,43 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ onClose }) => {
           </button>
         </div>
       </header>
-      
-      <div className="flex flex-grow overflow-hidden">
-        <nav className="w-64 bg-secondary p-4 space-y-2">
-            <button onClick={() => setActiveTab('sales')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'sales' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <ChartBarIcon className="w-6 h-6"/>
+
+      {/* Changed layout from row (sidebar) to col (top tabs) */}
+      <div className="flex flex-col flex-grow overflow-hidden">
+        {/* Horizontal Scrollable Tabs */}
+        <nav className="w-full bg-secondary p-2 flex overflow-x-auto space-x-2 border-b border-accent flex-shrink-0">
+            <button onClick={() => setActiveTab('sales')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'sales' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+                <ChartBarIcon className="w-5 h-5"/>
                 <span>Raporti i Shitjeve</span>
             </button>
-            <button onClick={() => setActiveTab('menu')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'menu' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <MenuIcon className="w-6 h-6"/>
+            <button onClick={() => setActiveTab('menu')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'menu' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+                <MenuIcon className="w-5 h-5"/>
                 <span>Menaxhimi i Menusë</span>
             </button>
-             <button onClick={() => setActiveTab('stock')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'stock' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <BoxIcon className="w-6 h-6"/>
+            <button onClick={() => setActiveTab('stock')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'stock' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+                <BoxIcon className="w-5 h-5"/>
                 <span>Stoku</span>
             </button>
-            <button onClick={() => setActiveTab('users')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'users' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <UserGroupIcon className="w-6 h-6"/>
-                <span>Menaxhimi i Përdoruesve</span>
+            <button onClick={() => setActiveTab('users')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'users' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+                <UserGroupIcon className="w-5 h-5"/>
+                <span>Përdoruesit</span>
             </button>
-            <button onClick={() => setActiveTab('tables')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'tables' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <TableIcon className="w-6 h-6"/>
+            <button onClick={() => setActiveTab('tables')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'tables' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+                <TableIcon className="w-5 h-5"/>
                 <span>Tavolinat</span>
             </button>
-            <button onClick={() => setActiveTab('tax')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'tax' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <PercentIcon className="w-6 h-6"/>
+            <button onClick={() => setActiveTab('tax')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'tax' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+                <PercentIcon className="w-5 h-5"/>
                 <span>Tatimi</span>
             </button>
-
-            <button onClick={() => setActiveTab('printimi')} className={`w-full flex items-center space-x-3 p-3 rounded-md text-left transition-colors ${activeTab === 'printimi' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <PrinterIcon className="w-6 h-6"/>
+            <button onClick={() => setActiveTab('printimi')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'printimi' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+                <PrinterIcon className="w-5 h-5"/>
                 <span>Printimi</span>
             </button>
-
         </nav>
 
-        <main className="flex-grow p-6 overflow-y-auto">
+        {/* Main Content (Scrolls independently) */}
+        <main className="flex-grow p-4 md:p-6 overflow-y-auto w-full">
             {activeTab === 'sales' && <SalesDashboard />}
             {activeTab === 'menu' && <MenuManagement />}
             {activeTab === 'stock' && <StockManagement />}

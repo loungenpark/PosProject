@@ -11,6 +11,7 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
+
 // --- Payment Modal Component ---
 const PaymentModal: React.FC<{
     isOpen: boolean; onClose: () => void; onFinalize: (amountPaid: number) => void; total: number;
@@ -41,8 +42,8 @@ const PaymentModal: React.FC<{
     const change = (finalAmount >= total) ? finalAmount - total : 0;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center">
-            <div className="bg-secondary rounded-lg shadow-xl w-full max-w-sm m-4 p-6 space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-start pt-2 md:items-center md:pt-0 overflow-y-auto">
+            <div className="bg-secondary rounded-lg shadow-xl w-full max-w-sm m-4 p-6 space-y-4 relative">
                 <h3 className="text-xl font-semibold text-text-main">Finalizo Faturën</h3>
                 <div className="text-center">
                     <p className="text-text-secondary">Totali</p>
@@ -50,7 +51,17 @@ const PaymentModal: React.FC<{
                 </div>
                 <div>
                     <label htmlFor="amountPaid" className="block text-sm font-medium text-text-secondary">Shuma e Paguar (€)</label>
-                    <input ref={inputRef} type="number" id="amountPaid" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={handleKeyDown} className="mt-1 block w-full bg-primary border border-accent rounded-md shadow-sm py-3 px-4 text-text-main text-2xl text-center focus:outline-none focus:ring-highlight focus:border-highlight" placeholder={total.toFixed(2)} />
+                    <input 
+                        ref={inputRef} 
+                        type="number" 
+                        inputMode="decimal"
+                        id="amountPaid" 
+                        value={amount} 
+                        onChange={(e) => setAmount(e.target.value)} 
+                        onKeyDown={handleKeyDown} 
+                        className="mt-1 block w-full bg-primary border border-accent rounded-md shadow-sm py-3 px-4 text-text-main text-2xl text-center focus:outline-none focus:ring-highlight focus:border-highlight" 
+                        placeholder={total.toFixed(2)} 
+                    />
                 </div>
                 <div className="text-center p-3 bg-accent rounded-lg">
                     <p className="text-text-secondary">Kusuri</p>
@@ -60,6 +71,8 @@ const PaymentModal: React.FC<{
                     <button onClick={onClose} className="px-4 py-2 rounded-md bg-accent text-text-main hover:bg-gray-600">Anulo</button>
                     <button onClick={handleFinalizeClick} className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700">Finalizo</button>
                 </div>
+                {/* Spacer to allow scrolling past keyboard on very small screens */}
+                <div className="h-4 sm:h-0"></div>
             </div>
         </div>
     );
@@ -248,26 +261,31 @@ const PosScreen: React.FC = () => {
         </div>
         <Header />
       </header>
+
       <div className="flex flex-grow overflow-hidden">
-        <main className="w-1/2 md:flex-grow flex flex-col p-4 overflow-y-auto">
+        <main className="w-1/2 md:flex-grow flex flex-col p-4 overflow-hidden">
              <div className="flex space-x-2 overflow-x-auto pb-2 mb-4 flex-shrink-0">
                 {menuCategories.map(category => (
                     <button key={category.id} onClick={() => setSelectedCategory(category.name)} className={`px-4 py-2 rounded-md text-base font-bold whitespace-nowrap transition-colors ${selectedCategory === category.name ? 'bg-highlight text-white' : 'bg-accent text-text-secondary hover:bg-highlight hover:text-white'}`}>{category.name}</button>
                 ))}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {filteredMenuItems.map(item => {
-                    const isOutOfStock = item.trackStock && isFinite(item.stock) && item.stock <= 0;
-                    return (
-                        <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-20 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'hover:ring-2 hover:ring-highlight hover:-translate-y-1'}`}>
-                            <p className="text-sm font-semibold text-text-main">{item.name}</p>
-                            <p className="text-xs text-highlight mt-1">{formatCurrency(item.price)}</p>
-                            {isOutOfStock && <div className="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">STOKU 0</span></div>}
-                        </button>
-                    )
-                })}
+            <div className="flex-grow overflow-y-auto">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {filteredMenuItems.map(item => {
+                        const isOutOfStock = item.trackStock && isFinite(item.stock) && item.stock <= 0;
+                        return (
+                            <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-20 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'hover:ring-2 hover:ring-highlight hover:-translate-y-1'}`}>
+                                <p className="text-sm font-semibold text-text-main">{item.name}</p>
+                                <p className="text-xs text-highlight mt-1">{formatCurrency(item.price)}</p>
+                                {isOutOfStock && <div className="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">STOKU 0</span></div>}
+                            </button>
+                        )
+                    })}
+                </div>
             </div>
         </main>
+
+
         <aside className="w-1/2 md:w-1/3 lg:w-1/4 flex-shrink-0 bg-secondary flex flex-col p-4 shadow-inner">
              <div className="flex justify-between items-center mb-4 border-b border-accent pb-2">
                 <h2 className="text-lg font-bold text-text-main">Porosia Aktuale</h2>
