@@ -1,3 +1,5 @@
+import "./instrument.js"; // <--- ADD THIS (Must be line 1)
+import * as Sentry from "@sentry/node"; // <--- ADD THIS
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -55,6 +57,9 @@ dotenv.config({ path: path.join(projectRoot, '.env.local') });
 })();
 
 const app = express();
+
+
+
 const port = process.env.PORT || 3001; 
 const host = '0.0.0.0';
 
@@ -585,17 +590,30 @@ app.post('/api/settings/table-count', asyncHandler(async (req, res) => {
 
 // --- SERVE FRONTEND (Production) ---
 if (process.env.NODE_ENV === 'production') {
-    const distPath = path.join(projectRoot, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(distPath, 'index.html'));
-    });
+  const distPath = path.join(projectRoot, 'dist');
+  
+  // Serve static files
+  app.use(express.static(distPath));
+
+  console.log(`🚀 Production Mode: Serving static files from ${distPath}`);
+
+  // Handle "Catch All" for SPA, but avoid swallowing API 404s
+  app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+          return next(); // Pass to error handler if it's an unknown API route
+      }
+      res.sendFile(path.join(distPath, 'index.html'));
+  });
 } else {
-    app.get('/', (req, res) => {
-        res.send('Backend API is running. Use localhost:3000 for frontend.');
-    });
+  app.get('/', (req, res) => {
+      res.send('Backend API is running. Use localhost:3000 for frontend.');
+  });
 }
 
+// --- SENTRY ERROR HANDLER (MUST BE BEFORE CUSTOM ERROR HANDLER) ---
+Sentry.setupExpressErrorHandler(app);
+
+// Your Existing Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: err.message || 'Something went wrong on the server!' });

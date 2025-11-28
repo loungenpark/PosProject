@@ -7,6 +7,23 @@ const LoginScreen: React.FC = () => {
   const [error, setError] = useState('');
   const { login } = usePos();
 
+  const enterFullScreen = () => {
+    const doc = window.document;
+    const docEl = doc.documentElement;
+
+    const requestFullScreen =
+      docEl.requestFullscreen ||
+      (docEl as any).mozRequestFullScreen ||
+      (docEl as any).webkitRequestFullScreen ||
+      (docEl as any).msRequestFullscreen;
+
+    if (requestFullScreen && !doc.fullscreenElement) {
+      requestFullScreen.call(docEl).catch((err: any) => {
+        console.warn("Full screen request blocked:", err);
+      });
+    }
+  };
+
   const handleKeyPress = useCallback((key: string) => {
     setPin((prevPin) => {
       if (prevPin.length < 4) {
@@ -29,7 +46,9 @@ const LoginScreen: React.FC = () => {
 
   const attemptLogin = useCallback(async () => {
     const success = await login(pin);
-    if (!success) {
+    if (success) {
+      enterFullScreen(); // Trigger full screen on success
+    } else {
       setError('PIN i pavlefshëm');
       setTimeout(() => {
         setPin('');
