@@ -92,6 +92,7 @@ const SalesScreen: React.FC = () => {
                 totalKuzhinaRevenue += sale.order.total * kuzhinaRatio;
             }
         });
+
         return { 
             totalShankRevenue, 
             totalKuzhinaRevenue, 
@@ -100,7 +101,51 @@ const SalesScreen: React.FC = () => {
         };
     }, [sales, startDate, endDate, selectedUserId]);
 
+    const dailySalesStats = useMemo(() => {
+        const filteredSales = sales.filter(sale => filterByDateAndUser(new Date(sale.date), sale.user.id));
+        const statsMap = new Map<string, { dateStr: string, bar: number, kitchen: number, total: number }>();
+
+        filteredSales.forEach(sale => {
+            const dateObj = new Date(sale.date);
+            const dateKey = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+            
+            let subtotalShank = 0;
+            let subtotalKuzhina = 0;
+
+            sale.order.items.forEach(item => {
+                const itemPrice = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
+                if (item.printer === Printer.BAR) {
+                    subtotalShank += itemPrice * item.quantity;
+                } else if (item.printer === Printer.KITCHEN) {
+                    subtotalKuzhina += itemPrice * item.quantity;
+                }
+            });
+
+            let saleShank = 0;
+            let saleKuzhina = 0;
+
+            if (sale.order.subtotal > 0) {
+                const shankRatio = subtotalShank / sale.order.subtotal;
+                const kuzhinaRatio = subtotalKuzhina / sale.order.subtotal;
+                saleShank = sale.order.total * shankRatio;
+                saleKuzhina = sale.order.total * kuzhinaRatio;
+            }
+
+            const current = statsMap.get(dateKey) || { dateStr: dateKey, bar: 0, kitchen: 0, total: 0 };
+            statsMap.set(dateKey, {
+                dateStr: dateKey,
+                bar: current.bar + saleShank,
+                kitchen: current.kitchen + saleKuzhina,
+                total: current.total + sale.order.total
+            });
+        });
+
+        // Sort descending by date (newest first)
+        return Array.from(statsMap.values()).sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+    }, [sales, startDate, endDate, selectedUserId]);
+
     // --- 2. TAB: TRANSACTIONS (Logic) ---
+
     const filteredTransactions = useMemo(() => {
         const ticketEvents = orderTickets.map(t => ({ id: `ticket-${t.id}`, type: 'ORDER', tableName: t.tableName, user: t.user, date: t.date, items: t.items, total: parseFloat(t.total) }));
         const saleEvents = sales.map(s => ({ id: `sale-${s.id}`, type: 'RECEIPT', tableName: s.tableName, user: s.user, date: new Date(s.date), items: s.order.items, total: s.order.total }));
@@ -149,9 +194,10 @@ const SalesScreen: React.FC = () => {
                     <option key={user.id} value={user.id.toString()}>{user.username}</option>
                 ))}
             </select>
+
             <div className="ml-auto flex items-center gap-2">
                 <button 
-                    onClick={() => { setStartDate(''); setEndDate(''); setSelectedUserId(''); }}
+                    onClick={() => { setStartDate(todayStr); setEndDate(todayStr); setSelectedUserId(''); }}
                     className="px-4 py-2 rounded-md bg-accent text-text-main hover:bg-gray-600 text-sm"
                 >
                     Pastro
@@ -228,9 +274,39 @@ const SalesScreen: React.FC = () => {
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border-l-4 border-highlight relative overflow-hidden">
                             <h3 className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-2">Totali i Përgjithshëm</h3>
+
                             <p className="text-4xl font-bold text-white">{formatCurrency(salesSummary.totalRevenue)}</p>
                             <p className="text-sm text-text-secondary mt-2">{salesSummary.count} fatura të mbyllura</p>
                         </div>
+
+                        {/* Daily Breakdown Table - Only if date range > 1 day */}
+                        {(startDate !== endDate) && dailySalesStats.length > 0 && (
+                            <div className="col-span-1 md:col-span-3 mt-4 bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in border border-accent/50">
+                                <div className="p-4 border-b border-accent bg-secondary/50">
+                                    <h3 className="font-bold text-text-main">Detajet Ditore</h3>
+                                </div>
+                                <table className="w-full text-left">
+                                    <thead className="bg-accent text-text-secondary text-xs uppercase font-semibold">
+                                        <tr>
+                                            <th className="p-4">Data</th>
+                                            <th className="p-4 text-right">Shank</th>
+                                            <th className="p-4 text-right">Kuzhina</th>
+                                            <th className="p-4 text-right">Totali</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-accent text-text-main">
+                                        {dailySalesStats.map((stat) => (
+                                            <tr key={stat.dateStr} className="hover:bg-primary/30 transition-colors">
+                                                <td className="p-4 font-medium">{new Date(stat.dateStr).toLocaleDateString('de-DE')}</td>
+                                                <td className="p-4 text-right">{formatCurrency(stat.bar)}</td>
+                                                <td className="p-4 text-right">{formatCurrency(stat.kitchen)}</td>
+                                                <td className="p-4 text-right font-bold text-highlight">{formatCurrency(stat.total)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 )}
 
