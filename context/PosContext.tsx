@@ -12,6 +12,8 @@ interface OrderToPrint { table: Table; newItems: OrderItem[]; }
 
 interface PosContextState {
   isLoading: boolean; isOnline: boolean; isSyncing: boolean; loggedInUser: User | null;
+  activeScreen: 'pos' | 'sales' | 'admin';
+  setActiveScreen: (screen: 'pos' | 'sales' | 'admin') => void;
   login: (pin: string) => Promise<boolean>; logout: () => void; users: User[];
   addUser: (user: Omit<User, 'id'>) => Promise<void>; deleteUser: (userId: number) => Promise<boolean>;
   menuItems: MenuItem[]; addMenuItem: (item: Omit<MenuItem, 'id'>) => Promise<void>;
@@ -37,6 +39,7 @@ const PosContext = createContext<PosContextState | undefined>(undefined);
 
 export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // --- STATE DEFINITIONS ---
+  const [activeScreen, setActiveScreen] = useState<'pos' | 'sales' | 'admin'>('pos');
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -250,7 +253,10 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return false;
   }, [isOnline, users]);
 
-  const logout = useCallback(() => setLoggedInUser(null), []);
+  const logout = useCallback(() => {
+    setLoggedInUser(null);
+    setActiveScreen('pos');
+  }, []);
 
   // ADD THE FOLLOWING FUNCTION DIRECTLY AFTER IT:
   const handleAutoLogout = useCallback(() => {
@@ -832,7 +838,8 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [syncOfflineData, loadDataFromDb, fetchAndCacheData]);
 
   const value = useMemo(() => ({
-    isLoading, isOnline, isSyncing, loggedInUser, users, menuItems, menuCategories, sales, saleToPrint,
+    isLoading, isOnline, isSyncing, loggedInUser, activeScreen, setActiveScreen, // ADDED
+    users, menuItems, menuCategories, sales, saleToPrint,
     setSaleToPrint, orderToPrint, setOrderToPrint, tables, tablesPerRow, tableSizePercent,
     tableButtonSizePercent, taxRate, history, login, logout, addUser, deleteUser, addMenuItem, updateMenuItem,
     deleteMenuItem, importMenuItemsFromCSV, reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory,
@@ -840,7 +847,8 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTablesPerRow, setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
     refreshSalesFromServer,
   }), [
-    isLoading, isOnline, isSyncing, loggedInUser, users, menuItems, menuCategories, sales, saleToPrint,
+    isLoading, isOnline, isSyncing, loggedInUser, activeScreen, // ADDED
+    users, menuItems, menuCategories, sales, saleToPrint,
     orderToPrint, tables, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate, history,
     login, logout, addUser, deleteUser, addMenuItem, updateMenuItem, deleteMenuItem, importMenuItemsFromCSV,
     reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory, updateMenuCategory, deleteMenuCategory,

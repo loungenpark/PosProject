@@ -5,7 +5,6 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
 import { LogoutIcon, PlusIcon, MinusIcon, TrashIcon, CloseIcon, TableIcon, ChevronLeftIcon } from './common/Icons';
-import AdminScreen from './AdminScreen';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
@@ -80,11 +79,10 @@ const PaymentModal: React.FC<{
 
 // --- Main POS Screen Component ---
 const PosScreen: React.FC = () => {
-  const { loggedInUser, logout, menuItems, menuCategories, addSale, tables, saveOrderForTable, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate } = usePos();
-  const [activeTableId, setActiveTableId] = useState<number | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [isAdminScreenOpen, setAdminScreenOpen] = useState(false);
-  const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
+    const { loggedInUser, logout, setActiveScreen, menuItems, menuCategories, addSale, tables, saveOrderForTable, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate } = usePos();
+    const [activeTableId, setActiveTableId] = useState<number | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
   const [currentOrderItems, setCurrentOrderItems] = useState<OrderItem[]>([]);
   const activeTable = useMemo(() => tables.find(t => t.id === activeTableId), [tables, activeTableId]);
 
@@ -221,7 +219,10 @@ const PosScreen: React.FC = () => {
   const Header = () => (
     <div className="flex items-center space-x-4">
         {loggedInUser?.role === UserRole.ADMIN && (
-            <button onClick={() => setAdminScreenOpen(true)} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">Admin</button>
+            <>
+                <button onClick={() => setActiveScreen('sales')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">Raporte</button>
+                <button onClick={() => setActiveScreen('admin')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">Menaxhimi</button>
+            </>
         )}
         <span className="text-text-secondary">Përdoruesi: {loggedInUser?.username}</span>
         <button onClick={logout} className="p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors"><LogoutIcon className="w-6 h-6" /></button>
@@ -247,7 +248,6 @@ const PosScreen: React.FC = () => {
                     ))}
                 </div>
             </main>
-            {isAdminScreenOpen && <AdminScreen onClose={() => setAdminScreenOpen(false)} />}
         </div>
     );
   }
@@ -333,8 +333,7 @@ const PosScreen: React.FC = () => {
                 </div>
             </div>
         </aside>
-      </div>
-      {isAdminScreenOpen && <AdminScreen onClose={() => setAdminScreenOpen(false)} />}
+      </div>    
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setPaymentModalOpen(false)} onFinalize={handleFinalizeSale} total={orderTotals.total} />
     </div>
   );

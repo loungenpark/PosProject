@@ -1,9 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePos } from '../context/PosContext';
 import ToggleSwitch from './common/ToggleSwitch';
-import * as api from '../utils/api'; // <--- ADD THIS LINE
-import { MenuItem, MenuCategory, Printer, User, Sale } from '../types';
-import { EditIcon, TrashIcon, PlusIcon, CloseIcon, ChartBarIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, UploadIcon, DragHandleIcon, SortIcon } from './common/Icons';
+import { MenuItem, MenuCategory, Printer, User } from '../types';
+import { EditIcon, TrashIcon, PlusIcon, CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, UploadIcon, DragHandleIcon, SortIcon, RestaurantIcon } from './common/Icons';
 import UserManagement from './UserManagement';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 
@@ -185,297 +184,6 @@ const MenuForm: React.FC<MenuFormProps> = ({ menu, onSave, onCancel }) => {
                 <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-blue-600 disabled:bg-gray-500">{isSaving ? 'Duke ruajtur...' : 'Ruaj Menunë'}</button>
             </div>
         </form>
-    );
-};
-
-// --- Sales Dashboard ---
-const SalesDashboard: React.FC = ({}) => {
-    const { sales, users, refreshSalesFromServer } = usePos();
-    
-    // --- NEW: State for Order Tickets (History) ---
-    const [orderTickets, setOrderTickets] = useState<any[]>([]);
-
-    // Date States
-    const todayStr = new Date().toISOString().split('T')[0];
-    const [startDate, setStartDate] = useState(todayStr);
-    const [endDate, setEndDate] = useState(todayStr);
-    
-    const [summaryStartDate, setSummaryStartDate] = useState('');
-    const [summaryEndDate, setSummaryEndDate] = useState('');
-    const [selectedUserId, setSelectedUserId] = useState('');
-
-    // --- 1. DATA FETCHING ---
-    useEffect(() => {
-        refreshSalesFromServer();
-        
-        // Fetch the new Order Tickets (Blue P History)
-        // We use the api function we just added to utils/api.ts
-        api.getOrderTickets()
-            .then(data => {
-                // Ensure dates are proper Date objects
-                const formatted = data.map((t: any) => ({ ...t, date: new Date(t.date) }));
-                setOrderTickets(formatted);
-            })
-            .catch(err => console.error("Failed to load order tickets:", err));
-            
-    }, [refreshSalesFromServer]);
-
-    // --- 2. MERGE LOGIC (The Timeline) ---
-    // Combines Tickets (P) and Sales (F) into one chronological list
-    const allTransactions = useMemo(() => {
-        // A. Convert TICKETS to Transaction format
-        const ticketEvents = orderTickets.map(t => ({
-            id: `ticket-${t.id}`, 
-            type: 'ORDER', // Blue P
-            tableName: t.tableName,
-            user: t.user,
-            date: t.date, // The time the waiter sent the order
-            items: t.items, 
-            total: parseFloat(t.total) 
-        }));
-
-        // B. Convert SALES to Transaction format
-        const saleEvents = sales.map(s => ({
-            id: `sale-${s.id}`,
-            type: 'RECEIPT', // Green F
-            tableName: s.tableName,
-            user: s.user,
-            date: new Date(s.date), // The time payment was made
-            items: s.order.items,
-            total: s.order.total
-        }));
-
-        // C. Combine and Sort by Date (Newest First)
-        return [...ticketEvents, ...saleEvents].sort((a, b) => 
-            b.date.getTime() - a.date.getTime()
-        );
-    }, [sales, orderTickets]);
-
-    // --- 3. LIST FILTERING ---
-    const filteredTransactions = useMemo(() => {
-        let startFilter: Date | null = startDate ? new Date(startDate) : null;
-        let endFilter: Date | null = endDate ? new Date(endDate) : null;
-
-        if (startFilter) startFilter.setHours(0, 0, 0, 0);
-        if (endFilter) endFilter.setHours(23, 59, 59, 999);
-
-        return allTransactions.filter(tx => {
-            const txDate = new Date(tx.date);
-            if (startFilter && txDate < startFilter) return false;
-            if (endFilter && txDate > endFilter) return false;
-            return true;
-        });
-    }, [allTransactions, startDate, endDate]);
-
-    // --- 4. SUMMARY FILTERING (Revenue Only from SALES) ---
-    // We intentionally exclude 'orderTickets' here because revenue comes from finalized sales (F), not kitchen tickets.
-    const summaryFilteredSales = useMemo(() => {
-        let start: Date | null = summaryStartDate ? new Date(summaryStartDate) : null;
-        let end: Date | null = summaryEndDate ? new Date(summaryEndDate) : null;
-
-        if (!summaryStartDate && !summaryEndDate) {
-            start = new Date();
-            start.setHours(0, 0, 0, 0);
-            end = new Date();
-            end.setHours(23, 59, 59, 999);
-        }
-
-        return sales.filter(sale => {
-            const saleDate = new Date(sale.date);
-            if (start && saleDate < start) return false;
-            if (end && saleDate > end) return false;
-            if (selectedUserId && sale.user.id !== parseInt(selectedUserId, 10)) return false;
-            return true;
-        });
-    }, [sales, summaryStartDate, summaryEndDate, selectedUserId]);
-
-    // --- 5. REVENUE CALCULATION (Restored Full Logic) ---
-    const salesSummary = useMemo(() => {
-        let totalShankRevenue = 0;
-        let totalKuzhinaRevenue = 0;
-        
-        summaryFilteredSales.forEach(sale => {
-            let subtotalShank = 0;
-            let subtotalKuzhina = 0;
-            
-            sale.order.items.forEach(item => {
-                const itemPrice = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
-                if (item.printer === Printer.BAR) {
-                    subtotalShank += itemPrice * item.quantity;
-                } else if (item.printer === Printer.KITCHEN) {
-                    subtotalKuzhina += itemPrice * item.quantity;
-                }
-            });
-
-            if (sale.order.subtotal > 0) {
-                const shankRatio = isFinite(sale.order.subtotal) && sale.order.subtotal !== 0 ? subtotalShank / sale.order.subtotal : 0;
-                const kuzhinaRatio = isFinite(sale.order.subtotal) && sale.order.subtotal !== 0 ? subtotalKuzhina / sale.order.subtotal : 0;
-                
-                totalShankRevenue += sale.order.total * shankRatio;
-                totalKuzhinaRevenue += sale.order.total * kuzhinaRatio;
-            }
-        });
-        
-        const totalRevenue = totalShankRevenue + totalKuzhinaRevenue;
-        return { totalShankRevenue, totalKuzhinaRevenue, totalRevenue };
-    }, [summaryFilteredSales]);
-
-    return (
-        <div className="space-y-6">
-            {/* --- SUMMARY HEADER --- */}
-            <div className="bg-secondary p-4 rounded-lg">
-                <div className="flex flex-wrap items-center gap-4">
-                    <h3 className="text-lg font-semibold text-text-main">Filtro Raportin (Të Ardhurat)</h3>
-                    <div className="flex items-center gap-2 flex-grow">
-                        <input 
-                            type="datetime-local" 
-                            value={summaryStartDate}
-                            onChange={e => setSummaryStartDate(e.target.value)}
-                            className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                        />
-                        <span className="text-text-secondary">deri</span>
-                        <input 
-                            type="datetime-local" 
-                            value={summaryEndDate}
-                            onChange={e => setSummaryEndDate(e.target.value)}
-                            className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                        />
-                        <select 
-                            value={selectedUserId}
-                            onChange={(e) => setSelectedUserId(e.target.value)}
-                            className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                        >
-                            <option value="">Të gjithë Përdoruesit</option>
-                            {users.map(user => (
-                                <option key={user.id} value={user.id.toString()}>{user.username}</option>
-                            ))}
-                        </select>
-                        <button 
-                            onClick={() => { setSummaryStartDate(''); setSummaryEndDate(''); setSelectedUserId(''); }}
-                            className="px-3 py-2 rounded-md bg-accent text-text-main hover:bg-gray-600 text-sm"
-                        >
-                            Pastro
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            {/* --- REVENUE BOXES --- */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <div className="bg-secondary p-6 rounded-lg">
-                    <h3 className="text-text-secondary">Shank</h3>
-                    <p className="text-3xl font-bold text-highlight">{formatCurrency(salesSummary.totalShankRevenue)}</p>
-                </div>
-                <div className="bg-secondary p-6 rounded-lg">
-                    <h3 className="text-text-secondary">Kuzhina</h3>
-                    <p className="text-3xl font-bold text-highlight">{formatCurrency(salesSummary.totalKuzhinaRevenue)}</p>
-                </div>
-                <div className="bg-secondary p-6 rounded-lg">
-                    <h3 className="text-text-secondary">Të Ardhurat Totale</h3>
-                    <p className="text-3xl font-bold text-highlight">{formatCurrency(salesSummary.totalRevenue)}</p>
-                </div>
-            </div>
-
-            {/* --- TIMELINE LIST (Transactions) --- */}
-            <div className="bg-secondary p-6 rounded-lg">
-                <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
-                    <h3 className="text-lg font-semibold">Transaksionet (Historiku)</h3>
-                    <div className="flex items-center gap-2">
-                        <input 
-                            type="date" 
-                            value={startDate}
-                            onChange={e => setStartDate(e.target.value)}
-                            className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                        />
-                        <span className="text-text-secondary">deri</span>
-                        <input 
-                            type="date" 
-                            value={endDate}
-                            onChange={e => setEndDate(e.target.value)}
-                            className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
-                        />
-                        <button 
-                            onClick={() => { setStartDate(''); setEndDate(''); }}
-                            className="px-3 py-2 rounded-md bg-accent text-text-main hover:bg-gray-600 text-sm"
-                        >
-                            Pastro
-                        </button>
-                    </div>
-                </div>
-
-                <div className="max-h-96 overflow-y-auto">
-                    {filteredTransactions.length > 0 ? (
-                        <ul className="space-y-4">
-                            {filteredTransactions.map(tx => (
-                                <li key={tx.id}>
-                                    {/* Conditional Styling for Blue (Order) or Green (Receipt) */}
-                                    <div className={`bg-primary p-4 rounded-lg shadow-inner border-l-4 ${tx.type === 'ORDER' ? 'border-blue-500' : 'border-green-500'}`}>
-                                        
-                                        {/* Header Row */}
-                                        <div className="flex justify-between text-sm font-semibold text-text-secondary mb-3 items-center">
-                                            <div className="flex items-center">
-                                                {/* ICONS */}
-                                                {tx.type === 'ORDER' ? (
-                                                    <div className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full text-sm font-bold mr-3 shadow-sm" title="Porosi (Kuzhinë/Bar)">
-                                                        P
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-8 h-8 flex items-center justify-center bg-green-600 text-white rounded-full text-sm font-bold mr-3 shadow-sm" title="Faturë e Paguar">
-                                                        F
-                                                    </div>
-                                                )}
-                                                
-                                                <div className="flex flex-col">
-                                                    <span className="text-text-main text-base font-bold">
-                                                        Tavolina: {tx.tableName} 
-                                                    </span>
-                                                    <span className="font-normal text-xs">
-                                                        {tx.type === 'ORDER' ? 'Porosi e dërguar' : 'Pagesë e kryer'} nga: {tx.user?.username || '...'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-text-main font-bold">{tx.date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                <span className="text-xs">{tx.date.toLocaleDateString('de-DE')}</span>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Items Table */}
-                                        <table className="w-full text-sm mb-4 bg-secondary/30 rounded-md">
-                                            <thead>
-                                                <tr className="border-b border-accent text-xs uppercase text-text-secondary">
-                                                    <th className="text-left py-2 px-2">Artikulli</th>
-                                                    <th className="text-center py-2 px-2">Sasia</th>
-                                                    <th className="text-right py-2 px-2">Totali</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-accent/50">
-                                                {tx.items.map((item: any, index: number) => (
-                                                    <tr key={`${tx.id}-${index}`} className="text-text-main">
-                                                        <td className="py-2 px-2">{item.name}</td>
-                                                        <td className="text-center py-2 px-2 font-bold">x{item.quantity}</td>
-                                                        <td className="text-right py-2 px-2">{formatCurrency((typeof item.price === 'string' ? parseFloat(item.price) : item.price) * item.quantity)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                
-                                        {/* Total Footer */}
-                                        <div className="flex justify-end font-bold text-base text-text-main mt-2 pt-2 border-t border-accent">
-                                            <span className="mr-4 text-text-secondary">Totali i {tx.type === 'ORDER' ? 'Porosisë' : 'Faturës'}:</span>
-                                            <span className={tx.type === 'ORDER' ? 'text-blue-500' : 'text-green-500'}>{formatCurrency(tx.total)}</span>
-                                        </div>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                         <p className="text-text-secondary text-center py-4">Nuk u gjetën transaksione për periudhën e zgjedhur.</p>
-                    )}
-                </div>
-            </div>
-        </div>
     );
 };
 
@@ -1079,23 +787,27 @@ const PrintingSettings: React.FC = () => {
 
 
 // --- Main Admin Screen Component ---
-type AdminTab = 'sales' | 'menu' | 'stock' | 'users' | 'tax' | 'tables' | 'printimi';
+type AdminTab = 'menu' | 'stock' | 'users' | 'tax' | 'tables' | 'printimi';
 
-interface AdminScreenProps {
-    onClose: () => void;
-}
-
-const AdminScreen: React.FC<AdminScreenProps> = ({ onClose }) => {
-  const { loggedInUser } = usePos();
-  const [activeTab, setActiveTab] = useState<AdminTab>('sales');
+// Note: No props needed as it's a top-level route now
+const AdminScreen: React.FC = () => {
+  const { loggedInUser, setActiveScreen } = usePos();
+  const [activeTab, setActiveTab] = useState<AdminTab>('menu');
 
   return (
     <div className="fixed inset-0 bg-primary z-50 flex flex-col">
       <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-4 shadow-md z-10">
-        <h1 className="text-xl font-bold text-text-main">Paneli i Administratorit</h1>
+        <h1 className="text-xl font-bold text-text-main">Menaxhimi</h1>
         <div className="flex items-center space-x-4">
-          <span className="text-text-secondary">Mirë se vini, {loggedInUser?.username}</span>
-          <button onClick={onClose} className="p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors">
+          <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors flex items-center space-x-2">
+            <RestaurantIcon className="w-5 h-5" />
+            <span>POS</span>
+          </button>
+          <button onClick={() => setActiveScreen('sales')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">
+             Raporte
+          </button>
+          <span className="text-text-secondary ml-4"> {loggedInUser?.username}</span>
+          <button onClick={() => setActiveScreen('pos')} className="p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors">
             <CloseIcon className="w-6 h-6" />
           </button>
         </div>
@@ -1105,13 +817,9 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ onClose }) => {
       <div className="flex flex-col flex-grow overflow-hidden">
         {/* Horizontal Scrollable Tabs */}
         <nav className="w-full bg-secondary p-2 flex overflow-x-auto space-x-2 border-b border-accent flex-shrink-0">
-            <button onClick={() => setActiveTab('sales')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'sales' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <ChartBarIcon className="w-5 h-5"/>
-                <span>Raporti i Shitjeve</span>
-            </button>
             <button onClick={() => setActiveTab('menu')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'menu' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
                 <MenuIcon className="w-5 h-5"/>
-                <span>Menaxhimi i Menusë</span>
+                <span>Menutë</span>
             </button>
             <button onClick={() => setActiveTab('stock')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'stock' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
                 <BoxIcon className="w-5 h-5"/>
@@ -1137,7 +845,6 @@ const AdminScreen: React.FC<AdminScreenProps> = ({ onClose }) => {
 
         {/* Main Content (Scrolls independently) */}
         <main className="flex-grow p-4 md:p-6 overflow-y-auto w-full">
-            {activeTab === 'sales' && <SalesDashboard />}
             {activeTab === 'menu' && <MenuManagement />}
             {activeTab === 'stock' && <StockManagement />}
             {activeTab === 'users' && <UserManagement />}
