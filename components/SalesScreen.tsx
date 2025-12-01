@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePos } from '../context/PosContext';
 import * as api from '../utils/api';
 import { Printer, Sale } from '../types';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { 
     ChartBarIcon, 
     RestaurantIcon, 
@@ -9,7 +11,8 @@ import {
     ReceiptIcon, 
     ListIcon,
     RefreshIcon,
-    CalendarIcon
+    CalendarIcon,
+    DownloadIcon 
 } from './common/Icons';
 
 const formatCurrency = (amount: number | string) => {
@@ -21,10 +24,177 @@ const formatCurrency = (amount: number | string) => {
 type SalesTab = 'incomes' | 'transactions' | 'items';
 
 const SalesScreen: React.FC = () => {
-    const { loggedInUser, setActiveScreen, sales, users, refreshSalesFromServer } = usePos();
+    const { loggedInUser, setActiveScreen, sales, users, refreshSalesFromServer, companyInfo, taxRate } = usePos();
     const [activeTab, setActiveTab] = useState<SalesTab>('incomes');
     const [orderTickets, setOrderTickets] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [exportModalData, setExportModalData] = useState<any | null>(null);
+
+
+    const handleExportToExcel = async () => {
+        if (!exportModalData) return;
+        const tx = exportModalData;
+        const dateObj = tx.date instanceof Date ? tx.date : new Date(tx.date);
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Fatura');
+
+        // 1. Define Columns
+        worksheet.columns = [
+            { header: '', key: 'name', width: 35 },
+            { header: '', key: 'qty', width: 10 },
+            { header: '', key: 'price', width: 15 },
+            { header: '', key: 'total', width: 15 },
+        ];
+
+        // 2. Data Preparation
+        const dateStr = dateObj.getDate().toString().padStart(2, '0') + '.' + 
+                       (dateObj.getMonth() + 1).toString().padStart(2, '0') + '.' + 
+                       dateObj.getFullYear();
+        
+        // Invoice ID: YY + Last 4 digits of ID (e.g. 256805)
+        const year = dateObj.getFullYear().toString().slice(-2);
+        const numericId = tx.id.replace(/\D/g, ''); 
+        // We take the last 4 digits to keep it short but unique
+        const shortId = numericId.slice(-4);
+        const invoiceNo = `${year}${shortId}`;
+
+        // 3. Header Row 1: Company Name (Left) | Date (Right)
+        const row1 = worksheet.addRow([
+            companyInfo.name || 'Restorant POS', 
+            '', 
+            '', 
+            `Data: ${dateStr}`
+        ]);
+        row1.getCell(1).font = { bold: true, size: 12 }; // Company Name
+        row1.getCell(4).alignment = { horizontal: 'right' }; // Date
+
+        // 4. Header Row 2: NUI/Tel (Left) | Fatura No (Right)
+        const row2 = worksheet.addRow([
+            `NUI: ${companyInfo.nui || '-'} | Tel: ${companyInfo.phone || '-'}`,
+            '',
+            '',
+            `Fatura: ${invoiceNo}`
+        ]);
+        row2.getCell(1).font = { size: 10 };
+        row2.getCell(4).font = { bold: true };
+        row2.getCell(4).alignment = { horizontal: 'right' };
+
+        // 5. Header Row 3: Address (Left)
+        const row3 = worksheet.addRow([
+            `Adresa: ${companyInfo.address || '-'}`,
+            '', '', ''
+        ]);
+        row3.getCell(1).font = { size: 10 };
+
+        worksheet.addRow([]); // Spacer
+
+        // 6. Buyer Section (Blerësi)
+        const buyerLabel = worksheet.addRow(['Blerësi:']);
+        buyerLabel.font = { bold: true, underline: true };
+        
+        worksheet.addRow(['Emri i Biznesit']); // Placeholder
+        worksheet.addRow(['NUI: 1111']); // Placeholder
+        worksheet.addRow(['Adresa: aaaa']); // Placeholder
+
+        worksheet.addRow([]); // Spacer
+
+        // 7. Table Header
+        const headerRow = worksheet.addRow(['Artikulli', 'Sasia', 'Çmimi (€)', 'Totali (€)']);
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF4B5563' }, // Gray-600
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+
+        // 8. Items Data
+        tx.items.forEach((item: any) => {
+            const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
+            const quantity = item.quantity;
+            const total = price * quantity;
+
+            const row = worksheet.addRow([
+                item.name,
+                quantity,
+                price.toFixed(2),
+                total.toFixed(2)
+            ]);
+
+            // Add borders to data cells
+            row.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+
+            // Align numbers
+            row.getCell(2).alignment = { horizontal: 'center' };
+            row.getCell(3).alignment = { horizontal: 'right' };
+            row.getCell(4).alignment = { horizontal: 'right' };
+        });
+
+        // 9. Totals Section
+        worksheet.addRow([]); // Spacer
+
+        const subtotal = tx.subtotal !== undefined ? tx.subtotal : tx.total;
+        const tax = tx.tax !== undefined ? tx.tax : 0;
+        const totalVal = tx.total;
+
+        const addTotalRow = (label: string, value: string, bold = false) => {
+            const row = worksheet.addRow(['', '', label, value]);
+            row.getCell(3).font = { bold: true };
+            row.getCell(3).alignment = { horizontal: 'right' };
+            row.getCell(4).alignment = { horizontal: 'right' };
+            if (bold) {
+                row.getCell(4).font = { bold: true };
+                row.getCell(4).border = { bottom: { style: 'double' } };
+            }
+        };
+
+        addTotalRow('Nëntotali:', subtotal.toFixed(2));
+        addTotalRow(`TVSH (${(taxRate * 100).toFixed(0)}%):`, tax.toFixed(2));
+        addTotalRow('TOTALI:', totalVal.toFixed(2), true);
+
+        // 10. Signature Section
+        worksheet.addRow([]);
+        worksheet.addRow([]);
+        worksheet.addRow([]);
+        worksheet.addRow([]); // 4 empty rows for spacing
+
+        const signatureRow = worksheet.addRow(['', 'Nënshkrimi dhe Vula', '', '']);
+        const sigRowNumber = signatureRow.number;
+
+        // Merge B, C, D for wide signature area
+        worksheet.mergeCells(`B${sigRowNumber}:D${sigRowNumber}`);
+        
+        const sigCell = worksheet.getCell(`B${sigRowNumber}`);
+        sigCell.font = { bold: true };
+        sigCell.alignment = { horizontal: 'center' };
+        sigCell.border = {
+            top: { style: 'thin' }
+        };
+
+        // 11. Generate and Save
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, `Fatura_${invoiceNo}.xlsx`);
+
+        setExportModalData(null);
+    };
+
+
 
     // --- FILTERS ---
     const todayStr = new Date().toISOString().split('T')[0];
@@ -147,13 +317,35 @@ const SalesScreen: React.FC = () => {
     // --- 2. TAB: TRANSACTIONS (Logic) ---
 
     const filteredTransactions = useMemo(() => {
-        const ticketEvents = orderTickets.map(t => ({ id: `ticket-${t.id}`, type: 'ORDER', tableName: t.tableName, user: t.user, date: t.date, items: t.items, total: parseFloat(t.total) }));
-        const saleEvents = sales.map(s => ({ id: `sale-${s.id}`, type: 'RECEIPT', tableName: s.tableName, user: s.user, date: new Date(s.date), items: s.order.items, total: s.order.total }));
+        const ticketEvents = orderTickets.map(t => ({ 
+            id: `ticket-${t.id}`, 
+            type: 'ORDER', 
+            tableName: t.tableName, 
+            user: t.user, 
+            date: t.date, 
+            items: t.items, 
+            total: parseFloat(t.total),
+            subtotal: parseFloat(t.total), // Estimate for tickets
+            tax: 0
+        }));
+        const saleEvents = sales.map(s => ({ 
+            id: `sale-${s.id}`, 
+            type: 'RECEIPT', 
+            tableName: s.tableName, 
+            user: s.user, 
+            date: new Date(s.date), 
+            items: s.order.items, 
+            total: s.order.total,
+            subtotal: s.order.subtotal,
+            tax: s.order.tax
+        }));
         const combined = [...ticketEvents, ...saleEvents];
         return combined
             .filter(tx => filterByDateAndUser(tx.date, tx.user?.id))
             .sort((a, b) => b.date.getTime() - a.date.getTime());
     }, [sales, orderTickets, startDate, endDate, selectedUserId]);
+
+
 
     // --- 3. TAB: ITEMS (Logic) ---
     const aggregatedItems = useMemo(() => {
@@ -319,11 +511,17 @@ const SalesScreen: React.FC = () => {
                                 {filteredTransactions.map(tx => (
                                     <div key={tx.id} className="p-4 hover:bg-primary/30 transition-colors">
                                         <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3">
                                                  {tx.type === 'ORDER' ? (
-                                                    <span className="w-8 h-8 flex items-center justify-center bg-blue-600/20 text-blue-400 rounded-full text-xs font-bold border border-blue-600/50">P</span>
+                                                    <span className="w-8 h-8 flex items-center justify-center bg-blue-600/20 text-blue-400 rounded-full text-xs font-bold border border-blue-600/50 cursor-default">P</span>
                                                 ) : (
-                                                    <span className="w-8 h-8 flex items-center justify-center bg-green-600/20 text-green-400 rounded-full text-xs font-bold border border-green-600/50">F</span>
+                                                    <button 
+                                                        onClick={() => setExportModalData(tx)}
+                                                        title="Shkarko Faturën në Excel"
+                                                        className="w-8 h-8 flex items-center justify-center bg-green-600/20 text-green-400 rounded-full text-xs font-bold border border-green-600/50 hover:bg-green-600 hover:text-white transition-colors animate-pulse-slow"
+                                                    >
+                                                        F
+                                                    </button>
                                                 )}
                                                 <div>
                                                     <p className="font-bold text-text-main">Tavolina {tx.tableName}<span className="font-normal text-text-secondary text-sm ml-2">({tx.user?.username})</span></p>
@@ -372,9 +570,42 @@ const SalesScreen: React.FC = () => {
                         </table>
                     </div>
                 )}
+            
             </main>
+
+            {/* Export Confirmation Modal */}
+            {exportModalData && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] backdrop-blur-sm p-4">
+                    <div className="bg-secondary p-6 rounded-lg shadow-2xl max-w-sm w-full border border-accent animate-scale-in">
+                        <div className="flex items-center gap-3 mb-4 text-highlight">
+                            <ReceiptIcon className="w-8 h-8" />
+                            <h3 className="text-xl font-bold text-text-main">Shkarko Faturën?</h3>
+                        </div>
+                        <p className="text-text-secondary mb-6">
+                            A dëshironi të shkarkoni faturën për 
+                            <span className="font-bold text-text-main mx-1">Tavolinën {exportModalData.tableName}</span> 
+                            në formatin Excel?
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button 
+                                onClick={() => setExportModalData(null)}
+                                className="px-4 py-2 rounded-lg bg-primary text-text-secondary hover:bg-accent transition-colors font-medium"
+                            >
+                                Jo, Anulo
+                            </button>
+                            <button 
+                                onClick={handleExportToExcel}
+                                className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors font-bold shadow-lg flex items-center gap-2"
+                            >
+                                <DownloadIcon className="w-5 h-5" />
+                                <span>Po, Shkarko</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
-};
+};            
 
 export default SalesScreen;

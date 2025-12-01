@@ -51,6 +51,26 @@ dotenv.config({ path: path.join(projectRoot, '.env.local') });
     `);
     console.log('✅ Database schema checked: "order_tickets" table exists.');
 
+    // 3. Ensure Settings 'key' is unique (Required for ON CONFLICT to work)
+    await query(`
+      DO $$
+      BEGIN
+          -- Check if 'settings' table exists first (it should)
+          IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'settings') THEN
+              -- Check if there is a constraint on 'key'
+              IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'settings' AND indexname = 'settings_key_uindex') 
+                 AND NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'settings' AND constraint_type = 'PRIMARY KEY') THEN
+                  
+                  -- Create a unique index to enable ON CONFLICT
+                  CREATE UNIQUE INDEX IF NOT EXISTS settings_key_uindex ON settings (key);
+                  RAISE NOTICE 'Created unique index on settings(key)';
+              END IF;
+          END IF;
+      END
+      $$;
+    `);
+    console.log('✅ Database schema checked: "settings" unique constraint ensured.');
+
   } catch (e) {
     console.error('⚠️ Database schema update warning:', e.message);
   }
@@ -183,12 +203,22 @@ app.get('/api/bootstrap', asyncHandler(async (req, res) => {
   const taxRate = parseFloat(findSetting('taxRate', '0.09'));
   const tableCount = parseInt(findSetting('tableCount', '50'), 10);
 
+  const companyInfo = {
+    name: findSetting('companyName', ''),
+    nui: findSetting('companyNui', ''),
+    address: findSetting('companyAddress', ''),
+    phone: findSetting('companyPhone', '')
+  };
+
+  console.log("📤 Bootstrap Sending Company Info:", companyInfo);
+
   res.json({
     users: users.rows,
     menuItems: menuItems.rows,
     menuCategories: menuCategories.rows,
     taxRate: taxRate,
-    tableCount: tableCount
+    tableCount: tableCount,
+    companyInfo
   });
 }));
 
@@ -562,6 +592,29 @@ app.post('/api/menu-items/import-csv', upload.single('file'), asyncHandler(async
 }));
 
 // 9. SETTINGS
+app.post('/api/settings/company', asyncHandler(async (req, res) => {
+  const { name, nui, address, phone } = req.body;
+  console.log("📥 Saving Company Info:", { name, nui, address, phone });
+
+  const settingsToUpdate = [
+      { key: 'companyName', value: name },
+      { key: 'companyNui', value: nui },
+      { key: 'companyAddress', value: address },
+      { key: 'companyPhone', value: phone }
+  ];
+
+  for (const setting of settingsToUpdate) {
+      // Ensure we handle potential nulls as empty strings
+      const val = setting.value === undefined || setting.value === null ? '' : setting.value;
+      
+      // Simple UPSERT using ON CONFLICT (Requires unique key, which we ensured above)
+      const upsertQuery = `INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`;
+      await query(upsertQuery, [setting.key, val]);
+  }
+  
+  res.json({ success: true });
+}));
+
 app.post('/api/settings/tax', asyncHandler(async (req, res) => {
     const { rate } = req.body;
     if (typeof rate !== 'number' || rate < 0) { return res.status(400).json({ message: 'Invalid tax rate.' }); }

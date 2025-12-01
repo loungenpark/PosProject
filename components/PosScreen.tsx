@@ -233,7 +233,7 @@ const PosScreen: React.FC = () => {
     return (
         <div className="h-screen w-screen flex flex-col bg-primary">
             <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-4 shadow-md">
-                <div className="flex items-center space-x-2"><TableIcon className="w-6 h-6 text-highlight"/><h1 className="text-xl font-bold text-text-main">Zgjidhni një Tavolinë</h1></div>
+                <div className="flex items-center space-x-2"><TableIcon className="w-6 h-6 text-highlight"/><h1 className="text-xl font-bold text-text-main">Hello</h1></div>
                 <Header />
             </header>
             <main className="flex-grow p-4 overflow-y-auto">

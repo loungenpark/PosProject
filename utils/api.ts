@@ -1,5 +1,5 @@
 console.log("⚠️ API IS POINTING TO:", import.meta.env.VITE_API_URL || "http://localhost:3001");
-import { MenuItem, Order, Sale, User, UserRole, MenuCategory } from "../types";
+import { MenuItem, Order, Sale, User, UserRole, MenuCategory, CompanyInfo } from "../types";
 
 // --- ✅ START: MODIFIED API URL ✅ ---
 // Ensure this IP matches your Server PC's IP address
@@ -78,7 +78,7 @@ export const login = (pin: string): Promise<{user: User | null}> => requestJSON(
 });
 
 // --- Bootstrap (Updated with tableCount) ---
-export const bootstrap = (): Promise<{ users: User[], menuItems: MenuItem[], menuCategories: MenuCategory[], taxRate: number, tableCount: number }> => requestJSON('/api/bootstrap');
+export const bootstrap = (): Promise<{ users: User[], menuItems: MenuItem[], menuCategories: MenuCategory[], taxRate: number, tableCount: number, companyInfo: CompanyInfo }> => requestJSON('/api/bootstrap');
 
 // --- Users ---
 export const addUser = (user: Omit<User, 'id'>): Promise<User> => requestJSON('/api/users', {
@@ -135,8 +135,18 @@ export const getSettings = (): Promise<{ taxRate: number, tables: any[] }> => re
 
 // --- MODIFIED: updateTaxRate now points to the correct POST endpoint ---
 export const updateTaxRate = (rate: number): Promise<{ success: boolean, newRate: number }> => requestJSON('/api/settings/tax', {
-    method: 'POST',
-    body: JSON.stringify({ rate }),
+  method: 'POST',
+  body: JSON.stringify({ rate }),
+});
+
+export const updateTableCount = (count: number): Promise<{ success: boolean, newCount: number }> => requestJSON('/api/settings/table-count', {
+  method: 'POST',
+  body: JSON.stringify({ count }),
+});
+
+export const updateCompanyInfo = (info: CompanyInfo): Promise<{ success: boolean }> => requestJSON('/api/settings/company', {
+  method: 'POST',
+  body: JSON.stringify(info),
 });
 
 // --- Reordering Functions ---

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { User, MenuItem, Sale, Order, Table, UserRole, MenuCategory, HistoryEntry, OrderItem } from '../types';
+import { User, MenuItem, Sale, Order, Table, UserRole, MenuCategory, HistoryEntry, OrderItem, CompanyInfo } from '../types';
 import * as db from '../utils/db';
 import * as api from '../utils/api';
 import { io, Socket } from 'socket.io-client';
@@ -33,6 +33,8 @@ interface PosContextState {
   setTaxRate: (rate: number) => Promise<void>; history: HistoryEntry[];
   saveOrderForTable: (tableId: number, updatedOrder: Order | null, newItems: OrderItem[]) => Promise<void>;
   refreshSalesFromServer: () => Promise<void>;
+  companyInfo: CompanyInfo;
+  updateCompanySettings: (info: CompanyInfo) => Promise<void>;
 }
 
 const PosContext = createContext<PosContextState | undefined>(undefined);
@@ -59,6 +61,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [tableButtonSizePercent, setTableButtonSizePercentState] = useState<number>(100);
   const [taxRate, setTaxRateState] = useState<number>(0);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({ name: '', nui: '', address: '', phone: '' });
   const syncInProgress = useRef(false);
   const startupEffectRan = useRef(false);
 
@@ -128,9 +131,14 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchAndCacheData = useCallback(async () => {
       if (!isBackendConfigured) return;
       try {
-          let { users: serverUsers, menuItems: serverItems, menuCategories: serverCats, taxRate, tableCount } = await api.bootstrap();
-          
-          if (typeof tableCount === 'number' && tableCount > 0) {
+        let { users: serverUsers, menuItems: serverItems, menuCategories: serverCats, taxRate, tableCount, companyInfo: serverCompanyInfo } = await api.bootstrap();
+        
+        if (serverCompanyInfo) {
+            setCompanyInfo(serverCompanyInfo);
+        }
+
+        if (typeof tableCount === 'number' && tableCount > 0) {
+
             const currentLocal = parseInt(localStorage.getItem('tableCount') || '0', 10);
             if (tableCount !== currentLocal) {
                 console.log(`📥 Syncing Table Count from DB: ${tableCount}`);
@@ -239,6 +247,19 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await addHistoryEntry(0, `Tax rate updated to ${ratePercent}%`);
     if (isOnline) { setTimeout(() => { syncOfflineData(); }, 0); }
   }, [isOnline, addHistoryEntry, syncOfflineData]);
+
+  const updateCompanySettings = useCallback(async (info: CompanyInfo) => {
+    setCompanyInfo(info);
+    if (isOnline && isBackendConfigured) {
+      try {
+        await api.updateCompanyInfo(info);
+      } catch (error) {
+        console.error('Failed to update company info:', error);
+      }
+    } else {
+      console.warn('Saving company info is online-only for now');
+    }
+  }, [isOnline]);
   
   const login = useCallback(async (pin: string): Promise<boolean> => {
     let user = users.find((u) => u.pin === pin);
@@ -845,16 +866,16 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deleteMenuItem, importMenuItemsFromCSV, reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory,
     updateMenuCategory, deleteMenuCategory, reorderMenuCategories, addSale, setTableCount, updateOrderForTable,
     setTablesPerRow, setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
-    refreshSalesFromServer,
+    refreshSalesFromServer, companyInfo, updateCompanySettings,
   }), [
-    isLoading, isOnline, isSyncing, loggedInUser, activeScreen, // ADDED
+    isLoading, isOnline, isSyncing, loggedInUser, activeScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
     orderToPrint, tables, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate, history,
     login, logout, addUser, deleteUser, addMenuItem, updateMenuItem, deleteMenuItem, importMenuItemsFromCSV,
     reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory, updateMenuCategory, deleteMenuCategory,
     reorderMenuCategories, addSale, setTableCount, updateOrderForTable, setTablesPerRow,
     setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
-    refreshSalesFromServer,
+    refreshSalesFromServer, companyInfo, updateCompanySettings,
   ]);
 
   return <PosContext.Provider value={value}>{children}</PosContext.Provider>;

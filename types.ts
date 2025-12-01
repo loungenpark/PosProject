@@ -89,3 +89,20 @@ export interface SyncQueueItem {
     payload: any;
     timestamp: number;
 }
+
+export interface CompanyInfo {
+  name: string;
+  nui: string;
+  address: string;
+  phone: string;
+}
+
+export interface BootstrapData {
+  users: User[];
+  menuItems: MenuItem[];
+  menuCategories: MenuCategory[];
+  taxRate: number;
+  tableCount: number;
+  companyInfo: CompanyInfo;
+  history: HistoryEntry[];
+}
