@@ -21,60 +21,10 @@ const projectRoot = path.join(__dirname_index, '..');
 dotenv.config({ path: path.join(projectRoot, '.env.local') });
 
 // --- DATABASE CHECK ---
-(async () => {
-  try {
-    // 1. Ensure Users table has 'active' column
-    await query(`
-      DO $$
-      BEGIN
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='active') THEN
-              ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT TRUE;
-          END IF;
-      END
-      $$;
-    `);
-    console.log('✅ Database schema checked: "active" column exists for users.');
+import { initDatabase } from './dbSetup.js';
 
-    // 2. Create ORDER TICKETS table (For the "Blue P" history)
-    // This stores every "Round" sent to the kitchen permanently.
-    await query(`
-      CREATE TABLE IF NOT EXISTS order_tickets (
-        id SERIAL PRIMARY KEY,
-        ticket_uuid VARCHAR(50) UNIQUE NOT NULL,
-        table_id INT NOT NULL,
-        table_name VARCHAR(50),
-        user_id INT,
-        items JSONB NOT NULL,
-        total NUMERIC(10, 2) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log('✅ Database schema checked: "order_tickets" table exists.');
-
-    // 3. Ensure Settings 'key' is unique (Required for ON CONFLICT to work)
-    await query(`
-      DO $$
-      BEGIN
-          -- Check if 'settings' table exists first (it should)
-          IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'settings') THEN
-              -- Check if there is a constraint on 'key'
-              IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'settings' AND indexname = 'settings_key_uindex') 
-                 AND NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'settings' AND constraint_type = 'PRIMARY KEY') THEN
-                  
-                  -- Create a unique index to enable ON CONFLICT
-                  CREATE UNIQUE INDEX IF NOT EXISTS settings_key_uindex ON settings (key);
-                  RAISE NOTICE 'Created unique index on settings(key)';
-              END IF;
-          END IF;
-      END
-      $$;
-    `);
-    console.log('✅ Database schema checked: "settings" unique constraint ensured.');
-
-  } catch (e) {
-    console.error('⚠️ Database schema update warning:', e.message);
-  }
-})();
+// --- DATABASE CHECK ---
+initDatabase();
 
 const app = express();
 
@@ -251,37 +201,38 @@ app.post('/api/order-tickets', asyncHandler(async (req, res) => {
 
 // 4. SALES
 app.get('/api/sales', asyncHandler(async (req, res) => {
-    const { rows } = await query(`
-        SELECT
-            s.sale_uuid as id, s.date, s.table_id as "tableId", s.table_name as "tableName",
-            s.subtotal, s.tax, s.total,
-            json_build_object('id', u.id, 'username', u.username, 'pin', u.pin, 'role', u.role) as user,
-            (
-                SELECT json_agg(
-                    json_build_object(
-                        'id', si.item_id, 'name', si.item_name, 'price', si.price_at_sale, 'quantity', si.quantity,
-                        'category', mi.category_name, 'printer', mi.printer, 'stock', mi.stock, 'stockThreshold', mi.stock_threshold,
-                        'trackStock', mi.track_stock
-                    )
-                )
-                FROM sale_items si 
-                JOIN menu_items mi ON si.item_id = mi.id
-                WHERE si.sale_id = s.id
-            ) as items
-        FROM sales s
-        JOIN users u ON s.user_id = u.id
-        ORDER BY s.date DESC
-    `);
-    const salesData = rows.map(row => ({
-        ...row,
-        order: {
-            items: row.items || [],
-            subtotal: parseFloat(row.subtotal),
-            tax: parseFloat(row.tax),
-            total: parseFloat(row.total)
-        }
-    }));
-    res.json(salesData);
+  const { rows } = await query(`
+      SELECT
+          s.sale_uuid as id, s.date, s.table_id as "tableId", s.table_name as "tableName",
+          s.subtotal, s.tax, s.total,
+          json_build_object('id', u.id, 'username', u.username, 'pin', u.pin, 'role', u.role) as user,
+          (
+              SELECT json_agg(
+                  json_build_object(
+                      'id', si.item_id, 'name', si.item_name, 'price', si.price_at_sale, 'quantity', si.quantity,
+                      'category', mi.category_name, 'printer', mi.printer, 'stock', mi.stock, 'stockThreshold', mi.stock_threshold,
+                      'trackStock', mi.track_stock,
+                      'stockGroupId', mi.stock_group_id
+                  )
+              )
+              FROM sale_items si 
+              JOIN menu_items mi ON si.item_id = mi.id
+              WHERE si.sale_id = s.id
+          ) as items
+      FROM sales s
+      JOIN users u ON s.user_id = u.id
+      ORDER BY s.date DESC
+  `);
+  const salesData = rows.map(row => ({
+      ...row,
+      order: {
+          items: row.items || [],
+          subtotal: parseFloat(row.subtotal),
+          tax: parseFloat(row.tax),
+          total: parseFloat(row.total)
+      }
+  }));
+  res.json(salesData);
 }));
 
 
@@ -307,19 +258,31 @@ app.post('/api/sales', asyncHandler(async (req, res) => {
 
       // SMART STOCK UPDATE:
       // Updates stock for this item OR any item sharing the same stock_group_id
-      await query(
-          `UPDATE menu_items 
-           SET stock = stock - $1 
-           WHERE track_stock = TRUE 
-           AND (
-              id = $2 
-              OR (
-                  stock_group_id IS NOT NULL 
-                  AND stock_group_id = (SELECT stock_group_id FROM menu_items WHERE id = $2)
-              )
-           )`,
-          [item.quantity, item.id]
-      );
+      const updateResult = await query(
+        `UPDATE menu_items 
+         SET stock = COALESCE(stock, 0) - $1 
+         WHERE track_stock = TRUE 
+         AND (
+            id = $2 
+            OR (
+                stock_group_id IS NOT NULL 
+                AND stock_group_id = (SELECT stock_group_id FROM menu_items WHERE id = $2)
+            )
+         )`,
+        [item.quantity, item.id]
+    );
+
+    // If stock was updated (meaning track_stock was true), log the movement
+    if (updateResult.rowCount > 0) {
+        // We record the sale of this SPECIFIC item. 
+        // The History Viewer will handle aggregating group items later.
+        await query(
+           `INSERT INTO stock_movements (item_id, quantity, type, reason, user_id)
+            VALUES ($1, $2, 'sale', $3, $4)`,
+           [item.id, -item.quantity, `Sale`, user.id]
+        );
+    }
+
   }
 
   const newSale = { id: sale_uuid, date, order, user, tableId, tableName };
@@ -390,19 +353,31 @@ app.delete('/api/users/:id', asyncHandler(async (req, res) => {
 app.post('/api/menu-items', asyncHandler(async (req, res) => {
   const { name, price, category, printer, stock, stockThreshold, trackStock, stockGroupId } = req.body;
   
-  // 1. Insert the new item (including stock_group_id)
+  let finalStock = stock;
+  let finalThreshold = stockThreshold;
+  let finalTrackStock = trackStock;
+
+  // 1. SMART INHERITANCE: Inherit ALL inventory settings from the group
+  if (stockGroupId) {
+      const existingGroupParams = await query(
+          'SELECT stock, stock_threshold, track_stock FROM menu_items WHERE stock_group_id = $1 LIMIT 1',
+          [stockGroupId]
+      );
+      
+      if (existingGroupParams.rows.length > 0) {
+          const groupData = existingGroupParams.rows[0];
+          finalStock = groupData.stock;
+          finalThreshold = groupData.stock_threshold;
+          finalTrackStock = groupData.track_stock;
+          console.log(`🔗 Linking to Group "${stockGroupId}". Inheriting: Stock=${finalStock}, Threshold=${finalThreshold}, Track=${finalTrackStock}`);
+      }
+  }
+
+  // 2. Insert with potentially inherited values
   const { rows } = await query(
       'INSERT INTO menu_items (name, price, category_name, printer, stock, stock_threshold, track_stock, display_order, stock_group_id) VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM menu_items), $8) RETURNING *',
-      [name, price, category, printer, stock, stockThreshold, trackStock, stockGroupId || null]
+      [name, price, category, printer, finalStock, finalThreshold, finalTrackStock, stockGroupId || null]
   );
-
-  // 2. STOCK SYNC: If this new item belongs to a group, update ALL others in that group to match this stock level
-  if (stockGroupId && trackStock) {
-       await query(
-          'UPDATE menu_items SET stock = $1 WHERE stock_group_id = $2 AND id != $3',
-          [stock, stockGroupId, rows[0].id]
-      );
-  }
 
   const newItem = {
     ...rows[0],
@@ -423,20 +398,31 @@ app.get('/api/menu-items/:id', asyncHandler(async (req, res) => {
 
 app.put('/api/menu-items/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  // Added stockGroupId to the input variables
-  const { name, price, category, printer, stock, stockThreshold, trackStock, stockGroupId } = req.body;
+  
+  // SAFETY CHECK: Reject temporary IDs (Timestamps) to prevent DB crash
+  // Max PostgreSQL Integer is 2,147,483,647. Timestamps are ~1,700,000,000,000.
+  if (parseInt(id, 10) > 2147483647) {
+      console.warn(`⚠️ Blocked attempt to update temporary ID: ${id}`);
+      return res.status(400).json({ message: 'Cannot update temporary item. Please sync or re-create.' });
+  }
 
-  // 1. Update the specific item (now including stock_group_id)
+  let { name, price, category, printer, stock, stockThreshold, trackStock, stockGroupId } = req.body;
+
+  // Sanitize
+  stockGroupId = stockGroupId ? stockGroupId.trim() : null;
+
+  // 1. Update the specific item
   const { rows } = await query(
       'UPDATE menu_items SET name = $1, price = $2, category_name = $3, printer = $4, stock = $5, stock_threshold = $6, track_stock = $7, stock_group_id = $8 WHERE id = $9 RETURNING *',
       [name, price, category, printer, stock, stockThreshold, trackStock, stockGroupId || null, id]
   );
+//...
 
-  // 2. STOCK SYNC: If this item belongs to a group and tracks stock, update ALL other items in that group to match
-  if (stockGroupId && trackStock) {
+  // 2. FULL SYNC: Propagate Stock, Threshold, AND Tracking Status to the whole group
+  if (stockGroupId) {
        await query(
-          'UPDATE menu_items SET stock = $1 WHERE stock_group_id = $2 AND id != $3',
-          [stock, stockGroupId, id]
+          'UPDATE menu_items SET stock = $1, stock_threshold = $2, track_stock = $3 WHERE stock_group_id = $4 AND id != $5',
+          [stock, stockThreshold, trackStock, stockGroupId, id]
       );
   }
 
@@ -451,10 +437,16 @@ app.put('/api/menu-items/:id', asyncHandler(async (req, res) => {
 }));
 
 app.delete('/api/menu-items/:id', asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const result = await query('DELETE FROM menu_items WHERE id = $1', [id]);
-    if (result.rowCount === 0) { console.log(`Attempted to delete menu item ${id}, but it was not found.`); }
-    res.json({ success: true });
+  const { id } = req.params;
+
+  // SAFETY CHECK
+  if (parseInt(id, 10) > 2147483647) {
+      return res.json({ success: true }); // Just say success to clear it from the queue
+  }
+
+  const result = await query('DELETE FROM menu_items WHERE id = $1', [id]);
+  if (result.rowCount === 0) { console.log(`Attempted to delete menu item ${id}, but it was not found.`); }
+  res.json({ success: true });
 }));
 
 // 8. MENU CATEGORIES
@@ -621,6 +613,161 @@ app.post('/api/settings/tax', asyncHandler(async (req, res) => {
     const upsertQuery = `INSERT INTO settings (key, value) VALUES ('taxRate', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`;
     await query(upsertQuery, [rate.toString()]);
     res.json({ success: true, newRate: rate });
+}));
+
+// 10. STOCK MANAGEMENT (Bulk Update)
+app.post('/api/stock/bulk-update', asyncHandler(async (req, res) => {
+  const { movements, reason, userId } = req.body; // movements: [{ itemId, quantity }]
+
+  if (!Array.isArray(movements) || movements.length === 0) {
+    return res.status(400).json({ message: 'No items to update.' });
+  }
+
+  for (const move of movements) {
+    const { itemId, quantity } = move;
+
+    // 1. Update Menu Item Stock (Handles Shared Stock Groups automatically)
+    // We add the quantity (+ for supply)
+    await query(
+      `UPDATE menu_items 
+       SET stock = COALESCE(stock, 0) + $1 
+       WHERE track_stock = TRUE 
+       AND (
+          id = $2 
+          OR (
+              stock_group_id IS NOT NULL 
+              AND stock_group_id = (SELECT stock_group_id FROM menu_items WHERE id = $2)
+          )
+       )`,
+      [quantity, itemId]
+    );
+
+    // 2. Log the Movement
+    await query(
+      `INSERT INTO stock_movements (item_id, quantity, type, reason, user_id)
+       VALUES ($1, $2, 'supply', $3, $4)`,
+      [itemId, quantity, reason, userId]
+    );
+  }
+
+  res.json({ success: true });
+}));
+
+// 10.5 STOCK WASTE (Humbje)
+app.post('/api/stock/waste', asyncHandler(async (req, res) => {
+  const { itemId, quantity, reason, userId } = req.body;
+
+  if (!itemId || !quantity || quantity <= 0) {
+      return res.status(400).json({ message: 'Invalid data.' });
+  }
+
+  // 1. Update Menu Item Stock (Decrease) - Handles Shared Stock Groups
+  await query(
+      `UPDATE menu_items 
+       SET stock = COALESCE(stock, 0) - $1 
+       WHERE track_stock = TRUE 
+       AND (
+          id = $2 
+          OR (
+              stock_group_id IS NOT NULL 
+              AND stock_group_id = (SELECT stock_group_id FROM menu_items WHERE id = $2)
+          )
+       )`,
+      [quantity, itemId]
+  );
+
+  // 2. Log the Movement (Negative quantity for waste)
+  await query(
+      `INSERT INTO stock_movements (item_id, quantity, type, reason, user_id)
+       VALUES ($1, $2, 'waste', $3, $4)`,
+      [itemId, -quantity, reason, userId]
+  );
+
+  res.json({ success: true });
+}));
+
+// 11. STOCK HISTORY (Aggregated Smart Group Fetch)
+app.get('/api/stock/movements/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const itemResult = await query('SELECT stock_group_id FROM menu_items WHERE id = $1', [id]);
+  if (itemResult.rows.length === 0) {
+      return res.status(404).json({ message: "Item not found" });
+  }
+  const stockGroupId = itemResult.rows[0].stock_group_id;
+
+  let filterClause;
+  let params;
+
+  if (stockGroupId) {
+      filterClause = `WHERE mi.stock_group_id = $1`;
+      params = [stockGroupId];
+  } else {
+      filterClause = `WHERE sm.item_id = $1`;
+      params = [id];
+  }
+
+  const aggregationQuery = `
+      SELECT 
+        COALESCE(SUM(sm.quantity) FILTER (WHERE sm.type = 'supply'), 0) as "supplyTotal",
+        COALESCE(SUM(sm.quantity) FILTER (WHERE sm.type = 'waste'), 0) as "wasteTotal",
+        COALESCE(SUM(sm.quantity) FILTER (WHERE sm.type = 'sale'), 0) as "saleTotal",
+
+        COALESCE(json_agg(
+            json_build_object(
+                'id', sm.id, 'quantity', sm.quantity, 'type', sm.type, 'reason', sm.reason, 
+                'createdAt', sm.created_at, 'user', u.username, 'itemName', mi.name
+            ) ORDER BY sm.created_at DESC
+        ) FILTER (WHERE sm.type = 'supply'), '[]'::json) as "supplyDetails",
+        
+        COALESCE(json_agg(
+            json_build_object(
+                'id', sm.id, 'quantity', sm.quantity, 'type', sm.type, 'reason', sm.reason, 
+                'createdAt', sm.created_at, 'user', u.username, 'itemName', mi.name
+            ) ORDER BY sm.created_at DESC
+        ) FILTER (WHERE sm.type = 'waste'), '[]'::json) as "wasteDetails",
+
+        COALESCE(json_agg(
+            json_build_object(
+                'id', sm.id, 'quantity', sm.quantity, 'type', sm.type, 'reason', sm.reason, 
+                'createdAt', sm.created_at, 'user', u.username, 'itemName', mi.name
+            ) ORDER BY sm.created_at DESC
+        ) FILTER (WHERE sm.type = 'sale'), '[]'::json) as "saleDetails"
+
+      FROM stock_movements sm
+      JOIN menu_items mi ON sm.item_id = mi.id
+      LEFT JOIN users u ON sm.user_id = u.id
+      ${filterClause}
+  `;
+
+  const { rows } = await query(aggregationQuery, params);
+
+  if (rows.length === 0) {
+      // Should not happen with SUM, but as a fallback
+      return res.json({
+          supply: { total: 0, details: [] },
+          waste: { total: 0, details: [] },
+          sale: { total: 0, details: [] }
+      });
+  }
+
+  const result = rows[0];
+  const formattedResponse = {
+      supply: {
+          total: Number(result.supplyTotal),
+          details: result.supplyDetails
+      },
+      waste: {
+          total: Number(result.wasteTotal),
+          details: result.wasteDetails
+      },
+      sale: {
+          total: Number(result.saleTotal),
+          details: result.saleDetails
+      }
+  };
+
+  res.json(formattedResponse);
 }));
 
 app.post('/api/settings/table-count', asyncHandler(async (req, res) => {

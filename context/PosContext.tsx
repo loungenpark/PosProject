@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { User, MenuItem, Sale, Order, Table, UserRole, MenuCategory, HistoryEntry, OrderItem, CompanyInfo } from '../types';
+import { User, MenuItem, Sale, Order, Table, UserRole, MenuCategory, HistoryEntry, OrderItem, CompanyInfo, StockUpdateItem } from '../types';
 import * as db from '../utils/db';
 import * as api from '../utils/api';
 import { io, Socket } from 'socket.io-client';
@@ -35,6 +35,8 @@ interface PosContextState {
   refreshSalesFromServer: () => Promise<void>;
   companyInfo: CompanyInfo;
   updateCompanySettings: (info: CompanyInfo) => Promise<void>;
+  addBulkStock: (movements: StockUpdateItem[], reason: string) => Promise<void>;
+  addWaste: (itemId: number, quantity: number, reason: string) => Promise<void>;
 }
 
 const PosContext = createContext<PosContextState | undefined>(undefined);
@@ -313,22 +315,28 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addMenuItem = useCallback(async (itemData: Omit<MenuItem, 'id'>) => {
     try {
-      const tempId = Date.now();
-      const newItem: MenuItem = { ...itemData, id: tempId };
-      
-      // 1. Local State Update
-      setMenuItems((prev) => {
-        // If the new item belongs to a group, we should sync its stock to the group's existing stock (if any)
-        // OR if we are setting a new stock, update the group.
-        // For simplicity in creation: we just add it. The sync usually happens on update or refresh.
-        return [...prev, newItem]; 
-      });
-
-      await db.put(newItem, 'menuItems');
-      await db.addToSyncQueue({ type: 'ADD_MENU_ITEM', payload: itemData });
-      if (isOnline && isBackendConfigured) await syncOfflineData();
+      if (isOnline && isBackendConfigured) {
+          // 1. ONLINE MODE:
+          // Call the server directly so we get the "Real" item back immediately.
+          // This allows us to capture the inherited Stock/Threshold from the group logic we just wrote.
+          const serverItem = await api.addMenuItem(itemData);
+          
+          setMenuItems((prev) => [...prev, serverItem]);
+          await db.put(serverItem, 'menuItems');
+          // Note: We do NOT add to syncQueue here because we just executed it successfully.
+      } else {
+          // 2. OFFLINE MODE:
+          // Use optimistic updates. The user won't see inherited stock until they go online and refresh,
+          // but at least they can keep working.
+          const tempId = Date.now();
+          const newItem: MenuItem = { ...itemData, id: tempId };
+          
+          setMenuItems((prev) => [...prev, newItem]);
+          await db.put(newItem, 'menuItems');
+          await db.addToSyncQueue({ type: 'ADD_MENU_ITEM', payload: itemData });
+      }
     } catch (e) { console.error("Add menu item failed", e); }
-  }, [isOnline, syncOfflineData]);
+  }, [isOnline]);
 
   const updateMenuItem = useCallback(async (updatedItem: MenuItem) => {
     try {
@@ -858,6 +866,107 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [syncOfflineData, loadDataFromDb, fetchAndCacheData]);
 
+  const addBulkStock = useCallback(async (movements: StockUpdateItem[], reason: string) => {
+    if (!loggedInUser) return;
+    try {
+      await api.addBulkStock(movements, reason, loggedInUser.id);
+
+      // Local State Update (Reflect changes immediately without refresh)
+      setMenuItems(prev => {
+        const nextState = prev.map(item => ({ ...item }));
+        
+        movements.forEach(move => {
+           const targetItem = nextState.find(i => i.id === move.itemId);
+           if (!targetItem) return;
+
+           if (targetItem.stockGroupId) {
+               // Update all items in this group
+               nextState.forEach(i => {
+                   if (i.stockGroupId === targetItem.stockGroupId) {
+                       i.stock = (i.stock || 0) + move.quantity;
+                   }
+               });
+           } else {
+               // Update just this item
+               targetItem.stock = (targetItem.stock || 0) + move.quantity;
+           }
+        });
+        return nextState;
+      });
+      
+      // Update IndexedDB for consistency
+      const allDbItems = await db.getAll<MenuItem>('menuItems');
+      for (const move of movements) {
+          const targetItem = allDbItems.find(i => i.id === move.itemId);
+          if (targetItem) {
+               if (targetItem.stockGroupId) {
+                   allDbItems.filter(i => i.stockGroupId === targetItem.stockGroupId).forEach(sibling => {
+                       sibling.stock = (sibling.stock || 0) + move.quantity;
+                       db.put(sibling, 'menuItems');
+                   });
+               } else {
+                   targetItem.stock = (targetItem.stock || 0) + move.quantity;
+                   await db.put(targetItem, 'menuItems');
+               }
+          }
+      }
+
+    } catch (e) {
+      console.error("Bulk stock update failed", e);
+      throw e;
+    }
+  }, [loggedInUser]);
+
+  const addWaste = useCallback(async (itemId: number, quantity: number, reason: string) => {
+    if (!loggedInUser) return;
+    try {
+      // 1. Call API
+      await api.addWaste(itemId, quantity, reason, loggedInUser.id);
+
+      // 2. Update Local State (Decrease Stock)
+      setMenuItems(prev => {
+        const nextState = prev.map(item => ({ ...item }));
+        const targetItem = nextState.find(i => i.id === itemId);
+        
+        if (targetItem) {
+          if (targetItem.stockGroupId) {
+            // Update all siblings
+            nextState.forEach(i => {
+              if (i.stockGroupId === targetItem.stockGroupId) {
+                i.stock = Math.max(0, (i.stock || 0) - quantity);
+              }
+            });
+          } else {
+            // Update single item
+            targetItem.stock = Math.max(0, (targetItem.stock || 0) - quantity);
+          }
+        }
+        return nextState;
+      });
+
+      // 3. Update IndexedDB
+      const allDbItems = await db.getAll<MenuItem>('menuItems');
+      const targetItem = allDbItems.find(i => i.id === itemId);
+      
+      if (targetItem) {
+          if (targetItem.stockGroupId) {
+             const siblings = allDbItems.filter(i => i.stockGroupId === targetItem.stockGroupId);
+             for (const sibling of siblings) {
+                 sibling.stock = Math.max(0, (sibling.stock || 0) - quantity);
+                 await db.put(sibling, 'menuItems');
+             }
+          } else {
+             targetItem.stock = Math.max(0, (targetItem.stock || 0) - quantity);
+             await db.put(targetItem, 'menuItems');
+          }
+      }
+
+    } catch (e) {
+      console.error("Add waste failed", e);
+      throw e;
+    }
+  }, [loggedInUser]);
+
   const value = useMemo(() => ({
     isLoading, isOnline, isSyncing, loggedInUser, activeScreen, setActiveScreen, // ADDED
     users, menuItems, menuCategories, sales, saleToPrint,
@@ -866,7 +975,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deleteMenuItem, importMenuItemsFromCSV, reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory,
     updateMenuCategory, deleteMenuCategory, reorderMenuCategories, addSale, setTableCount, updateOrderForTable,
     setTablesPerRow, setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
-    refreshSalesFromServer, companyInfo, updateCompanySettings,
+    refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
   }), [
     isLoading, isOnline, isSyncing, loggedInUser, activeScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
@@ -875,7 +984,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory, updateMenuCategory, deleteMenuCategory,
     reorderMenuCategories, addSale, setTableCount, updateOrderForTable, setTablesPerRow,
     setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
-    refreshSalesFromServer, companyInfo, updateCompanySettings,
+    refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
   ]);
 
   return <PosContext.Provider value={value}>{children}</PosContext.Provider>;

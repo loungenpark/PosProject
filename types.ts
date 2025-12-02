@@ -106,3 +106,18 @@ export interface BootstrapData {
   companyInfo: CompanyInfo;
   history: HistoryEntry[];
 }
+
+export interface StockUpdateItem {
+  itemId: number;
+  quantity: number;
+}
+
+export interface StockMovement {
+  id: number;
+  quantity: number;
+  type: 'supply' | 'sale' | 'waste' | 'correction';
+  reason: string;
+  created_at: string;
+  username: string;
+  item_name?: string;
+}

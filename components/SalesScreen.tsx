@@ -348,24 +348,67 @@ const SalesScreen: React.FC = () => {
 
 
     // --- 3. TAB: ITEMS (Logic) ---
-    const aggregatedItems = useMemo(() => {
+    const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+
+    interface SoldItemGroup {
+        groupKey: string;
+        groupName: string;
+        isGroup: boolean;
+        totalQuantity: number;
+        totalValue: number;
+        items: { name: string; quantity: number; total: number; }[];
+    }
+
+    const aggregatedItems = useMemo((): SoldItemGroup[] => {
         const relevantSales = sales.filter(sale => filterByDateAndUser(new Date(sale.date), sale.user.id));
-        const map = new Map<string, { id: number, name: string, quantity: number, total: number }>();
+        const map = new Map<string, SoldItemGroup>();
+
         relevantSales.forEach(sale => {
             sale.order.items.forEach(item => {
-                const key = item.id.toString(); 
-                const existing = map.get(key);
-                const itemTotal = item.price * item.quantity;
-                if (existing) {
-                    existing.quantity += item.quantity;
-                    existing.total += itemTotal;
+                // Ensure price is a number before calculation
+                const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
+                const itemTotal = price * item.quantity;
+                
+                // Use stockGroupId for grouping, or a unique item ID as a fallback for non-grouped items
+                const groupKey = item.stockGroupId || `item-${item.id}`;
+                const isGroup = !!item.stockGroupId;
+
+                const existingGroup = map.get(groupKey);
+
+                if (existingGroup) {
+                    existingGroup.totalQuantity += item.quantity;
+                    existingGroup.totalValue += itemTotal;
+                    
+                    const existingItem = existingGroup.items.find(i => i.name === item.name);
+                    if (existingItem) {
+                        existingItem.quantity += item.quantity;
+                        existingItem.total += itemTotal;
+                    } else {
+                        existingGroup.items.push({ name: item.name, quantity: item.quantity, total: itemTotal });
+                    }
                 } else {
-                    map.set(key, { id: item.id, name: item.name, quantity: item.quantity, total: itemTotal });
+                    // Create a new group
+                    map.set(groupKey, {
+                        groupKey: groupKey,
+                        groupName: isGroup ? (item.stockGroupId.charAt(0).toUpperCase() + item.stockGroupId.slice(1)) : item.name, // Use stockGroupId for group name
+                        isGroup: isGroup,
+                        totalQuantity: item.quantity,
+                        totalValue: itemTotal,
+                        items: [{ name: item.name, quantity: item.quantity, total: itemTotal }],
+                    });
                 }
             });
         });
-        return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity);
+
+        // Sort by quantity descending and return the array of groups
+        return Array.from(map.values()).sort((a, b) => b.totalQuantity - a.totalQuantity);
     }, [sales, startDate, endDate, selectedUserId]);
+
+    const handleToggleGroup = (groupKey: string) => {
+        setExpandedGroups(prev => 
+            prev.includes(groupKey) ? prev.filter(key => key !== groupKey) : [...prev, groupKey]
+        );
+    };
 
     // --- RENDER HELPERS ---
     const FilterBar = () => (
@@ -541,28 +584,54 @@ const SalesScreen: React.FC = () => {
                     </div>
                 )}
 
-                {!isLoading && activeTab === 'items' && (
+{!isLoading && activeTab === 'items' && (
                     <div className="bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
-                         <div className="p-4 border-b border-accent bg-secondary/50 flex justify-between items-center">
+                        <div className="p-4 border-b border-accent bg-secondary/50 flex justify-between items-center">
                             <h3 className="font-bold text-text-main">Artikujt e Shitur</h3>
-                            <span className="text-xs bg-highlight text-white px-2 py-1 rounded-full">{aggregatedItems.length} artikuj të ndryshëm</span>
+                            <span className="text-xs bg-highlight text-white px-2 py-1 rounded-full">{aggregatedItems.length} grupe/artikuj</span>
                         </div>
                         <table className="w-full text-left">
                             <thead className="bg-accent text-text-secondary text-xs uppercase font-semibold">
                                 <tr>
-                                    <th className="p-4">Emri i Artikullit</th>
+                                    <th className="p-4">Emri i Artikullit / Grupit</th>
                                     <th className="p-4 text-center">Sasia e Shitut</th>
                                     <th className="p-4 text-right">Vlera Totale</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-accent text-text-main">
-                                {aggregatedItems.map((item) => (
-                                    <tr key={item.id} className="hover:bg-primary/30 transition-colors">
-                                        <td className="p-4 font-medium">{item.name}</td>
-                                        <td className="p-4 text-center"><span className="bg-primary px-3 py-1 rounded-full text-sm font-bold border border-accent">x{item.quantity}</span></td>
-                                        <td className="p-4 text-right font-bold text-highlight">{formatCurrency(item.total)}</td>
-                                    </tr>
-                                ))}
+                                {aggregatedItems.map((group) => {
+                                    const isExpanded = expandedGroups.includes(group.groupKey);
+                                    return (
+                                        <React.Fragment key={group.groupKey}>
+                                            <tr 
+                                                className={`hover:bg-primary/30 transition-colors ${group.isGroup ? 'cursor-pointer' : ''}`}
+                                                onClick={() => group.isGroup && handleToggleGroup(group.groupKey)}
+                                            >
+                                                <td className="p-4 font-medium flex items-center gap-2">
+                                                    {group.isGroup && (
+                                                        <span className="text-highlight w-4 inline-block">
+                                                            {isExpanded ? '▼' : '►'}
+                                                        </span>
+                                                    )}
+                                                    {group.groupName}
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    <span className="bg-primary px-3 py-1 rounded-full text-sm font-bold border border-accent">
+                                                        x{group.totalQuantity}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-right font-bold text-highlight">{formatCurrency(group.totalValue)}</td>
+                                            </tr>
+                                            {isExpanded && group.items.map((item, index) => (
+                                                <tr key={`${group.groupKey}-${index}`} className="bg-primary/20">
+                                                    <td className="pl-12 py-2 pr-4 text-sm text-text-secondary">{item.name}</td>
+                                                    <td className="py-2 pr-4 text-center text-sm text-text-secondary">x{item.quantity}</td>
+                                                    <td className="py-2 pr-4 text-right text-sm text-text-secondary">{formatCurrency(item.total)}</td>
+                                                </tr>
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })}
                                 {aggregatedItems.length === 0 && (
                                     <tr><td colSpan={3} className="p-8 text-center text-text-secondary">Asnjë artikull i shitur në këtë periudhë.</td></tr>
                                 )}
