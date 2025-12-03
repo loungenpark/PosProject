@@ -13,7 +13,7 @@ import {
     RefreshIcon,
     CalendarIcon,
     DownloadIcon 
-} from './common/Icons';
+} from '../components/common/Icons';
 
 const formatCurrency = (amount: number | string) => {
     const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;

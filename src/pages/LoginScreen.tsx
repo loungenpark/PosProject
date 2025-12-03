@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { usePos } from '../context/PosContext';
-import { RestaurantIcon, BackspaceIcon } from './common/Icons';
+import { RestaurantIcon, BackspaceIcon } from '../components/common/Icons';
 
 const LoginScreen: React.FC = () => {
   const [pin, setPin] = useState('');

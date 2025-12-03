@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { usePos } from './context/PosContext';
-import LoginScreen from './components/LoginScreen';
-import PosScreen from './components/PosScreen';
-import AdminScreen from './components/AdminScreen';
-import SalesScreen from './components/SalesScreen';
+import LoginScreen from './pages/LoginScreen';
+import PosScreen from './pages/PosScreen';
+import AdminScreen from './pages/AdminScreen';
+import SalesScreen from './pages/SalesScreen';
 import { RestaurantIcon } from './components/common/Icons';
 
 const App: React.FC = () => {

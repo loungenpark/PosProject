@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { usePos } from '../context/PosContext';
-import { User, UserRole } from '../types';
-import { PlusIcon, TrashIcon, CloseIcon } from './common/Icons';
+// src/components/admin/UsersTab.tsx
 
-// --- Modal Component (re-defined for local use) ---
+import React, { useState, useEffect } from 'react';
+import { usePos } from '../../context/PosContext';
+import { User, UserRole } from '../../types';
+import { PlusIcon, TrashIcon, CloseIcon } from '../common/Icons';
+
+// --- Modal Component ---
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -78,9 +80,8 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel }) => {
     );
 };
 
-// ADD THIS PART in its place
-// --- Main User Management Component ---
-const UserManagement: React.FC = () => {
+// --- Main Users Tab Component ---
+const UsersTab: React.FC = () => {
     const { users, addUser, deleteUser } = usePos();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [autoLogoutEnabled, setAutoLogoutEnabled] = useState(false);
@@ -179,4 +180,4 @@ const UserManagement: React.FC = () => {
     );
 };
 
-export default UserManagement;
+export default UsersTab;

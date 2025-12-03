@@ -1,5 +1,4 @@
-PS C:\Users\Lounge Park\PosProject> Get-ChildItem -Recurse | Where-Object { $_.FullName -notmatch "node_modules" } | ForEach-Object { $_.FullName.Replace($PWD.Path + "\", "") }
-.git
+PS C:\Users\Lounge Park\PosProject> Get-ChildItem -Recurse | Where-Object { $_.FullName -notmatch "node_modules" -and $_.FullName -notmatch "\.git" } | ForEach-Object { $_.FullName.Replace($PWD.Path + "\", "") }
 components
 context
 server
@@ -7,7 +6,6 @@ utils
 z
 .env.local
 .env.local.txt
-.gitignore
 App.tsx
 constants.ts
 How to Install on a New PC.docx
@@ -30,17 +28,20 @@ tsconfig.json
 types.ts
 updates.docx
 vite.config.ts
-git (here are many files and folders, i removed them for you)
+components\admin
 components\common
 components\AdminScreen.tsx
 components\LoginScreen.tsx
 components\OrderTicket.tsx
 components\PosScreen.tsx
 components\Receipt.tsx
-components\SalesAI.tsx
 components\SalesScreen.tsx
-components\StockSupply.tsx
-components\UserManagement.tsx
+components\admin\MenuTab.tsx
+components\admin\ProfileTab.tsx
+components\admin\SettingsTab.tsx
+components\admin\StockTab.tsx
+components\admin\SupplyTab.tsx
+components\admin\UsersTab.tsx
 components\common\Icons.tsx
 components\common\ToggleSwitch.tsx
 context\PosContext.tsx
@@ -65,6 +66,3 @@ z\Summary from app chat.docx
 z\Summary from app chat.txt
 z\Summary to Copy and Paste into a New Chat.txt
 PS C:\Users\Lounge Park\PosProject>
-
-
-

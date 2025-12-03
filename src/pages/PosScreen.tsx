@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
-import { LogoutIcon, PlusIcon, MinusIcon, TrashIcon, CloseIcon, TableIcon, ChevronLeftIcon } from './common/Icons';
+import { LogoutIcon, PlusIcon, MinusIcon, TrashIcon, CloseIcon, TableIcon, ChevronLeftIcon } from '../components/common/Icons';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);

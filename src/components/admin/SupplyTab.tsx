@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { usePos } from '../context/PosContext';
-import { MenuItem, StockUpdateItem } from '../types';
-import { PlusIcon, TrashIcon, BoxIcon } from './common/Icons';
+import React, { useState, useRef } from 'react';
+import { usePos } from '../../context/PosContext';
+import { MenuItem, StockUpdateItem } from '../../types';
+import { PlusIcon, TrashIcon, BoxIcon } from '../common/Icons';
 
-const StockSupply: React.FC = () => {
+const SupplyTab: React.FC = () => {
     const { menuItems, addBulkStock } = usePos();
     const [searchTerm, setSearchTerm] = useState('');
     const [cart, setCart] = useState<StockUpdateItem[]>([]);
@@ -220,4 +220,4 @@ const StockSupply: React.FC = () => {
     );
 };
 
-export default StockSupply;
+export default SupplyTab;

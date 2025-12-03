@@ -7,6 +7,7 @@ echo ==========================================
 
 :: Navigate to the directory where this script is located
 cd /d "%~dp0"
+cd ..
 
 :: Run the project (starts both backend and frontend)
 call npm run dev
