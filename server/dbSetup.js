@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 export async function initDatabase() {
   try {
-    const schemaPath = path.join(__dirname, 'schema.sql');
+    const schemaPath = path.join(__dirname, 'database', 'schema.sql');
     
     // 1. Read the Master Schema File
     if (!fs.existsSync(schemaPath)) {

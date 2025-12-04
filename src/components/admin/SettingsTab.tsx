@@ -191,3 +191,56 @@ export const PrintingSettings: React.FC = () => {
         </div>
     );
 };
+
+// --- Operational Day Settings Component ---
+export const OperationalDaySettings: React.FC = () => {
+    const { operationalDayStartHour, updateOperationalDayStartHour } = usePos();
+    const [hour, setHour] = useState(operationalDayStartHour);
+    const [isSaving, setIsSaving] = useState(false);
+   
+    // Sync local state if the global context value changes
+    useEffect(() => {
+        setHour(operationalDayStartHour);
+    }, [operationalDayStartHour]);
+    
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const newHour = Math.max(0, Math.min(23, hour));
+            await updateOperationalDayStartHour(newHour);
+            alert(`Ora e fillimit të ditës operacionale u ruajt: ${newHour}:00.`);
+        } catch (error) {
+            alert("Ruajtja dështoi. Ju lutemi provoni përsëri.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    return (
+        <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
+            <h3 className="text-xl font-semibold mb-4 text-text-main">Dita Operacionale</h3>
+            <div className="space-y-6 bg-primary p-6 rounded-lg">
+                <div>
+                    <label htmlFor="startHour" className="block text-sm font-medium text-text-secondary">Ora e Fillimit të Ditës</label>
+                    <input
+                        type="number"
+                        id="startHour"
+                        value={hour}
+                        onChange={(e) => setHour(parseInt(e.target.value, 10) || 0)}
+                        min="0"
+                        max="23"
+                        className="mt-1 block w-full bg-secondary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
+                    />
+                    <p className="text-xs text-text-secondary mt-1">
+                        Cakto orën (0-23) kur fillon dita e punës. P.sh., vlera '5' do të thotë që dita zgjat nga ora 5:00 e mëngjesit deri në 4:59 të ditës tjetër.
+                    </p>
+                </div>
+                 <div className="flex justify-end pt-2">
+                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-blue-600 transition-colors disabled:bg-gray-500">
+                        {isSaving ? 'Duke ruajtur...' : 'Ruaj Ndryshimet'}
+                    </button>
+                 </div>
+            </div>
+        </div>
+    );
+};

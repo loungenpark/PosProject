@@ -152,6 +152,7 @@ app.get('/api/bootstrap', asyncHandler(async (req, res) => {
 
   const taxRate = parseFloat(findSetting('taxRate', '0.09'));
   const tableCount = parseInt(findSetting('tableCount', '50'), 10);
+  const operationalDayStartHour = parseInt(findSetting('operational_day_start_hour', '5'), 10);
 
   const companyInfo = {
     name: findSetting('companyName', ''),
@@ -168,6 +169,7 @@ app.get('/api/bootstrap', asyncHandler(async (req, res) => {
     menuCategories: menuCategories.rows,
     taxRate: taxRate,
     tableCount: tableCount,
+    operationalDayStartHour: operationalDayStartHour,
     companyInfo
   });
 }));
@@ -201,6 +203,52 @@ app.post('/api/order-tickets', asyncHandler(async (req, res) => {
 
 // 4. SALES
 app.get('/api/sales', asyncHandler(async (req, res) => {
+  // 1. Fetch the operational day start hour setting
+  const settingsResult = await query("SELECT value FROM settings WHERE key = 'operational_day_start_hour'");
+  const startHour = settingsResult.rows.length > 0 ? parseInt(settingsResult.rows[0].value, 10) : 5; // Default to 5 AM
+
+  // 2. Determine the date range
+  const { from, to, operationalDate } = req.query;
+  let startDate, endDate;
+
+  // Case A: Date Range (From - To)
+  if (from && to && !isNaN(new Date(from)) && !isNaN(new Date(to))) {
+      startDate = new Date(from);
+      startDate.setHours(startHour, 0, 0, 0);
+
+      const toDate = new Date(to);
+      endDate = new Date(toDate);
+      endDate.setDate(endDate.getDate() + 1); // The operational day for the "To" date ends the NEXT calendar day
+      endDate.setHours(startHour, 0, 0, 0);
+      endDate.setSeconds(endDate.getSeconds() - 1); 
+  }
+  // Case B: Single Date (Legacy or specific day)
+  else if (operationalDate && !isNaN(new Date(operationalDate))) {
+      startDate = new Date(operationalDate);
+      startDate.setHours(startHour, 0, 0, 0);
+      
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      endDate.setSeconds(endDate.getSeconds() - 1);
+  }
+  // Case C: Default (Current Operational Day)
+  else {
+      startDate = new Date();
+      startDate.setHours(startHour, 0, 0, 0);
+
+      // If now is before start hour (e.g. 3 AM), we are in previous day's operational cycle
+      if (new Date() < startDate) {
+          startDate.setDate(startDate.getDate() - 1);
+      }
+
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      endDate.setSeconds(endDate.getSeconds() - 1);
+  }
+
+  console.log(`📈 Fetching sales for operational day: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+  // 4. Query the database within the calculated range
   const { rows } = await query(`
       SELECT
           s.sale_uuid as id, s.date, s.table_id as "tableId", s.table_name as "tableName",
@@ -221,8 +269,10 @@ app.get('/api/sales', asyncHandler(async (req, res) => {
           ) as items
       FROM sales s
       JOIN users u ON s.user_id = u.id
+      WHERE s.date BETWEEN $1 AND $2
       ORDER BY s.date DESC
-  `);
+  `, [startDate, endDate]);
+
   const salesData = rows.map(row => ({
       ...row,
       order: {
@@ -608,11 +658,22 @@ app.post('/api/settings/company', asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/settings/tax', asyncHandler(async (req, res) => {
-    const { rate } = req.body;
-    if (typeof rate !== 'number' || rate < 0) { return res.status(400).json({ message: 'Invalid tax rate.' }); }
-    const upsertQuery = `INSERT INTO settings (key, value) VALUES ('taxRate', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`;
-    await query(upsertQuery, [rate.toString()]);
-    res.json({ success: true, newRate: rate });
+  const { rate } = req.body;
+  if (typeof rate !== 'number' || rate < 0) { return res.status(400).json({ message: 'Invalid tax rate.' }); }
+  const upsertQuery = `INSERT INTO settings (key, value) VALUES ('taxRate', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`;
+  await query(upsertQuery, [rate.toString()]);
+  res.json({ success: true, newRate: rate });
+}));
+
+app.post('/api/settings/operational-day', asyncHandler(async (req, res) => {
+  const { hour } = req.body;
+  if (typeof hour !== 'number' || hour < 0 || hour > 23) {
+      return res.status(400).json({ message: 'Ora duhet të jetë një numër ndërmjet 0 dhe 23.' });
+  }
+  const upsertQuery = `INSERT INTO settings (key, value) VALUES ('operational_day_start_hour', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`;
+  await query(upsertQuery, [hour.toString()]);
+  console.log(`✅ Database: Operational Day Start Hour updated to ${hour}:00`);
+  res.json({ success: true, newHour: hour });
 }));
 
 // 10. STOCK MANAGEMENT (Bulk Update)

@@ -77,8 +77,8 @@ export const login = (pin: string): Promise<{user: User | null}> => requestJSON(
     body: JSON.stringify({ pin }),
 });
 
-// --- Bootstrap (Updated with tableCount) ---
-export const bootstrap = (): Promise<{ users: User[], menuItems: MenuItem[], menuCategories: MenuCategory[], taxRate: number, tableCount: number, companyInfo?: any }> => requestJSON('/api/bootstrap');
+// --- Bootstrap (Updated with tableCount and operational day) ---
+export const bootstrap = (): Promise<{ users: User[], menuItems: MenuItem[], menuCategories: MenuCategory[], taxRate: number, tableCount: number, operationalDayStartHour: number, companyInfo?: any }> => requestJSON('/api/bootstrap');
 
 // --- Users ---
 export const addUser = (user: Omit<User, 'id'>): Promise<User> => requestJSON('/api/users', {
@@ -120,7 +120,16 @@ export const addSale = (order: Order, tableId: number, tableName: string, user: 
     method: 'POST',
     body: JSON.stringify({ order, tableId, tableName, user }),
 });
-export const getSales = (): Promise<Sale[]> => requestJSON('/api/sales');
+export const getSales = (from?: string, to?: string): Promise<Sale[]> => {
+    let endpoint = '/api/sales';
+    if (from && to) {
+        endpoint += `?from=${from}&to=${to}`;
+    } else if (from) {
+        // Fallback for single date calls (Backward compatibility)
+        endpoint += `?operationalDate=${from}`;
+    }
+    return requestJSON(endpoint);
+};
 
 // --- History ---
 export const addHistoryEntry = (tableId: number, details: string, user: User): Promise<any> => requestJSON('/api/history', {
@@ -137,6 +146,11 @@ export const getSettings = (): Promise<{ taxRate: number, tables: any[] }> => re
 export const updateTaxRate = (rate: number): Promise<{ success: boolean, newRate: number }> => requestJSON('/api/settings/tax', {
     method: 'POST',
     body: JSON.stringify({ rate }),
+});
+
+export const updateOperationalDayStartHour = (hour: number): Promise<{ success: boolean, newHour: number }> => requestJSON('/api/settings/operational-day', {
+    method: 'POST',
+    body: JSON.stringify({ hour }),
 });
 
 // --- Reordering Functions ---

@@ -1,8 +1,8 @@
 import React, { useState, } from 'react';
 import { usePos } from '../context/PosContext';
 import ProfileTab from '../components/admin/ProfileTab';
-import { TaxSettings, TableSettings, PrintingSettings } from '../components/admin/SettingsTab';
-import { CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, UploadIcon, RestaurantIcon } from '../components/common/Icons';
+import { TaxSettings, TableSettings, PrintingSettings, OperationalDaySettings } from '../components/admin/SettingsTab';;
+import { CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, UploadIcon, RestaurantIcon, ClockIcon  } from '../components/common/Icons';
 
 // Sub-components
 import UsersTab from '../components/admin/UsersTab';
@@ -14,7 +14,7 @@ import StockTab from '../components/admin/StockTab';
 
 
 // --- Main Admin Screen Component ---
-type AdminTab = 'menu' | 'stock' | 'supply' | 'users' | 'tax' | 'tables' | 'printimi' | 'profile';
+type AdminTab = 'menu' | 'stock' | 'supply' | 'users' | 'tax' | 'tables' | 'operationalDay' | 'printimi' | 'profile';
 
 // Note: No props needed as it's a top-level route now
 const AdminScreen: React.FC = () => {
@@ -68,6 +68,10 @@ const AdminScreen: React.FC = () => {
                 <PercentIcon className="w-5 h-5"/>
                 <span>Tatimi</span>
             </button>
+            <button onClick={() => setActiveTab('operationalDay')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'operationalDay' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+                <ClockIcon className="w-5 h-5"/>
+                <span>Dita Operacionale</span>
+            </button>
 
             <button onClick={() => setActiveTab('printimi')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'printimi' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
                 <PrinterIcon className="w-5 h-5"/>
@@ -87,6 +91,7 @@ const AdminScreen: React.FC = () => {
             {activeTab === 'users' && <UsersTab />}
             {activeTab === 'tax' && <TaxSettings />}
             {activeTab === 'tables' && <TableSettings />}
+            {activeTab === 'operationalDay' && <OperationalDaySettings />}
             {activeTab === 'printimi' && <PrintingSettings />}
             {activeTab === 'profile' && <ProfileTab />}
         </main>

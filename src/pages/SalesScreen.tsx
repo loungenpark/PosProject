@@ -24,12 +24,12 @@ const formatCurrency = (amount: number | string) => {
 type SalesTab = 'incomes' | 'transactions' | 'items';
 
 const SalesScreen: React.FC = () => {
-    const { loggedInUser, setActiveScreen, sales, users, refreshSalesFromServer, companyInfo, taxRate } = usePos();
+    const { loggedInUser, setActiveScreen, users, companyInfo, taxRate, operationalDayStartHour } = usePos();
     const [activeTab, setActiveTab] = useState<SalesTab>('incomes');
+    const [localSales, setLocalSales] = useState<Sale[]>([]);
     const [orderTickets, setOrderTickets] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [exportModalData, setExportModalData] = useState<any | null>(null);
-
 
     const handleExportToExcel = async () => {
         if (!exportModalData) return;
@@ -52,10 +52,8 @@ const SalesScreen: React.FC = () => {
                        (dateObj.getMonth() + 1).toString().padStart(2, '0') + '.' + 
                        dateObj.getFullYear();
         
-        // Invoice ID: YY + Last 4 digits of ID (e.g. 256805)
         const year = dateObj.getFullYear().toString().slice(-2);
         const numericId = tx.id.replace(/\D/g, ''); 
-        // We take the last 4 digits to keep it short but unique
         const shortId = numericId.slice(-4);
         const invoiceNo = `${year}${shortId}`;
 
@@ -66,8 +64,8 @@ const SalesScreen: React.FC = () => {
             '', 
             `Data: ${dateStr}`
         ]);
-        row1.getCell(1).font = { bold: true, size: 12 }; // Company Name
-        row1.getCell(4).alignment = { horizontal: 'right' }; // Date
+        row1.getCell(1).font = { bold: true, size: 12 };
+        row1.getCell(4).alignment = { horizontal: 'right' };
 
         // 4. Header Row 2: NUI/Tel (Left) | Fatura No (Right)
         const row2 = worksheet.addRow([
@@ -87,17 +85,17 @@ const SalesScreen: React.FC = () => {
         ]);
         row3.getCell(1).font = { size: 10 };
 
-        worksheet.addRow([]); // Spacer
+        worksheet.addRow([]);
 
         // 6. Buyer Section (Blerësi)
         const buyerLabel = worksheet.addRow(['Blerësi:']);
         buyerLabel.font = { bold: true, underline: true };
         
-        worksheet.addRow(['Emri i Biznesit']); // Placeholder
-        worksheet.addRow(['NUI: 1111']); // Placeholder
-        worksheet.addRow(['Adresa: aaaa']); // Placeholder
+        worksheet.addRow(['Emri i Biznesit']);
+        worksheet.addRow(['NUI: 1111']);
+        worksheet.addRow(['Adresa: aaaa']);
 
-        worksheet.addRow([]); // Spacer
+        worksheet.addRow([]);
 
         // 7. Table Header
         const headerRow = worksheet.addRow(['Artikulli', 'Sasia', 'Çmimi (€)', 'Totali (€)']);
@@ -109,10 +107,7 @@ const SalesScreen: React.FC = () => {
                 fgColor: { argb: 'FF4B5563' }, // Gray-600
             };
             cell.border = {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
+                top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
             };
         });
 
@@ -121,37 +116,22 @@ const SalesScreen: React.FC = () => {
             const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
             const quantity = item.quantity;
             const total = price * quantity;
-
-            const row = worksheet.addRow([
-                item.name,
-                quantity,
-                price.toFixed(2),
-                total.toFixed(2)
-            ]);
-
-            // Add borders to data cells
+            const row = worksheet.addRow([item.name, quantity, price.toFixed(2), total.toFixed(2)]);
             row.eachCell((cell) => {
                 cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
+                    top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
                 };
             });
-
-            // Align numbers
             row.getCell(2).alignment = { horizontal: 'center' };
             row.getCell(3).alignment = { horizontal: 'right' };
             row.getCell(4).alignment = { horizontal: 'right' };
         });
 
         // 9. Totals Section
-        worksheet.addRow([]); // Spacer
-
+        worksheet.addRow([]);
         const subtotal = tx.subtotal !== undefined ? tx.subtotal : tx.total;
         const tax = tx.tax !== undefined ? tx.tax : 0;
         const totalVal = tx.total;
-
         const addTotalRow = (label: string, value: string, bold = false) => {
             const row = worksheet.addRow(['', '', label, value]);
             row.getCell(3).font = { bold: true };
@@ -162,88 +142,63 @@ const SalesScreen: React.FC = () => {
                 row.getCell(4).border = { bottom: { style: 'double' } };
             }
         };
-
         addTotalRow('Nëntotali:', subtotal.toFixed(2));
         addTotalRow(`TVSH (${(taxRate * 100).toFixed(0)}%):`, tax.toFixed(2));
         addTotalRow('TOTALI:', totalVal.toFixed(2), true);
 
         // 10. Signature Section
-        worksheet.addRow([]);
-        worksheet.addRow([]);
-        worksheet.addRow([]);
-        worksheet.addRow([]); // 4 empty rows for spacing
-
+        worksheet.addRows([[], [], [], []]);
         const signatureRow = worksheet.addRow(['', 'Nënshkrimi dhe Vula', '', '']);
         const sigRowNumber = signatureRow.number;
-
-        // Merge B, C, D for wide signature area
         worksheet.mergeCells(`B${sigRowNumber}:D${sigRowNumber}`);
-        
         const sigCell = worksheet.getCell(`B${sigRowNumber}`);
         sigCell.font = { bold: true };
         sigCell.alignment = { horizontal: 'center' };
-        sigCell.border = {
-            top: { style: 'thin' }
-        };
+        sigCell.border = { top: { style: 'thin' } };
 
         // 11. Generate and Save
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         saveAs(blob, `Fatura_${invoiceNo}.xlsx`);
-
         setExportModalData(null);
     };
 
-
-
     // --- FILTERS ---
     const todayStr = new Date().toISOString().split('T')[0];
-    const [startDate, setStartDate] = useState(todayStr);
-    const [endDate, setEndDate] = useState(todayStr);
+    const [dateRange, setDateRange] = useState({ from: todayStr, to: todayStr });
     const [selectedUserId, setSelectedUserId] = useState('');
 
-    // --- DATA FETCHING (with manual refresh) ---
-    const loadData = useCallback(async () => {
+    // --- DATA FETCHING (with manual refresh for date range) ---
+    const loadData = useCallback(async (from: string, to: string) => {
         setIsLoading(true);
         try {
-            await refreshSalesFromServer();
+            // Fetch sales for the range
+            const serverSales = await api.getSales(from, to);
+            setLocalSales(serverSales.map(s => ({...s, date: new Date(s.date)})));
+            
+            // Tickets are fetched in bulk; we filter them client-side in useMemo
             const tickets = await api.getOrderTickets();
             const formattedTickets = tickets.map((t: any) => ({ ...t, date: new Date(t.date) }));
             setOrderTickets(formattedTickets);
+
         } catch (error) {
             console.error("Failed to load sales data:", error);
+            setLocalSales([]);
         } finally {
             setIsLoading(false);
         }
-    }, [refreshSalesFromServer]);
+    }, []);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
-
-    // --- HELPER: Filter Logic ---
-    const filterByDateAndUser = (date: Date, userId: number) => {
-        if (startDate) {
-            const start = new Date(startDate);
-            start.setHours(0, 0, 0, 0);
-            if (date < start) return false;
-        }
-        if (endDate) {
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
-            if (date > end) return false;
-        }
-        if (selectedUserId && userId !== parseInt(selectedUserId, 10)) {
-            return false;
-        }
-        return true;
-    };
+        loadData(dateRange.from, dateRange.to);
+    }, [dateRange, loadData]);
 
     // --- 1. TAB: INCOMES (Logic) ---
     const salesSummary = useMemo(() => {
         let totalShankRevenue = 0;
         let totalKuzhinaRevenue = 0;
-        const filteredSales = sales.filter(sale => filterByDateAndUser(new Date(sale.date), sale.user.id));
+        const filteredSales = localSales.filter(sale => !selectedUserId || sale.user.id === parseInt(selectedUserId, 10));
+
         filteredSales.forEach(sale => {
             let subtotalShank = 0;
             let subtotalKuzhina = 0;
@@ -269,19 +224,36 @@ const SalesScreen: React.FC = () => {
             totalRevenue: totalShankRevenue + totalKuzhinaRevenue,
             count: filteredSales.length
         };
-    }, [sales, startDate, endDate, selectedUserId]);
+    }, [localSales, selectedUserId]);
 
-    const dailySalesStats = useMemo(() => {
-        const filteredSales = sales.filter(sale => filterByDateAndUser(new Date(sale.date), sale.user.id));
-        const statsMap = new Map<string, { dateStr: string, bar: number, kitchen: number, total: number }>();
+    // --- 1.1 DAILY BREAKDOWN (Logic) ---
+    const dailyBreakdown = useMemo(() => {
+        const filteredSales = localSales.filter(sale => !selectedUserId || sale.user.id === parseInt(selectedUserId, 10));
+        const groups: Record<string, { date: Date, total: number, shank: number, kuzhina: number, count: number }> = {};
 
         filteredSales.forEach(sale => {
-            const dateObj = new Date(sale.date);
-            const dateKey = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+            // Determine Operational Date Key
+            const opDate = new Date(sale.date);
             
+            // Adjust for Operational Day (if before start hour, counts as previous day)
+            if (opDate.getHours() < operationalDayStartHour) {
+                opDate.setDate(opDate.getDate() - 1);
+            }
+
+            // FIX: Use local date components to avoid UTC timezone shifts
+            const year = opDate.getFullYear();
+            const month = String(opDate.getMonth() + 1).padStart(2, '0');
+            const day = String(opDate.getDate()).padStart(2, '0');
+            const dateKey = `${year}-${month}-${day}`;
+
+            if (!groups[dateKey]) {
+                groups[dateKey] = { date: opDate, total: 0, shank: 0, kuzhina: 0, count: 0 };
+            }
+
+            // Calculate Sale Totals
             let subtotalShank = 0;
             let subtotalKuzhina = 0;
-
+            
             sale.order.items.forEach(item => {
                 const itemPrice = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
                 if (item.printer === Printer.BAR) {
@@ -291,61 +263,52 @@ const SalesScreen: React.FC = () => {
                 }
             });
 
-            let saleShank = 0;
-            let saleKuzhina = 0;
-
+            // Distribute Total based on Ratio
             if (sale.order.subtotal > 0) {
                 const shankRatio = subtotalShank / sale.order.subtotal;
                 const kuzhinaRatio = subtotalKuzhina / sale.order.subtotal;
-                saleShank = sale.order.total * shankRatio;
-                saleKuzhina = sale.order.total * kuzhinaRatio;
+                
+                groups[dateKey].total += sale.order.total;
+                groups[dateKey].shank += sale.order.total * shankRatio;
+                groups[dateKey].kuzhina += sale.order.total * kuzhinaRatio;
             }
-
-            const current = statsMap.get(dateKey) || { dateStr: dateKey, bar: 0, kitchen: 0, total: 0 };
-            statsMap.set(dateKey, {
-                dateStr: dateKey,
-                bar: current.bar + saleShank,
-                kitchen: current.kitchen + saleKuzhina,
-                total: current.total + sale.order.total
-            });
+            groups[dateKey].count += 1;
         });
 
-        // Sort descending by date (newest first)
-        return Array.from(statsMap.values()).sort((a, b) => b.dateStr.localeCompare(a.dateStr));
-    }, [sales, startDate, endDate, selectedUserId]);
+        // Convert to array and sort DESC (Newest first)
+        return Object.values(groups).sort((a, b) => b.date.getTime() - a.date.getTime());
+    }, [localSales, selectedUserId, operationalDayStartHour]);
 
     // --- 2. TAB: TRANSACTIONS (Logic) ---
-
     const filteredTransactions = useMemo(() => {
-        const ticketEvents = orderTickets.map(t => ({ 
-            id: `ticket-${t.id}`, 
-            type: 'ORDER', 
-            tableName: t.tableName, 
-            user: t.user, 
-            date: t.date, 
-            items: t.items, 
-            total: parseFloat(t.total),
-            subtotal: parseFloat(t.total), // Estimate for tickets
-            tax: 0
+        // Calculate range for Tickets (Client-side filtering)
+        const start = new Date(dateRange.from);
+        start.setHours(operationalDayStartHour, 0, 0, 0);
+        
+        const end = new Date(dateRange.to);
+        end.setDate(end.getDate() + 1); // Go to next day
+        end.setHours(operationalDayStartHour, 0, 0, 0);
+        end.setSeconds(end.getSeconds() - 1); // End at 04:59:59
+
+        const ticketEvents = orderTickets
+            .filter(t => t.date >= start && t.date <= end)
+            .map(t => ({ 
+                id: `ticket-${t.id}`, type: 'ORDER', tableName: t.tableName, user: t.user, date: t.date, items: t.items, 
+                total: parseFloat(t.total), subtotal: parseFloat(t.total), tax: 0
+            }));
+            
+        // Sales are already filtered by the server based on the same logic
+        const saleEvents = localSales.map(s => ({ 
+            id: `${s.id}`, type: 'RECEIPT', tableName: s.tableName, user: s.user, date: new Date(s.date), items: s.order.items, 
+            total: s.order.total, subtotal: s.order.subtotal, tax: s.order.tax
         }));
-        const saleEvents = sales.map(s => ({ 
-            id: `sale-${s.id}`, 
-            type: 'RECEIPT', 
-            tableName: s.tableName, 
-            user: s.user, 
-            date: new Date(s.date), 
-            items: s.order.items, 
-            total: s.order.total,
-            subtotal: s.order.subtotal,
-            tax: s.order.tax
-        }));
+
         const combined = [...ticketEvents, ...saleEvents];
+        
         return combined
-            .filter(tx => filterByDateAndUser(tx.date, tx.user?.id))
+            .filter(tx => !selectedUserId || tx.user?.id === parseInt(selectedUserId, 10))
             .sort((a, b) => b.date.getTime() - a.date.getTime());
-    }, [sales, orderTickets, startDate, endDate, selectedUserId]);
-
-
+    }, [localSales, orderTickets, dateRange, selectedUserId, operationalDayStartHour]);
 
     // --- 3. TAB: ITEMS (Logic) ---
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
@@ -360,16 +323,14 @@ const SalesScreen: React.FC = () => {
     }
 
     const aggregatedItems = useMemo((): SoldItemGroup[] => {
-        const relevantSales = sales.filter(sale => filterByDateAndUser(new Date(sale.date), sale.user.id));
+        const relevantSales = localSales.filter(sale => !selectedUserId || sale.user.id === parseInt(selectedUserId, 10));
         const map = new Map<string, SoldItemGroup>();
 
         relevantSales.forEach(sale => {
             sale.order.items.forEach(item => {
-                // Ensure price is a number before calculation
                 const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
                 const itemTotal = price * item.quantity;
                 
-                // Use stockGroupId for grouping, or a unique item ID as a fallback for non-grouped items
                 const groupKey = item.stockGroupId || `item-${item.id}`;
                 const isGroup = !!item.stockGroupId;
 
@@ -387,10 +348,9 @@ const SalesScreen: React.FC = () => {
                         existingGroup.items.push({ name: item.name, quantity: item.quantity, total: itemTotal });
                     }
                 } else {
-                    // Create a new group
                     map.set(groupKey, {
                         groupKey: groupKey,
-                        groupName: isGroup ? (item.stockGroupId.charAt(0).toUpperCase() + item.stockGroupId.slice(1)) : item.name, // Use stockGroupId for group name
+                        groupName: isGroup ? (item.stockGroupId.charAt(0).toUpperCase() + item.stockGroupId.slice(1)) : item.name,
                         isGroup: isGroup,
                         totalQuantity: item.quantity,
                         totalValue: itemTotal,
@@ -400,9 +360,8 @@ const SalesScreen: React.FC = () => {
             });
         });
 
-        // Sort by quantity descending and return the array of groups
         return Array.from(map.values()).sort((a, b) => b.totalQuantity - a.totalQuantity);
-    }, [sales, startDate, endDate, selectedUserId]);
+    }, [localSales, selectedUserId]);
 
     const handleToggleGroup = (groupKey: string) => {
         setExpandedGroups(prev => 
@@ -417,12 +376,29 @@ const SalesScreen: React.FC = () => {
                 <CalendarIcon className="w-5 h-5 text-highlight" />
                 <span className="font-semibold text-text-main">Periudha:</span>
             </div>
+            
             <div className="flex items-center gap-2">
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight" />
-                <span className="text-text-secondary">-</span>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight" />
+                <span className="text-sm text-text-secondary">Prej:</span>
+                <input 
+                    type="date" 
+                    value={dateRange.from} 
+                    onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))} 
+                    className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight" 
+                />
             </div>
+
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-text-secondary">Deri:</span>
+                <input 
+                    type="date" 
+                    value={dateRange.to} 
+                    onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))} 
+                    className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight" 
+                />
+            </div>
+
             <div className="w-px h-8 bg-accent mx-2 hidden md:block"></div>
+            
             <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className="bg-primary border border-accent rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight">
                 <option value="">Të gjithë Përdoruesit</option>
                 {users.map(user => (
@@ -432,13 +408,13 @@ const SalesScreen: React.FC = () => {
 
             <div className="ml-auto flex items-center gap-2">
                 <button 
-                    onClick={() => { setStartDate(todayStr); setEndDate(todayStr); setSelectedUserId(''); }}
+                    onClick={() => { setDateRange({ from: todayStr, to: todayStr }); setSelectedUserId(''); }}
                     className="px-4 py-2 rounded-md bg-accent text-text-main hover:bg-gray-600 text-sm"
                 >
                     Pastro
                 </button>
                  <button 
-                    onClick={loadData}
+                    onClick={() => loadData(dateRange.from, dateRange.to)}
                     disabled={isLoading}
                     className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-blue-600 text-sm flex items-center gap-2 disabled:bg-gray-500"
                 >
@@ -509,39 +485,42 @@ const SalesScreen: React.FC = () => {
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border-l-4 border-highlight relative overflow-hidden">
                             <h3 className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-2">Totali i Përgjithshëm</h3>
-
                             <p className="text-4xl font-bold text-white">{formatCurrency(salesSummary.totalRevenue)}</p>
                             <p className="text-sm text-text-secondary mt-2">{salesSummary.count} fatura të mbyllura</p>
                         </div>
+                    </div>
+                )}
 
-                        {/* Daily Breakdown Table - Only if date range > 1 day */}
-                        {(startDate !== endDate) && dailySalesStats.length > 0 && (
-                            <div className="col-span-1 md:col-span-3 mt-4 bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in border border-accent/50">
-                                <div className="p-4 border-b border-accent bg-secondary/50">
-                                    <h3 className="font-bold text-text-main">Detajet Ditore</h3>
-                                </div>
-                                <table className="w-full text-left">
-                                    <thead className="bg-accent text-text-secondary text-xs uppercase font-semibold">
-                                        <tr>
-                                            <th className="p-4">Data</th>
-                                            <th className="p-4 text-right">Shank</th>
-                                            <th className="p-4 text-right">Kuzhina</th>
-                                            <th className="p-4 text-right">Totali</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-accent text-text-main">
-                                        {dailySalesStats.map((stat) => (
-                                            <tr key={stat.dateStr} className="hover:bg-primary/30 transition-colors">
-                                                <td className="p-4 font-medium">{new Date(stat.dateStr).toLocaleDateString('de-DE')}</td>
-                                                <td className="p-4 text-right">{formatCurrency(stat.bar)}</td>
-                                                <td className="p-4 text-right">{formatCurrency(stat.kitchen)}</td>
-                                                <td className="p-4 text-right font-bold text-highlight">{formatCurrency(stat.total)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                {/* DAILY BREAKDOWN TABLE (Only visible in Incomes tab if we have MORE THAN 1 DAY) */}
+                {!isLoading && activeTab === 'incomes' && dailyBreakdown.length > 1 && (
+                     <div className="mt-8 bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
+                        <div className="p-4 border-b border-accent bg-secondary/50">
+                            <h3 className="font-bold text-text-main">Detajet Ditore</h3>
+                        </div>
+                        <table className="w-full text-left">
+                            <thead className="bg-accent text-text-secondary text-xs uppercase font-semibold">
+                                <tr>
+                                    <th className="p-4">Data</th>
+                                    <th className="p-4 text-center">Fatura</th>
+                                    <th className="p-4 text-right text-yellow-500">Shank</th>
+                                    <th className="p-4 text-right text-green-500">Kuzhina</th>
+                                    <th className="p-4 text-right text-white">Totali</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-accent text-text-main">
+                                {dailyBreakdown.map((day, idx) => (
+                                    <tr key={idx} className="hover:bg-primary/30 transition-colors">
+                                        <td className="p-4 font-medium">
+                                            {day.date.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                        </td>
+                                        <td className="p-4 text-center text-text-secondary">{day.count}</td>
+                                        <td className="p-4 text-right font-mono text-yellow-500/80">{formatCurrency(day.shank)}</td>
+                                        <td className="p-4 text-right font-mono text-green-500/80">{formatCurrency(day.kuzhina)}</td>
+                                        <td className="p-4 text-right font-bold text-lg">{formatCurrency(day.total)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 )}
 
@@ -584,7 +563,8 @@ const SalesScreen: React.FC = () => {
                     </div>
                 )}
 
-{!isLoading && activeTab === 'items' && (
+                {/* ITEMS TABLE (Logic) */}
+                {!isLoading && activeTab === 'items' && (
                     <div className="bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
                         <div className="p-4 border-b border-accent bg-secondary/50 flex justify-between items-center">
                             <h3 className="font-bold text-text-main">Artikujt e Shitur</h3>
@@ -594,7 +574,7 @@ const SalesScreen: React.FC = () => {
                             <thead className="bg-accent text-text-secondary text-xs uppercase font-semibold">
                                 <tr>
                                     <th className="p-4">Emri i Artikullit / Grupit</th>
-                                    <th className="p-4 text-center">Sasia e Shitut</th>
+                                    <th className="p-4 text-center">Sasia e Shitur</th>
                                     <th className="p-4 text-right">Vlera Totale</th>
                                 </tr>
                             </thead>
@@ -639,7 +619,6 @@ const SalesScreen: React.FC = () => {
                         </table>
                     </div>
                 )}
-            
             </main>
 
             {/* Export Confirmation Modal */}

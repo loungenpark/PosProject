@@ -37,6 +37,8 @@ interface PosContextState {
   updateCompanySettings: (info: CompanyInfo) => Promise<void>;
   addBulkStock: (movements: StockUpdateItem[], reason: string) => Promise<void>;
   addWaste: (itemId: number, quantity: number, reason: string) => Promise<void>;
+  operationalDayStartHour: number;
+  updateOperationalDayStartHour: (hour: number) => Promise<void>;
 }
 
 const PosContext = createContext<PosContextState | undefined>(undefined);
@@ -63,6 +65,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [tableButtonSizePercent, setTableButtonSizePercentState] = useState<number>(100);
   const [taxRate, setTaxRateState] = useState<number>(0);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [operationalDayStartHour, setOperationalDayStartHour] = useState<number>(5); // Default to 5 AM
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({ name: '', nui: '', address: '', phone: '' });
   const syncInProgress = useRef(false);
   const startupEffectRan = useRef(false);
@@ -133,10 +136,14 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchAndCacheData = useCallback(async () => {
       if (!isBackendConfigured) return;
       try {
-        let { users: serverUsers, menuItems: serverItems, menuCategories: serverCats, taxRate, tableCount, companyInfo: serverCompanyInfo } = await api.bootstrap();
+        let { users: serverUsers, menuItems: serverItems, menuCategories: serverCats, taxRate, tableCount, companyInfo: serverCompanyInfo, operationalDayStartHour: serverStartHour } = await api.bootstrap();
         
         if (serverCompanyInfo) {
             setCompanyInfo(serverCompanyInfo);
+        }
+
+        if (typeof serverStartHour === 'number' && serverStartHour >= 0 && serverStartHour <= 23) {
+            setOperationalDayStartHour(serverStartHour);
         }
 
         if (typeof tableCount === 'number' && tableCount > 0) {
@@ -262,6 +269,20 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('Saving company info is online-only for now');
     }
   }, [isOnline]);
+
+  const updateOperationalDayStartHour = useCallback(async (hour: number) => {
+    setOperationalDayStartHour(hour);
+    // This is a core setting, so we only allow updating it when online to prevent sync issues.
+    if (isOnline && isBackendConfigured) {
+      try {
+        await api.updateOperationalDayStartHour(hour);
+        await addHistoryEntry(0, `Operational day start hour set to ${hour}:00`);
+      } catch (error) {
+        console.error('Failed to update operational day start hour:', error);
+        // Optional: Revert state if API call fails
+      }
+    }
+  }, [isOnline, addHistoryEntry]);
   
   const login = useCallback(async (pin: string): Promise<boolean> => {
     let user = users.find((u) => u.pin === pin);
@@ -968,7 +989,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [loggedInUser]);
 
   const value = useMemo(() => ({
-    isLoading, isOnline, isSyncing, loggedInUser, activeScreen, setActiveScreen, // ADDED
+    isLoading, isOnline, isSyncing, loggedInUser, activeScreen, setActiveScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
     setSaleToPrint, orderToPrint, setOrderToPrint, tables, tablesPerRow, tableSizePercent,
     tableButtonSizePercent, taxRate, history, login, logout, addUser, deleteUser, addMenuItem, updateMenuItem,
@@ -976,6 +997,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateMenuCategory, deleteMenuCategory, reorderMenuCategories, addSale, setTableCount, updateOrderForTable,
     setTablesPerRow, setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
     refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
+    operationalDayStartHour, updateOperationalDayStartHour,
   }), [
     isLoading, isOnline, isSyncing, loggedInUser, activeScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
@@ -985,6 +1007,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     reorderMenuCategories, addSale, setTableCount, updateOrderForTable, setTablesPerRow,
     setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
     refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
+    operationalDayStartHour, updateOperationalDayStartHour,
   ]);
 
   return <PosContext.Provider value={value}>{children}</PosContext.Provider>;

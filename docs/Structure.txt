@@ -1,68 +1,76 @@
 PS C:\Users\Lounge Park\PosProject> Get-ChildItem -Recurse | Where-Object { $_.FullName -notmatch "node_modules" -and $_.FullName -notmatch "\.git" } | ForEach-Object { $_.FullName.Replace($PWD.Path + "\", "") }
-components
-context
+docs
+scripts
+seed
 server
-utils
-z
+src
 .env.local
-.env.local.txt
-App.tsx
-constants.ts
-How to Install on a New PC.docx
-index.css
 index.html
-index.tsx
-info.txt
-install to new PC info.docx
-menu_import.csv
 metadata.json
 package-lock.json
 package.json
-pastecodes.ts
-reorder_items.csv
-startPos.bat
-Structure.txt
-Summary of the App.docx
-System Instuctions.docx
 tsconfig.json
-types.ts
-updates.docx
 vite.config.ts
-components\admin
-components\common
-components\AdminScreen.tsx
-components\LoginScreen.tsx
-components\OrderTicket.tsx
-components\PosScreen.tsx
-components\Receipt.tsx
-components\SalesScreen.tsx
-components\admin\MenuTab.tsx
-components\admin\ProfileTab.tsx
-components\admin\SettingsTab.tsx
-components\admin\StockTab.tsx
-components\admin\SupplyTab.tsx
-components\admin\UsersTab.tsx
-components\common\Icons.tsx
-components\common\ToggleSwitch.tsx
-context\PosContext.tsx
+docs\z
+docs\.env.local.txt
+docs\How to Install on a New PC.docx
+docs\info.txt
+docs\install to new PC info.docx
+docs\roadmap for operation business day.docx
+docs\Structure.txt
+docs\Summary of the App.docx
+docs\System Instuctions.docx
+docs\updates.docx
+docs\z\how to fix by google ai app.docx
+docs\z\New Microsoft Excel Worksheet.xlsx
+docs\z\New Microsoft Word Document.docx
+docs\z\recap 14.11.2025 .docx
+docs\z\recap for ai studio.docx
+docs\z\steps to install.docx
+docs\z\steps to install2.docx
+docs\z\Summary from app chat.docx
+docs\z\Summary from app chat.txt
+docs\z\Summary to Copy and Paste into a New Chat.txt
+scripts\startPos.bat
+seed\menu_import.csv
+seed\reorder_items.csv
+server\database
 server\db.js
 server\dbSetup.js
 server\index.js
 server\instrument.js
-server\pos_backup.sql
 server\printer.js
-server\schema.sql
-server\structure.sql
-utils\api.ts
-utils\db.ts
-z\how to fix by google ai app.docx
-z\New Microsoft Excel Worksheet.xlsx
-z\New Microsoft Word Document.docx
-z\recap 14.11.2025 .docx
-z\recap for ai studio.docx
-z\steps to install.docx
-z\steps to install2.docx
-z\Summary from app chat.docx
-z\Summary from app chat.txt
-z\Summary to Copy and Paste into a New Chat.txt
+server\database\pos_backup.sql
+server\database\schema.sql
+server\database\structure.sql
+src\components
+src\context
+src\pages
+src\utils
+src\App.tsx
+src\constants.ts
+src\index.css
+src\index.tsx
+src\types.ts
+src\components\admin
+src\components\common
+src\components\OrderTicket.tsx
+src\components\Receipt.tsx
+src\components\admin\MenuTab.tsx
+src\components\admin\ProfileTab.tsx
+src\components\admin\SettingsTab.tsx
+src\components\admin\StockTab.tsx
+src\components\admin\SupplyTab.tsx
+src\components\admin\UsersTab.tsx
+src\components\common\Icons.tsx
+src\components\common\ToggleSwitch.tsx
+src\context\PosContext.tsx
+src\pages\AdminScreen.tsx
+src\pages\LoginScreen.tsx
+src\pages\PosScreen.tsx
+src\pages\SalesScreen.tsx
+src\utils\api.ts
+src\utils\db.ts
 PS C:\Users\Lounge Park\PosProject>
+
+
