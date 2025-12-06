@@ -69,12 +69,19 @@ io.on('connection', (socket) => {
     if (masterClientId) {
       socket.to(masterClientId).emit('share-your-state');
     } else {
-        console.log("⚠️ No Master found to provide state.");
+        console.log("⚠️ No Master found in memory. Broadcasting 'share-your-state' to ALL clients to find Master...");
+        // Fallback: Ask everyone. The real Master will respond because of its isMasterClient check.
+        io.emit('share-your-state');
     }
   });
 
   // 3. Master providing state
   socket.on('here-is-my-state', (tablesData) => {
+    // If server restarted and lost masterClientId, recover it here:
+    if (!masterClientId) {
+        console.log(`👑 Master recovered/identified via state sharing: ${socket.id}`);
+        masterClientId = socket.id;
+    }
     io.emit('order-updated-from-server', tablesData);
   });
 

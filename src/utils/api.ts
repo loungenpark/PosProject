@@ -29,19 +29,27 @@ async function requestJSON(endpoint: string, options: RequestInit = {}) {
       throw new Error(data.message || `API request failed with status ${response.status}`);
     }
     return data;
-  } catch (error) {
+} catch (error) {
     if (error instanceof TypeError) {
         console.error(`--- NETWORK ERROR on ${endpoint}:`, error);
         throw new Error('Network error. Could not connect to the server.');
     }
-    console.error(`--- API ERROR on ${endpoint}:`, error);
-    throw error;
+    
+    // ✅ Fix: Ensure we always throw a real Error object
+    if (error instanceof Error) {
+        console.error(`--- API ERROR on ${endpoint}:`, error.message);
+        throw error;
+    }
+
+    // Capture non-Error objects (like { message: '...' }) and wrap them
+    console.error(`--- API UNKNOWN EXCEPTION on ${endpoint}:`, error);
+    const errorMsg = (error as any)?.message || String(error);
+    throw new Error(errorMsg);
   }
 }
 
 // Special request function for FormData (file uploads)
 async function requestFormData(endpoint: string, formData: FormData) {
-  // --- NEW LOG ---
   console.log(`--- ATTEMPTING TO FETCH (FormData): ${API_URL}${endpoint} ---`);
 
   try {
@@ -66,8 +74,16 @@ async function requestFormData(endpoint: string, formData: FormData) {
         console.error(`--- NETWORK ERROR on ${endpoint}:`, error);
         throw new Error('Network error. Could not connect to the server.');
     }
-    console.error(`--- API ERROR on ${endpoint}:`, error);
-    throw error;
+
+    // ✅ Fix: Ensure we always throw a real Error object
+    if (error instanceof Error) {
+        console.error(`--- API ERROR on ${endpoint}:`, error.message);
+        throw error;
+    }
+
+    console.error(`--- API UNKNOWN EXCEPTION on ${endpoint}:`, error);
+    const errorMsg = (error as any)?.message || String(error);
+    throw new Error(errorMsg);
   }
 }
 

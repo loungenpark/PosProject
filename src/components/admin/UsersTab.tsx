@@ -46,7 +46,7 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel }) => {
         }
         setIsSaving(true);
         try {
-            await onSave({ username, pin, role });
+            await onSave({ username, pin, role, active: true });
         } catch (error) {
             alert("Ruajtja e përdoruesit dështoi.");
             console.error(error);

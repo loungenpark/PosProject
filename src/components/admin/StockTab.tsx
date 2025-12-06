@@ -1,378 +1,406 @@
-// src/components/admin/StockTab.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePos } from '../../context/PosContext';
 import * as api from '../../utils/api';
-import { MenuItem, StockMovement } from '../../types';
-import { MinusCircleIcon, CloseIcon } from '../common/Icons';
+import { MenuItem, StockMovement, StockUpdateItem } from '../../types';
+import { 
+    ClockIcon, 
+    BoxIcon, 
+    PlusIcon, 
+    TrashIcon, 
+    MinusCircleIcon, 
+    CheckIcon, 
+    ExclamationIcon 
+} from '../common/Icons';
 
-// --- Helper Components ---
-
-const ClockIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
+// --- Sub-Components for Tab Navigation ---
+const TabButton = ({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: React.ReactNode }) => (
+    <button 
+        onClick={onClick} 
+        className={`flex items-center space-x-2 px-6 py-3 font-semibold transition-all border-b-2 ${
+            active 
+            ? 'border-highlight text-highlight bg-highlight/10' 
+            : 'border-transparent text-text-secondary hover:text-text-main hover:bg-accent/50'
+        }`}
+    >
+        {icon}
+        <span>{label}</span>
+    </button>
 );
 
-interface ModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    children: React.ReactNode;
-    title: string;
-}
-
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+// --- Modal Component ---
+const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center">
-            <div className="bg-secondary rounded-lg shadow-xl w-full max-w-lg m-4">
-                <div className="flex justify-between items-center p-4 border-b border-accent">
+            <div className="bg-secondary rounded-lg shadow-xl w-full max-w-lg m-4 flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center p-4 border-b border-accent flex-shrink-0">
                     <h3 className="text-xl font-semibold text-text-main">{title}</h3>
-                    <button onClick={onClose} className="text-text-secondary hover:text-text-main"><CloseIcon className="w-6 h-6" /></button>
+                    <button onClick={onClose} className="text-text-secondary hover:text-text-main text-2xl">&times;</button>
                 </div>
-                <div className="p-6">{children}</div>
+                <div className="p-6 overflow-y-auto">{children}</div>
             </div>
         </div>
     );
 };
 
-// --- Main Component ---
-
-const StockTab: React.FC = () => {
-    const { menuItems, updateMenuItem, addWaste } = usePos();
-    const [localItems, setLocalItems] = useState<MenuItem[]>([]);
-    const [isSaving, setIsSaving] = useState<{[key: number]: boolean}>({});
-
-    // Waste Modal State
-    const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
-    const [wasteItem, setWasteItem] = useState<MenuItem | null>(null);
-    const [wasteQuantity, setWasteQuantity] = useState<string>('');
-    const [wasteReason, setWasteReason] = useState('');
-    const [isSubmittingWaste, setIsSubmittingWaste] = useState(false);
-
-    const handleOpenWasteModal = (item: MenuItem) => {
-        setWasteItem(item);
-        setWasteQuantity('');
-        setWasteReason('');
-        setIsWasteModalOpen(true);
-    };
-
-    const handleSubmitWaste = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!wasteItem || !wasteQuantity) return;
-        
-        const qty = parseInt(wasteQuantity, 10);
-        if (isNaN(qty) || qty <= 0) {
-            alert("Ju lutemi shkruani një sasi të vlefshme.");
-            return;
-        }
-
-        setIsSubmittingWaste(true);
-        try {
-            await addWaste(wasteItem.id, qty, wasteReason || 'Humbje (Waste)');
-            setIsWasteModalOpen(false);
-            setWasteItem(null);
-        } catch (error) {
-            alert("Regjistrimi i humbjes dështoi.");
-        } finally {
-            setIsSubmittingWaste(false);
-        }
-    };
-
-    // History Modal State
-    interface AggregatedStockHistory {
+// --- History Modal Content (Aggregated) ---
+interface HistoryViewProps {
+    item: MenuItem;
+    onClose: () => void;
+}
+const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<{
         supply: { total: number; details: StockMovement[] };
         waste: { total: number; details: StockMovement[] };
         sale: { total: number; details: StockMovement[] };
-    }
-    const initialHistoryState: AggregatedStockHistory = {
-        supply: { total: 0, details: [] },
-        waste: { total: 0, details: [] },
-        sale: { total: 0, details: [] },
-    };
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    const [historyLoading, setHistoryLoading] = useState(false);
-    const [historyData, setHistoryData] = useState<AggregatedStockHistory>(initialHistoryState);
-    const [selectedItemName, setSelectedItemName] = useState('');
-    const [expandedCategory, setExpandedCategory] = useState<'supply' | 'waste' | 'sale' | null>(null);
+    }>({ supply: { total: 0, details: [] }, waste: { total: 0, details: [] }, sale: { total: 0, details: [] } });
+    const [expanded, setExpanded] = useState<'supply' | 'waste' | 'sale' | null>(null);
 
     useEffect(() => {
-        setLocalItems([...menuItems].sort((a, b) => a.name.localeCompare(b.name)));
-    }, [menuItems]);
-
-    const handleInputChange = (itemId: number, field: 'stock' | 'stockThreshold' | 'trackStock', value: string | boolean) => {
-        const changingItem = localItems.find(i => i.id === itemId);
-        const targetGroupId = changingItem?.stockGroupId;
-
-        setLocalItems(prev => prev.map(item => {
-            const shouldUpdate = item.id === itemId || (targetGroupId && item.stockGroupId === targetGroupId && field === 'stock');
-            
-            if (shouldUpdate) {
-                // LOGIC: If checking the box "Track Stock", automatically set Stock to 0 if it's currently Infinity/Null
-                if (field === 'trackStock') {
-                    const isEnabled = !!value;
-                    if (item.id === itemId) {
-                         return { 
-                            ...item, 
-                            trackStock: isEnabled,
-                            // If enabling, force stock to 0. If disabling, leave it (handleSave cleans it up)
-                            stock: (isEnabled && (!isFinite(item.stock) || item.stock === null)) ? 0 : item.stock
-                         };
-                    }
-                    return item;
-                }
-
-                let finalValue: number;
-                if (field === 'stock') {
-                    // If user deletes the number, treat as 0 temporarily, unless they type valid number
-                    finalValue = value === '' ? 0 : parseInt(value as string, 10);
-                } else {
-                    finalValue = parseInt(value as string, 10) || 0;
-                }
-                
-                return { ...item, [field]: isNaN(finalValue) ? item[field] : finalValue };
-            }
-            return item;
-        }));
-    };
-
-    const handleSave = async (itemId: number) => {
-        const itemToSave = localItems.find(item => item.id === itemId);
-        if (itemToSave) {
-            setIsSaving(prev => ({ ...prev, [itemId]: true }));
-            const dataToSave = { ...itemToSave };
-            if (!dataToSave.trackStock) {
-                dataToSave.stock = Infinity;
-                dataToSave.stockThreshold = 0;
-            }
-            await updateMenuItem(dataToSave);
-            setIsSaving(prev => ({ ...prev, [itemId]: false }));
-        }
-    };
-
-    const handleViewHistory = async (item: MenuItem) => {
-        if (!item.trackStock) return;
-        setSelectedItemName(item.name);
-        setExpandedCategory(null); // Reset expansion on new view
-        setIsHistoryOpen(true);
-        setHistoryLoading(true);
-        try {
-            const data = await api.getStockMovements(item.id);
-            setHistoryData(data);
-        } catch (e) {
-            console.error("Failed to fetch history", e);
-            setHistoryData(initialHistoryState);
-        } finally {
-            setHistoryLoading(false);
-        }
-    };
+        api.getStockMovements(item.id).then(setData).finally(() => setLoading(false));
+    }, [item.id]);
 
     return (
-        <div className="bg-secondary p-6 rounded-lg">
-            <h3 className="text-xl font-semibold mb-4 text-text-main">Menaxhimi i Stokut</h3>
-            <div className="max-h-[75vh] overflow-y-auto">
+        <Modal isOpen={true} onClose={onClose} title={`Historiku: ${item.name}`}>
+            {loading ? (
+                <div className="text-center py-8 text-text-secondary">Duke ngarkuar...</div>
+            ) : (
+                <div className="space-y-2">
+                    {[
+                        { type: 'supply', label: 'Furnizim', data: data.supply, color: 'text-green-400' },
+                        { type: 'waste', label: 'Humbje', data: data.waste, color: 'text-yellow-400' },
+                        { type: 'sale', label: 'Shitje', data: data.sale, color: 'text-blue-400' }
+                    ].map(cat => (
+                        <div key={cat.type} className="rounded-md overflow-hidden">
+                            <div 
+                                onClick={() => setExpanded(prev => prev === cat.type ? null : cat.type as any)}
+                                className={`flex justify-between items-center p-4 cursor-pointer transition-colors ${expanded === cat.type ? 'bg-accent' : 'bg-primary hover:bg-accent/50'}`}
+                            >
+                                <span className={`font-bold ${cat.color}`}>{cat.label}</span>
+                                <span className={`font-mono text-lg font-bold ${cat.type === 'supply' ? 'text-green-400' : 'text-red-400'}`}>
+                                    {cat.type === 'supply' ? '+' : '-'}{Math.abs(cat.data.total)}
+                                </span>
+                            </div>
+                            {expanded === cat.type && cat.data.details.length > 0 && (
+                                <div className="bg-primary border-t border-accent p-2">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="text-text-secondary">
+                                            <tr>
+                                                <th className="p-2">Data</th>
+                                                <th className="p-2">Detaje</th>
+                                                <th className="p-2 text-right">Sasia</th>
+                                                <th className="p-2">User</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-accent/30">
+                                            {cat.data.details.map((m: any) => (
+                                                <tr key={m.id}>
+                                                    <td className="p-2 whitespace-nowrap text-text-secondary">
+                                                        {new Date(m.createdAt).toLocaleString('sq-AL', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' })}
+                                                    </td>
+                                                    <td className="p-2 text-text-secondary truncate max-w-[150px]">{m.reason}</td>
+                                                    <td className={`p-2 text-right font-mono font-bold ${m.quantity > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                        {m.quantity > 0 ? '+' : ''}{m.quantity}
+                                                    </td>
+                                                    <td className="p-2 text-xs text-text-secondary">{m.user || '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {data.supply.total === 0 && data.waste.total === 0 && data.sale.total === 0 && (
+                        <p className="text-center text-text-secondary py-4">S'ka të dhëna.</p>
+                    )}
+                </div>
+            )}
+        </Modal>
+    );
+};
+
+// --- VIEW 1: PASQYRA (OVERVIEW) ---
+const StockOverview: React.FC<{ items: MenuItem[] }> = ({ items }) => {
+    const [historyItem, setHistoryItem] = useState<MenuItem | null>(null);
+
+    // Filter only tracked items for cleaner view
+    const trackedItems = items.filter(i => i.trackStock);
+
+    return (
+        <div className="h-full overflow-hidden flex flex-col">
+            <div className="flex-grow overflow-y-auto rounded-lg border border-accent">
                 <table className="w-full text-left">
-                    <thead className="bg-accent sticky top-0 z-10">
+                    <thead className="bg-accent sticky top-0 z-10 text-text-secondary font-semibold">
                         <tr>
                             <th className="p-3">Artikulli</th>
-                            <th className="p-3 w-32">Ndjek Stokun</th>
-                            <th className="p-3 w-16 text-center">Hist.</th>
-                            <th className="p-3 w-40">Stoku Aktual</th>
-                            <th className="p-3 w-40">Pragu i Stokut</th>
-                            <th className="p-3 w-32">Veprimet</th>
+                            <th className="p-3 text-center">Historiku</th>
+                            <th className="p-3 text-right">Stoku Aktual</th>
+                            <th className="p-3 text-right">Pragu</th>
+                            <th className="p-3 text-center">Statusi</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-accent">
-                        {localItems.map(item => {
-                            const isLowStock = item.trackStock && isFinite(item.stock) && item.stockThreshold > 0 && item.stock <= item.stockThreshold;
+                    <tbody className="divide-y divide-accent bg-secondary">
+                        {trackedItems.map(item => {
+                            const isLow = isFinite(item.stock) && item.stock <= item.stockThreshold;
                             return (
-                                <tr key={item.id} className={isLowStock ? 'bg-red-900/40' : ''}>
+                                <tr key={item.id} className={`hover:bg-primary/50 transition-colors ${isLow ? 'bg-red-900/10' : ''}`}>
                                     <td className="p-3">
                                         <div className="flex flex-col">
-                                            <span>{item.name}</span>
-                                            {item.stockGroupId && (
-                                                <span className="text-xs text-blue-400 font-mono mt-0.5">
-                                                    🔗 {item.stockGroupId}
-                                                </span>
-                                            )}
+                                            <span className="font-medium text-text-main">{item.name}</span>
+                                            {item.stockGroupId && <span className="text-xs text-blue-400 font-mono">🔗 {item.stockGroupId}</span>}
                                         </div>
-                                    </td>
-                                    <td className="p-3">
-                                        <label htmlFor={`track-${item.id}`} className="flex items-center cursor-pointer">
-                                            <div className="relative">
-                                                <input type="checkbox" id={`track-${item.id}`} className="sr-only" checked={item.trackStock} onChange={(e) => handleInputChange(item.id, 'trackStock', e.target.checked)} />
-                                                <div className={`block w-10 h-6 rounded-full ${item.trackStock ? 'bg-highlight' : 'bg-accent'}`}></div>
-                                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${item.trackStock ? 'transform translate-x-4' : ''}`}></div>
-                                            </div>
-                                        </label>
                                     </td>
                                     <td className="p-3 text-center">
-                                        <div className="flex justify-center space-x-2">
-                                            <button 
-                                                onClick={() => handleViewHistory(item)}
-                                                disabled={!item.trackStock}
-                                                className={`p-2 rounded-full transition-colors ${item.trackStock ? 'text-blue-400 hover:bg-blue-900/30' : 'text-gray-600 cursor-not-allowed'}`}
-                                                title="Shiko Historikun"
-                                            >
-                                                <ClockIcon className="w-5 h-5" />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleOpenWasteModal(item)}
-                                                disabled={!item.trackStock}
-                                                className={`p-2 rounded-full transition-colors ${item.trackStock ? 'text-red-500 hover:bg-red-900/20' : 'text-gray-600 cursor-not-allowed opacity-50'}`}
-                                                title="Regjistro Humbje (Waste)"
-                                            >
-                                                <MinusCircleIcon className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                    </td>
-
-                                    <td className="p-3">
-                                        <input 
-                                            type="number"
-                                            value={(item.trackStock && item.stock !== null && isFinite(item.stock)) ? item.stock : ''}
-                                            onChange={(e) => handleInputChange(item.id, 'stock', e.target.value)}
-                                            placeholder="Pa limit"
-                                            min="0"
-                                            disabled={!item.trackStock}
-                                            className="w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight disabled:opacity-50 disabled:cursor-not-allowed"
-                                        />
-                                    </td>
-                                    <td className="p-3">
-                                        <input 
-                                            type="number"
-                                            value={item.stockThreshold ?? ''}
-                                            onChange={(e) => handleInputChange(item.id, 'stockThreshold', e.target.value)}
-                                            min="0"
-                                            disabled={!item.trackStock}
-                                            className="w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight disabled:opacity-50 disabled:cursor-not-allowed"
-                                        />
-                                    </td>
-                                    <td className="p-3">
-                                        <button 
-                                            onClick={() => handleSave(item.id)}
-                                            disabled={isSaving[item.id]}
-                                            className="px-4 py-2 rounded-md bg-highlight text-white text-sm hover:bg-blue-600 disabled:bg-gray-500"
-                                        >
-                                            {isSaving[item.id] ? '...' : 'Ruaj'}
+                                        <button onClick={() => setHistoryItem(item)} className="p-2 rounded-full text-blue-400 hover:bg-blue-900/20 transition-colors">
+                                            <ClockIcon className="w-5 h-5" />
                                         </button>
                                     </td>
+                                    <td className={`p-3 text-right font-mono font-bold text-lg ${isLow ? 'text-red-500' : 'text-green-500'}`}>
+                                        {item.stock}
+                                    </td>
+                                    <td className="p-3 text-right text-text-secondary font-mono">
+                                        {item.stockThreshold}
+                                    </td>
+                                    <td className="p-3 text-center">
+                                        {isLow ? (
+                                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-red-900/50 text-red-400 border border-red-800">
+                                                <ExclamationIcon className="w-3 h-3 mr-1" /> ULET
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-green-900/30 text-green-400 border border-green-800">
+                                                OK
+                                            </span>
+                                        )}
+                                    </td>
                                 </tr>
-                            )
+                            );
                         })}
+                        {trackedItems.length === 0 && (
+                            <tr><td colSpan={5} className="p-8 text-center text-text-secondary">Asnjë artikull nuk ndjek stokun.</td></tr>
+                        )}
                     </tbody>
                 </table>
             </div>
+            {historyItem && <HistoryView item={historyItem} onClose={() => setHistoryItem(null)} />}
+        </div>
+    );
+};
 
-            {/* HISTORY MODAL */}
-            <Modal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} title={`Historiku i Stokut: ${selectedItemName}`}>
-                <div className="max-h-[60vh] overflow-y-auto pr-2">
-                    {historyLoading ? (
-                        <div className="text-center py-8 text-text-secondary">Duke ngarkuar...</div>
-                    ) : !historyLoading && historyData.supply.total === 0 && historyData.waste.total === 0 && historyData.sale.total === 0 ? (
-                        <div className="text-center py-8 text-text-secondary">Asnjë lëvizje stoku e regjistruar.</div>
-                    ) : (
-                        <div className="space-y-1">
-                            {[
-                                { type: 'supply', label: 'Furnizim', data: historyData.supply },
-                                { type: 'waste', label: 'Humbje', data: historyData.waste },
-                                { type: 'sale', label: 'Shitje', data: historyData.sale }
-                            ].map(cat => (
-                                <div key={cat.type}>
-                                    <div 
-                                        onClick={() => setExpandedCategory(prev => prev === cat.type ? null : cat.type as 'supply' | 'waste' | 'sale')}
-                                        className={`flex justify-between items-center p-3 rounded-md cursor-pointer transition-all ${
-                                            expandedCategory === cat.type ? 'bg-accent rounded-b-none' : 'bg-primary hover:bg-accent/50'
-                                        }`}
-                                    >
-                                        <span className={`font-semibold ${
-                                            cat.type === 'supply' ? 'text-green-400' : 
-                                            cat.type === 'waste' ? 'text-yellow-400' : 'text-blue-400'
-                                        }`}>
-                                            {cat.label}
-                                        </span>
-                                        <span className={`font-mono font-bold text-lg ${
-                                            cat.type === 'supply' ? 'text-green-400' : 'text-red-400'
-                                        }`}>
-                                            {cat.type === 'supply' ? cat.data.total : Math.abs(cat.data.total)}
-                                        </span>
-                                    </div>
-                                    {expandedCategory === cat.type && cat.data.details.length > 0 && (
-                                        <div className="bg-primary p-2 rounded-b-md">
-                                            <table className="w-full text-left text-sm">
-                                                <thead className="text-text-secondary">
-                                                    <tr>
-                                                        <th className="p-2 font-normal">Data</th>
-                                                        {!!localItems.find(i => i.name === selectedItemName)?.stockGroupId && <th className="p-2 font-normal">Artikulli</th>}
-                                                        <th className="p-2 font-normal">Detaje</th>
-                                                        <th className="p-2 font-normal text-right">Sasia</th>
-                                                        <th className="p-2 font-normal">Përdoruesi</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-accent/50">
-                                                    {cat.data.details.map((move: any) => (
-                                                        <tr key={move.id}>
-                                                            <td className="p-2 text-text-secondary whitespace-nowrap">
-                                                                {new Date(move.createdAt).toLocaleString('sq-AL', { 
-                                                                    month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' 
-                                                                })}
-                                                            </td>
-                                                            {!!localItems.find(i => i.name === selectedItemName)?.stockGroupId && 
-                                                                <td className="p-2 text-xs text-text-secondary">
-                                                                    {move.itemName !== selectedItemName ? `(${move.itemName})` : ''}
-                                                                </td>
-                                                            }
-                                                            <td className="p-2 max-w-[150px] truncate" title={move.reason}>{move.reason}</td>
-                                                            <td className={`p-2 text-right font-mono font-bold ${move.quantity > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                {move.quantity > 0 ? '+' : ''}{move.quantity}
-                                                            </td>
-                                                            <td className="p-2 text-text-secondary text-xs">{move.user || 'System'}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+// --- VIEW 2: FURNIZIMI (SUPPLY) ---
+const StockSupply: React.FC = () => {
+    const { menuItems, addBulkStock } = usePos();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [cart, setCart] = useState<StockUpdateItem[]>([]);
+    const [supplier, setSupplier] = useState('');
+    const [invoiceRef, setInvoiceRef] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const qtyRefs = useRef<{[key: number]: HTMLInputElement | null}>({});
+
+    const filtered = menuItems.filter(i => i.trackStock && i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const addToCart = (item: MenuItem) => {
+        if (!cart.find(c => c.itemId === item.id)) {
+            setCart(prev => [{ itemId: item.id, quantity: 1 }, ...prev]);
+        }
+        setSearchTerm('');
+        setTimeout(() => qtyRefs.current[item.id]?.select(), 50);
+    };
+
+    const updateQty = (id: number, val: number) => {
+        setCart(prev => prev.map(c => c.itemId === id ? { ...c, quantity: val } : c));
+    };
+
+    const handleSave = async () => {
+        if (cart.length === 0) return;
+        setIsSaving(true);
+        try {
+            const reason = `Furnizim: ${supplier} ${invoiceRef ? `(#${invoiceRef})` : ''}`.trim();
+            await addBulkStock(cart, reason);
+            alert("Stoku u përditësua me sukses!");
+            setCart([]); setSupplier(''); setInvoiceRef('');
+        } catch (e) { alert("Gabim gjatë ruajtjes."); }
+        setIsSaving(false);
+    };
+
+    return (
+        <div className="flex flex-col h-full space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+                <input type="text" placeholder="Furnitori" value={supplier} onChange={e => setSupplier(e.target.value)} className="bg-primary border-accent rounded p-2 text-text-main" />
+                <input type="text" placeholder="Nr. Faturës" value={invoiceRef} onChange={e => setInvoiceRef(e.target.value)} className="bg-primary border-accent rounded p-2 text-text-main" />
+            </div>
+            <div className="relative">
+                <input ref={searchInputRef} type="text" placeholder="Kërko artikull..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-primary border-accent rounded p-3 pl-10 text-text-main focus:ring-highlight" />
+                {searchTerm && (
+                    <div className="absolute top-full w-full bg-secondary border border-accent shadow-xl max-h-60 overflow-y-auto z-50">
+                        {filtered.map(item => (
+                            <button key={item.id} onClick={() => addToCart(item)} className="w-full text-left p-3 hover:bg-highlight hover:text-white border-b border-accent flex justify-between">
+                                <span>{item.name}</span><span className="opacity-70">{item.stock}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <div className="flex-grow overflow-y-auto bg-primary border border-accent rounded-lg">
+                <table className="w-full text-left">
+                    <thead className="bg-accent text-text-secondary sticky top-0"><tr><th className="p-3">Artikulli</th><th className="p-3">Shto Sasi</th><th className="p-3"></th></tr></thead>
+                    <tbody className="divide-y divide-accent">
+                        {cart.map(c => {
+                            const item = menuItems.find(i => i.id === c.itemId);
+                            return item ? (
+                                <tr key={c.itemId}>
+                                    <td className="p-3">{item.name}</td>
+                                    <td className="p-3"><input ref={el => { qtyRefs.current[c.itemId] = el }} type="number" value={c.quantity} onChange={e => updateQty(c.itemId, parseInt(e.target.value)||0)} className="w-24 bg-secondary border-accent rounded p-1 text-center font-bold text-text-main" /></td>
+                                    <td className="p-3 text-right"><button onClick={() => setCart(prev => prev.filter(x => x.itemId !== c.itemId))} className="text-red-400 hover:text-red-300"><TrashIcon className="w-5 h-5"/></button></td>
+                                </tr>
+                            ) : null;
+                        })}
+                        {cart.length === 0 && <tr><td colSpan={3} className="p-8 text-center text-text-secondary">Bosh</td></tr>}
+                    </tbody>
+                </table>
+            </div>
+            <div className="flex justify-end pt-2">
+                <button onClick={handleSave} disabled={cart.length === 0 || isSaving} className="px-6 py-3 bg-green-600 text-white font-bold rounded hover:bg-green-700 disabled:opacity-50">
+                    {isSaving ? 'Duke ruajtur...' : 'Ruaj Furnizimin'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// --- VIEW 3 & 4: HUMBJE (WASTE) & KORRIGJIM (CORRECTION) ---
+interface SingleActionViewProps {
+    mode: 'waste' | 'correction';
+}
+
+const SingleActionView: React.FC<SingleActionViewProps> = ({ mode }) => {
+    const { menuItems, addWaste, addBulkStock } = usePos();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+    const [quantity, setQuantity] = useState('');
+    const [reason, setReason] = useState('');
+    const [correctionType, setCorrectionType] = useState<'add' | 'remove'>('remove'); // For correction only
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const filtered = menuItems.filter(i => i.trackStock && i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedItem || !quantity) return;
+        const qty = parseInt(quantity);
+        if (qty <= 0) return alert("Sasia duhet të jetë më e madhe se 0.");
+
+        setIsSubmitting(true);
+        try {
+            if (mode === 'waste') {
+                await addWaste(selectedItem.id, qty, reason || 'Humbje (Waste)');
+            } else {
+                // Correction Mode
+                const finalReason = `[KORRIGJIM] ${reason}`.trim();
+                if (correctionType === 'add') {
+                    await addBulkStock([{ itemId: selectedItem.id, quantity: qty }], finalReason);
+                } else {
+                    await addWaste(selectedItem.id, qty, finalReason);
+                }
+            }
+            alert("U regjistrua me sukses!");
+            setSelectedItem(null); setQuantity(''); setReason(''); setSearchTerm('');
+        } catch (err) { alert("Dështoi."); }
+        setIsSubmitting(false);
+    };
+
+    return (
+        <div className="max-w-xl mx-auto mt-8 p-6 bg-primary rounded-lg border border-accent shadow-lg">
+            <h3 className="text-xl font-bold text-text-main mb-6 flex items-center gap-2">
+                {mode === 'waste' ? <MinusCircleIcon className="w-6 h-6 text-red-500"/> : <CheckIcon className="w-6 h-6 text-blue-500"/>}
+                {mode === 'waste' ? 'Regjistro Humbje' : 'Korrigjo Stokun'}
+            </h3>
+            
+            <div className="space-y-4">
+                {/* 1. Item Selection */}
+                {!selectedItem ? (
+                    <div className="relative">
+                        <label className="block text-sm text-text-secondary mb-1">Kërko Artikull</label>
+                        <input type="text" autoFocus value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-secondary border-accent rounded p-3 text-text-main focus:ring-highlight" placeholder="Shkruaj emrin..." />
+                        {searchTerm && (
+                            <div className="absolute top-full w-full bg-secondary border border-accent shadow-xl max-h-48 overflow-y-auto z-10 mt-1 rounded">
+                                {filtered.map(item => (
+                                    <button key={item.id} onClick={() => { setSelectedItem(item); setSearchTerm(''); }} className="w-full text-left p-3 hover:bg-highlight hover:text-white border-b border-accent">
+                                        {item.name} <span className="opacity-60 text-sm">({item.stock})</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-between bg-secondary p-3 rounded border border-accent">
+                        <div>
+                            <span className="font-bold text-lg text-text-main">{selectedItem.name}</span>
+                            <div className="text-sm text-text-secondary">Stoku Aktual: {selectedItem.stock}</div>
                         </div>
-                    )}
-                </div>
-            </Modal>
+                        <button onClick={() => setSelectedItem(null)} className="text-sm text-highlight hover:underline">Ndrysho</button>
+                    </div>
+                )}
 
-            {/* WASTE MODAL */}
-            <Modal isOpen={isWasteModalOpen} onClose={() => setIsWasteModalOpen(false)} title={`Regjistro Humbje: ${wasteItem?.name}`}>
-                <form onSubmit={handleSubmitWaste} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-text-secondary">Sasia e Humbur</label>
-                        <input 
-                            type="number" 
-                            min="1"
-                            required
-                            value={wasteQuantity} 
-                            onChange={(e) => setWasteQuantity(e.target.value)} 
-                            className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
-                            placeholder="psh. 2"
-                        />
+                {/* 2. Correction Type (Only for Correction Mode) */}
+                {mode === 'correction' && selectedItem && (
+                    <div className="flex gap-4">
+                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'add' ? 'bg-green-900/30 border-green-500 text-green-400' : 'bg-secondary border-accent text-text-secondary'}`}>
+                            <input type="radio" name="ctype" className="hidden" checked={correctionType === 'add'} onChange={() => setCorrectionType('add')} />
+                            + Shto (Gjetur)
+                        </label>
+                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'remove' ? 'bg-red-900/30 border-red-500 text-red-400' : 'bg-secondary border-accent text-text-secondary'}`}>
+                            <input type="radio" name="ctype" className="hidden" checked={correctionType === 'remove'} onChange={() => setCorrectionType('remove')} />
+                            - Zbrit (Humbur)
+                        </label>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-text-secondary">Arsyeja (Opsionale)</label>
-                        <input 
-                            type="text" 
-                            value={wasteReason} 
-                            onChange={(e) => setWasteReason(e.target.value)} 
-                            className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
-                            placeholder="psh. U thye, Skadoi..."
-                        />
-                    </div>
-                    <div className="flex justify-end space-x-3 pt-4">
-                        <button type="button" onClick={() => setIsWasteModalOpen(false)} className="px-4 py-2 rounded-md bg-accent text-text-main hover:bg-gray-600">Anulo</button>
-                        <button type="submit" disabled={isSubmittingWaste} className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-500">
-                            {isSubmittingWaste ? 'Duke regjistruar...' : 'Konfirmo Humbjen'}
+                )}
+
+                {/* 3. Quantity & Reason */}
+                {selectedItem && (
+                    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                        <div>
+                            <label className="block text-sm text-text-secondary mb-1">Sasia {mode === 'correction' ? '(Për t\'u korrigjuar)' : '(E Humbur)'}</label>
+                            <input type="number" min="1" required autoFocus value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-secondary border-accent rounded p-3 text-2xl font-bold text-center text-text-main focus:ring-highlight" placeholder="0" />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-text-secondary mb-1">Arsyeja / Shënim</label>
+                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-secondary border-accent rounded p-3 text-text-main focus:ring-highlight" placeholder={mode === 'waste' ? "psh. U thye" : "psh. Numërim fizik"} />
+                        </div>
+                        <button disabled={isSubmitting} className={`w-full py-4 rounded-lg font-bold text-white shadow-lg transition-transform active:scale-95 ${mode === 'waste' || (mode === 'correction' && correctionType === 'remove') ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
+                            {isSubmitting ? '...' : 'Konfirmo'}
                         </button>
-                    </div>
-                </form>
-            </Modal>
+                    </form>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- MAIN STOCK TAB COMPONENT ---
+const StockTab: React.FC = () => {
+    const { menuItems } = usePos();
+    const [activeTab, setActiveTab] = useState<'pasqyra' | 'furnizimi' | 'humbje' | 'korrigjimi'>('pasqyra');
+
+    return (
+        <div className="bg-secondary rounded-lg shadow-sm h-full flex flex-col overflow-hidden">
+            {/* Navigation Header */}
+            <div className="flex border-b border-accent bg-secondary flex-shrink-0 overflow-x-auto">
+                <TabButton active={activeTab === 'pasqyra'} onClick={() => setActiveTab('pasqyra')} label="Pasqyra" icon={<BoxIcon className="w-5 h-5"/>} />
+                <TabButton active={activeTab === 'furnizimi'} onClick={() => setActiveTab('furnizimi')} label="Furnizimi" icon={<PlusIcon className="w-5 h-5"/>} />
+                <TabButton active={activeTab === 'humbje'} onClick={() => setActiveTab('humbje')} label="Humbje" icon={<MinusCircleIcon className="w-5 h-5"/>} />
+                <TabButton active={activeTab === 'korrigjimi'} onClick={() => setActiveTab('korrigjimi')} label="Korrigjimi" icon={<CheckIcon className="w-5 h-5"/>} />
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-grow p-4 overflow-hidden bg-primary/30">
+                {activeTab === 'pasqyra' && <StockOverview items={menuItems} />}
+                {activeTab === 'furnizimi' && <StockSupply />}
+                {activeTab === 'humbje' && <SingleActionView mode="waste" />}
+                {activeTab === 'korrigjimi' && <SingleActionView mode="correction" />}
+            </div>
         </div>
     );
 };

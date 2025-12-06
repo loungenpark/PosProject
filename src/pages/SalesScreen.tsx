@@ -427,12 +427,12 @@ const SalesScreen: React.FC = () => {
 
     return (
         <div className="fixed inset-0 bg-primary z-50 flex flex-col">
-            <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-4 shadow-md z-10">
-                <h1 className="text-xl font-bold text-text-main flex items-center gap-2">
+            <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md z-10">
+                <h1 className="hidden md:flex text-xl font-bold text-text-main items-center gap-2">
                     <ChartBarIcon className="w-6 h-6 text-highlight" />
                     Raporte & Statistika
                 </h1>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center justify-end w-full md:w-auto space-x-2 md:space-x-4">
                     <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors flex items-center space-x-2">
                         <RestaurantIcon className="w-5 h-5" />
                         <span>POS</span>
@@ -485,7 +485,7 @@ const SalesScreen: React.FC = () => {
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border-l-4 border-highlight relative overflow-hidden">
                             <h3 className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-2">Totali i Përgjithshëm</h3>
-                            <p className="text-4xl font-bold text-white">{formatCurrency(salesSummary.totalRevenue)}</p>
+                            <p className="text-4xl font-bold text-highlight">{formatCurrency(salesSummary.totalRevenue)}</p>
                             <p className="text-sm text-text-secondary mt-2">{salesSummary.count} fatura të mbyllura</p>
                         </div>
                     </div>
@@ -495,28 +495,26 @@ const SalesScreen: React.FC = () => {
                 {!isLoading && activeTab === 'incomes' && dailyBreakdown.length > 1 && (
                      <div className="mt-8 bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
                         <div className="p-4 border-b border-accent bg-secondary/50">
-                            <h3 className="font-bold text-text-main">Detajet Ditore</h3>
+                            <h3 className="font-bold text-text-secondary">Detajet Ditore</h3>
                         </div>
                         <table className="w-full text-left">
                             <thead className="bg-accent text-text-secondary text-xs uppercase font-semibold">
                                 <tr>
-                                    <th className="p-4">Data</th>
-                                    <th className="p-4 text-center">Fatura</th>
-                                    <th className="p-4 text-right text-yellow-500">Shank</th>
-                                    <th className="p-4 text-right text-green-500">Kuzhina</th>
-                                    <th className="p-4 text-right text-white">Totali</th>
+                                    <th className="px-2 py-3 text-left">Data</th>
+                                    <th className="px-2 py-3 text-right">Shank</th>
+                                    <th className="px-2 py-3 text-right">Kuzhina</th>
+                                    <th className="px-2 py-3 text-right">Totali</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-accent text-text-main">
+                            <tbody className="divide-y divide-accent text-highlight">
                                 {dailyBreakdown.map((day, idx) => (
                                     <tr key={idx} className="hover:bg-primary/30 transition-colors">
-                                        <td className="p-4 font-medium">
+                                        <td className="px-2 py-3 font-medium text-sm">
                                             {day.date.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                                         </td>
-                                        <td className="p-4 text-center text-text-secondary">{day.count}</td>
-                                        <td className="p-4 text-right font-mono text-yellow-500/80">{formatCurrency(day.shank)}</td>
-                                        <td className="p-4 text-right font-mono text-green-500/80">{formatCurrency(day.kuzhina)}</td>
-                                        <td className="p-4 text-right font-bold text-lg">{formatCurrency(day.total)}</td>
+                                        <td className="px-2 py-3 text-right text-sm">{formatCurrency(day.shank)}</td>
+                                        <td className="px-2 py-3 text-right text-sm">{formatCurrency(day.kuzhina)}</td>
+                                        <td className="px-2 py-3 text-right font-bold text-sm">{formatCurrency(day.total)}</td>
                                     </tr>
                                 ))}
                             </tbody>

@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
-import { LogoutIcon, PlusIcon, MinusIcon, TrashIcon, CloseIcon, TableIcon, ChevronLeftIcon } from '../components/common/Icons';
+import { LogoutIcon, TrashIcon, CloseIcon, TableIcon, ChevronLeftIcon } from '../components/common/Icons';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
@@ -88,7 +88,12 @@ const PosScreen: React.FC = () => {
 
   useEffect(() => {
     if (activeTable && activeTable.order) {
-        const itemsWithStatus = activeTable.order.items.map(item => ({ ...item, status: 'ordered' as const }));
+        // Ensure every item has a uniqueId for React keys and deletion logic
+        const itemsWithStatus = activeTable.order.items.map((item, idx) => ({ 
+            ...item, 
+            status: 'ordered' as const,
+            uniqueId: item.uniqueId || `ordered-${item.id}-${idx}-${Date.now()}` 
+        }));
         setCurrentOrderItems(itemsWithStatus);
     } else { setCurrentOrderItems([]); }
   }, [activeTable]);
@@ -125,11 +130,15 @@ const PosScreen: React.FC = () => {
 
   const addToOrder = (item: MenuItem) => {
     if (!loggedInUser) return;
+    // Calculate total currently in cart to prevent over-stock ordering
     const totalCurrentQuantity = currentOrderItems.filter(i => i.id === item.id).reduce((sum, i) => sum + i.quantity, 0);
+    
     if (item.trackStock && isFinite(item.stock) && totalCurrentQuantity >= item.stock) {
         alert(`Stoku i pamjaftueshëm për ${item.name}. Në stok: ${item.stock}`); 
         return;
     }
+    
+    // Always add as a new line item (quantity 1) with a unique ID
     setCurrentOrderItems(prevItems => [
         ...prevItems, 
         { 
@@ -137,24 +146,14 @@ const PosScreen: React.FC = () => {
             quantity: 1, 
             addedBy: loggedInUser.username, 
             status: 'new' as const,
-            uniqueId: `${item.id}-${Date.now()}` // Add unique ID
+            uniqueId: `${item.id}-${Date.now()}-${Math.floor(Math.random() * 1000)}` 
         }
     ]);
   };
 
-  const updateQuantity = (itemId: number, addedByUser: string, change: number) => {
-    if (change > 0) {
-        const itemInfo = menuItems.find(i => i.id === itemId);
-        const orderItem = currentOrderItems.find(i => i.id === itemId && i.addedBy === addedByUser);
-        if (itemInfo && orderItem && itemInfo.trackStock && isFinite(itemInfo.stock) && orderItem.quantity >= itemInfo.stock) {
-             alert(`Stoku i pamjaftueshëm për ${itemInfo.name}. Në stok: ${itemInfo.stock}`); return;
-        }
-    }
-    setCurrentOrderItems(prevItems => prevItems.map(item => (item.id === itemId && item.addedBy === addedByUser) ? { ...item, quantity: Math.max(0, item.quantity + change) } : item).filter(item => item.quantity > 0));
-  };
-  
-  const removeFromOrder = (itemId: number, addedByUser: string) => {
-    setCurrentOrderItems(prevItems => prevItems.filter(item => !(item.id === itemId && item.addedBy === addedByUser)));
+  // Remove specific line item by uniqueId
+  const removeFromOrder = (uniqueId: string) => {
+    setCurrentOrderItems(prevItems => prevItems.filter(item => item.uniqueId !== uniqueId));
   };
 
   const handleCancelOrder = useCallback(() => {
@@ -209,32 +208,38 @@ const PosScreen: React.FC = () => {
     setActiveTableId(null);
   }, [activeTableId, currentOrderItems, calculateNewOrderState, addSale, setPaymentModalOpen, setActiveTableId, logout]);
   
-  const orderedItems = useMemo(() => {
-    return currentOrderItems.map((item, index) => ({
-      ...item,
-      uniqueId: `${item.id}-${index}-${Date.now()}` // Add a unique identifier for React keys
-    }));
-  }, [currentOrderItems]);
+  // Removed orderedItems useMemo - using currentOrderItems directly
 
   const Header = () => (
-    <div className="flex items-center space-x-4">
+    <div className="flex items-center gap-2 md:gap-4">
         {loggedInUser?.role === UserRole.ADMIN && (
             <>
-                <button onClick={() => setActiveScreen('sales')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">Raporte</button>
-                <button onClick={() => setActiveScreen('admin')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">Menaxhimi</button>
+                <button onClick={() => setActiveScreen('sales')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors whitespace-nowrap">Raporte</button>
+                <button onClick={() => setActiveScreen('admin')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors whitespace-nowrap">Menaxhimi</button>
             </>
         )}
-        <span className="text-text-secondary">Përdoruesi: {loggedInUser?.username}</span>
-        <button onClick={logout} className="p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors"><LogoutIcon className="w-6 h-6" /></button>
+        <div className="flex items-center text-sm md:text-base">
+            <span className="hidden md:inline text-text-secondary mr-1">Përdoruesi:</span>
+            <span className="text-text-main font-bold">{loggedInUser?.username}</span>
+        </div>
+        <button onClick={logout} className="p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors">
+            <LogoutIcon className="w-6 h-6" />
+        </button>
     </div>
   );
   
   if (activeTableId === null) {
     return (
         <div className="h-screen w-screen flex flex-col bg-primary">
-            <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-4 shadow-md">
-                <div className="flex items-center space-x-2"><TableIcon className="w-6 h-6 text-highlight"/><h1 className="text-xl font-bold text-text-main">Hello</h1></div>
-                <Header />
+            <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md">
+                {/* Left side: Hidden on mobile, Icon + Hello on PC */}
+                <div className="hidden md:flex items-center space-x-2">
+                    <TableIcon className="w-6 h-6 text-highlight"/>
+                    <h1 className="text-xl font-bold text-text-main">Hello</h1>
+                </div>
+                <div className="flex-grow md:flex-grow-0 flex justify-end">
+                    <Header />
+                </div>
             </header>
             <main className="flex-grow p-4 overflow-y-auto">
                 <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}>
@@ -254,10 +259,10 @@ const PosScreen: React.FC = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-primary">
-      <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-4 shadow-md">
-        <div className="flex items-center space-x-3">
-            <button onClick={handleCancelOrder} className="p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors"><ChevronLeftIcon className="w-6 h-6"/></button>
-            <h1 className="text-xl font-bold text-text-main">Porosi për {activeTable?.name}</h1>
+      <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md">
+        <div className="flex items-center space-x-1 md:space-x-3">
+            <button onClick={handleCancelOrder} className="p-1 md:p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors"><ChevronLeftIcon className="w-6 h-6"/></button>
+            <h1 className="text-lg md:text-xl font-bold text-text-main whitespace-nowrap">Porosi: {activeTable?.name}</h1>
         </div>
         <Header />
       </header>
@@ -293,8 +298,8 @@ const PosScreen: React.FC = () => {
             </div>
             <div className="flex-grow overflow-y-auto">
                 {currentOrderItems.length === 0 ? <p className="text-text-secondary text-center mt-8">Zgjidhni artikujt për të filluar porosinë.</p> : (
-                    <ul className="space-y-4">
-                        {orderedItems.map((item) => (
+                    <ul className="space-y-2">
+                        {currentOrderItems.map((item) => (
                             <li key={item.uniqueId} className={`flex items-center p-2 rounded-md ${item.status === 'ordered' ? 'bg-accent' : 'bg-primary'}`}>
                                 <div className="flex-grow">
                                     <p className="text-sm font-semibold text-text-main">{item.name}</p>
@@ -302,16 +307,18 @@ const PosScreen: React.FC = () => {
                                     <p className="text-xs text-text-secondary">Shtuar nga: {item.addedBy}</p>
                                 </div>
                                 {item.status === 'new' ? (
-                                    <div className="flex items-center space-x-2">
-                                        <button onClick={() => updateQuantity(item.id, item.addedBy, -1)} className="p-1 rounded-full bg-secondary hover:bg-highlight transition-colors"><MinusIcon className="w-4 h-4 text-text-main"/></button>
-                                        <span className="w-6 text-center text-sm font-bold text-text-main">{item.quantity}</span>
-                                        <button onClick={() => updateQuantity(item.id, item.addedBy, 1)} className="p-1 rounded-full bg-secondary hover:bg-highlight transition-colors"><PlusIcon className="w-4 h-4 text-text-main"/></button>
-                                        <button onClick={() => removeFromOrder(item.id, item.addedBy)} className="p-1 text-red-400 hover:text-red-300 transition-colors"><TrashIcon className="w-4 h-4"/></button>
+                                    <div className="flex items-center justify-end">
+                                        <button 
+                                            onClick={() => item.uniqueId && removeFromOrder(item.uniqueId)} 
+                                            className="p-2 text-red-400 hover:text-red-300 hover:bg-secondary rounded transition-colors"
+                                            title="Fshij"
+                                        >
+                                            <TrashIcon className="w-5 h-5"/>
+                                        </button>
                                     </div>
                                 ) : (
                                     <div className="flex items-center">
-                                        <span className="text-sm text-text-secondary mr-1">Qty:</span>
-                                        <span className="text-base font-bold text-text-main">{item.quantity}</span>
+                                        {/* Ordered items are read-only here */}
                                     </div>
                                 )}
                             </li>

@@ -4,7 +4,23 @@ import React, { useState } from 'react';
 import { usePos } from '../../context/PosContext';
 import { MenuItem, MenuCategory, Printer } from '../../types';
 import { EditIcon, TrashIcon, PlusIcon, UploadIcon, DragHandleIcon, SortIcon, CloseIcon } from '../common/Icons';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult, DroppableProps } from 'react-beautiful-dnd';
+
+// --- StrictModeDroppable Fix for React 18 ---
+export const StrictModeDroppable = ({ children, ...props }: DroppableProps) => {
+  const [enabled, setEnabled] = useState(false);
+  React.useEffect(() => {
+    const animation = requestAnimationFrame(() => setEnabled(true));
+    return () => {
+      cancelAnimationFrame(animation);
+      setEnabled(false);
+    };
+  }, []);
+  if (!enabled) {
+    return null;
+  }
+  return <Droppable {...props}>{children}</Droppable>;
+};
 
 // --- Utility Functions & Components specific to this tab ---
 
@@ -54,7 +70,8 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
         price: item?.price || 0,
         category: item?.category || (menuCategories.length > 0 ? menuCategories[0].name : ''),
         printer: item?.printer || Printer.KITCHEN,
-        stock: item?.stock ?? Infinity,
+        // Start at 0 for new items if not provided, preserve existing stock on edit
+        stock: item?.stock ?? 0, 
         stockThreshold: item?.stockThreshold ?? 0,
         trackStock: item?.trackStock ?? true,
         stockGroupId: item?.stockGroupId || '',
@@ -69,11 +86,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
         } else {
             let finalValue: string | number = value;
             if (['price', 'stock', 'stockThreshold'].includes(name)) {
-                 if (name === 'stock' && value === '') {
-                    finalValue = Infinity;
-                } else {
-                    finalValue = parseFloat(value) || 0;
-                }
+                finalValue = parseFloat(value) || 0;
             }
             setFormData(prev => ({ ...prev, [name]: finalValue }));
         }
@@ -89,6 +102,8 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
                 dataToSave.stockThreshold = 0;
                 dataToSave.stockGroupId = ''; 
             }
+            // Note: 'stock' is sent but user cannot edit it here anymore.
+            // It preserves the value from initialization (existing stock) or 0 (new).
             await onSave({ ...item, ...dataToSave });
         } catch (error) {
             console.error("Failed to save menu item:", error);
@@ -134,11 +149,9 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
                 <input type="text" name="stockGroupId" id="stockGroupId" value={formData.stockGroupId} onChange={handleChange} placeholder="psh. CAFFE (për të ndarë stokun)" className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
                 <p className="text-xs text-text-secondary mt-1">Artikujt me të njëjtin ID grupi (psh. "CAFFE") do të kenë stok të përbashkët.</p>
             </div>
+            
+            {/* REMOVED Stoku Fillestar input field */}
 
-            <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
-                <label htmlFor="stock" className="block text-sm font-medium text-text-secondary">Stoku Fillestar</label>
-                <input type="number" name="stock" id="stock" value={(formData.stock !== null && isFinite(formData.stock)) ? formData.stock : ''} onChange={handleChange} placeholder="Bosh për stok pa limit" min="0" className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
-            </div>
             <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
                 <label htmlFor="stockThreshold" className="block text-sm font-medium text-text-secondary">Pragu i Stokut të Ulët</label>
                 <input type="number" name="stockThreshold" id="stockThreshold" value={formData.stockThreshold ?? ''} onChange={handleChange} min="0" className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock}/>
@@ -261,16 +274,21 @@ const MenuTab: React.FC = () => {
         menuCategories, addMenuCategory, updateMenuCategory, deleteMenuCategory, reorderMenuCategories
     } = usePos();
     
-    const [activeSubTab, setActiveSubTab] = useState<'menus' | 'items'>('menus');
+    const [activeSubTab, setActiveSubTab] = useState<'items' | 'categories'>('items');
+    const [searchQuery, setSearchQuery] = useState(''); // New State for Search
     const [isItemModalOpen, setItemModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+
+    // Filter items based on search query
+    const filteredItems = menuItems.filter(item => 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
     const [isMenuModalOpen, setMenuModalOpen] = useState(false);
     const [editingMenu, setEditingMenu] = useState<MenuCategory | null>(null);
 
     const handleAddItem = () => {
         if (menuCategories.length === 0) {
             alert("Ju lutemi shtoni një menu (kategori) fillimisht para se të shtoni një artikull.");
-            setActiveSubTab('menus');
             return;
         }
         setEditingItem(null);
@@ -331,48 +349,173 @@ const MenuTab: React.FC = () => {
         }
     };
 
-    const tabButtonBaseClasses = "px-4 py-2 text-sm font-medium transition-colors";
-    const activeTabClasses = "border-b-2 border-highlight text-highlight";
-    const inactiveTabClasses = "text-text-secondary hover:text-text-main border-b-2 border-transparent";
-
     return (
-        <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="bg-secondary p-6 rounded-lg">
-                <div className="flex border-b border-accent mb-4">
-                    <button onClick={() => setActiveSubTab('menus')} className={`${tabButtonBaseClasses} ${activeSubTab === 'menus' ? activeTabClasses : inactiveTabClasses}`}>Menutë</button>
-                    <button onClick={() => setActiveSubTab('items')} className={`${tabButtonBaseClasses} ${activeSubTab === 'items' ? activeTabClasses : inactiveTabClasses}`}>Artikujt</button>
-                </div>
+        <div className="flex flex-col h-full w-full">
+            {/* Sub-Tabs Navigation */}
+            <div className="flex items-center space-x-1 bg-secondary p-1 rounded-lg mb-4 w-fit border border-accent">
+                <button 
+                    onClick={() => setActiveSubTab('items')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        activeSubTab === 'items' 
+                            ? 'bg-highlight text-white shadow-sm' 
+                            : 'text-text-secondary hover:text-text-main hover:bg-primary'
+                    }`}
+                >
+                    Artikujt
+                </button>
+                <button 
+                    onClick={() => setActiveSubTab('categories')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        activeSubTab === 'categories' 
+                            ? 'bg-highlight text-white shadow-sm' 
+                            : 'text-text-secondary hover:text-text-main hover:bg-primary'
+                    }`}
+                >
+                    Kategoritë
+                </button>
+            </div>
 
-                {activeSubTab === 'menus' && (
-                     <div key="menus-tab">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold">Rendit Menutë (Kategoritë)</h3>
-                            <button onClick={handleAddMenu} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-blue-600"><PlusIcon className="w-5 h-5" /><span>Shto Menu</span></button>
+            <DragDropContext onDragEnd={handleDragEnd}>
+                
+                {/* ITEMS TAB */}
+                {activeSubTab === 'items' && (
+                    <div className="flex-grow bg-secondary p-4 md:p-6 rounded-lg shadow-sm animate-fade-in">
+                        <div className="flex justify-between items-center mb-4 gap-2">
+                            {/* Search Input (Replaces Title) */}
+                            <div className="relative flex-grow max-w-md">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg className="h-5 w-5 text-text-secondary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Kërko artikuj..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-2 border border-accent rounded-md leading-5 bg-primary text-text-main placeholder-text-secondary focus:outline-none focus:ring-1 focus:ring-highlight focus:border-highlight sm:text-sm"
+                                />
+                            </div>
+
+                            <button onClick={handleAddItem} className="flex-shrink-0 flex items-center space-x-2 px-3 py-2 md:px-4 md:py-2 bg-highlight text-white rounded-md hover:bg-blue-600 transition-colors">
+                                <PlusIcon className="w-5 h-5" />
+                                <span className="hidden md:inline">Shto Artikull</span>
+                                <span className="md:hidden">Shto</span>
+                            </button>
                         </div>
-                        <div> 
-                            <table className="w-full text-left">
+                        
+                        <div className="bg-primary rounded-md border border-accent overflow-x-auto mb-6">
+                            <table className="w-full text-left min-w-[700px]">
                                 <thead className="bg-accent">
                                     <tr>
-                                        <th className="p-3 w-12">Rendit</th>
-                                        <th className="p-3">Emri i Menusë</th>
-                                        <th className="p-3">Veprimet</th>
+                                        <th className="p-3 w-12 text-text-secondary">#</th>
+                                        <th className="p-3 text-text-secondary font-medium">Emri</th>
+                                        <th className="p-3 text-text-secondary font-medium">Menu</th>
+                                        <th className="p-3 text-text-secondary font-medium">Printeri</th>
+                                        <th className="p-3 text-text-secondary font-medium">Çmimi</th>
+                                        <th className="p-3 text-text-secondary font-medium">Veprimet</th>
                                     </tr>
                                 </thead>
-                                <Droppable droppableId="categories-droppable" type="CATEGORIES">
+                                
+                                {/* CONDITIONAL RENDERING: Disable Droppable when Searching */}
+                                {searchQuery.trim() === '' ? (
+                                    <StrictModeDroppable droppableId="items-droppable" type="ITEMS">
+                                        {(provided) => (
+                                            <tbody ref={provided.innerRef} {...provided.droppableProps} className="divide-y divide-accent">
+                                                {menuItems.map((item, index) => (
+                                                    <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
+                                                        {(provided, snapshot) => (
+                                                            <tr ref={provided.innerRef} {...provided.draggableProps} className={`hover:bg-accent/30 transition-colors ${snapshot.isDragging ? 'bg-highlight/20 shadow-lg' : ''}`}>
+                                                                <td className="p-3 text-text-secondary cursor-move" {...provided.dragHandleProps}>
+                                                                    <DragHandleIcon className="w-5 h-5" />
+                                                                </td>
+                                                                <td className="p-3 text-text-main font-medium">{item.name}</td>
+                                                                <td className="p-3 text-text-secondary text-sm">{item.category}</td>
+                                                                <td className="p-3 text-text-secondary text-sm">{item.printer}</td>
+                                                                <td className="p-3 text-highlight font-bold">{formatCurrency(item.price)}</td>
+                                                                <td className="p-3">
+                                                                    <div className="flex space-x-2">
+                                                                        <button onClick={() => handleEditItem(item)} className="p-1.5 rounded hover:bg-blue-100 text-blue-500 hover:text-blue-700 transition-colors"><EditIcon className="w-4 h-4"/></button>
+                                                                        <button onClick={() => deleteMenuItem(item.id)} className="p-1.5 rounded hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"><TrashIcon className="w-4 h-4"/></button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {provided.placeholder}
+                                            </tbody>
+                                        )}
+                                    </StrictModeDroppable>
+                                ) : (
+                                    /* Search Active View (No Drag & Drop) */
+                                    <tbody className="divide-y divide-accent">
+                                        {filteredItems.length > 0 ? filteredItems.map((item) => (
+                                            <tr key={item.id} className="hover:bg-accent/30 transition-colors">
+                                                <td className="p-3 text-text-secondary opacity-30">
+                                                    {/* Disabled Drag Icon visual */}
+                                                    <div className="w-5 h-5 flex items-center justify-center font-mono text-xs">•</div>
+                                                </td>
+                                                <td className="p-3 text-text-main font-medium">{item.name}</td>
+                                                <td className="p-3 text-text-secondary text-sm">{item.category}</td>
+                                                <td className="p-3 text-text-secondary text-sm">{item.printer}</td>
+                                                <td className="p-3 text-highlight font-bold">{formatCurrency(item.price)}</td>
+                                                <td className="p-3">
+                                                    <div className="flex space-x-2">
+                                                        <button onClick={() => handleEditItem(item)} className="p-1.5 rounded hover:bg-blue-100 text-blue-500 hover:text-blue-700 transition-colors"><EditIcon className="w-4 h-4"/></button>
+                                                        <button onClick={() => deleteMenuItem(item.id)} className="p-1.5 rounded hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"><TrashIcon className="w-4 h-4"/></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )) : (
+                                            <tr>
+                                                <td colSpan={6} className="p-8 text-center text-text-secondary">
+                                                    Nuk u gjet asnjë artikull me emrin "{searchQuery}"
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                )}
+                            </table>
+                        </div>
+                        <DataManagement />
+                    </div>
+                )}
+
+                {/* CATEGORIES TAB */}
+                {activeSubTab === 'categories' && (
+                    <div className="flex-grow bg-secondary p-4 md:p-6 rounded-lg shadow-sm animate-fade-in">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-text-main">Kategoritë (Menutë)</h3>
+                            <button onClick={handleAddMenu} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-blue-600 transition-colors">
+                                <PlusIcon className="w-5 h-5" /><span>Shto Kategori</span>
+                            </button>
+                        </div>
+
+                        <div className="bg-primary rounded-md border border-accent overflow-x-auto">
+                            <table className="w-full text-left min-w-[300px]">
+                                <thead className="bg-accent">
+                                    <tr>
+                                        <th className="p-3 w-12 text-text-secondary">#</th>
+                                        <th className="p-3 text-text-secondary font-medium">Emri</th>
+                                        <th className="p-3 text-right text-text-secondary font-medium">Veprimet</th>
+                                    </tr>
+                                </thead>
+                                <StrictModeDroppable droppableId="categories-droppable" type="CATEGORIES">
                                     {(provided) => (
                                         <tbody ref={provided.innerRef} {...provided.droppableProps} className="divide-y divide-accent">
                                             {menuCategories.map((menu, index) => (
                                                 <Draggable key={menu.id} draggableId={menu.id.toString()} index={index}>
                                                     {(provided, snapshot) => (
-                                                        <tr ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? 'bg-highlight/20' : ''}>
-                                                            <td className="p-3 text-text-secondary" {...provided.dragHandleProps}>
-                                                                <DragHandleIcon className="w-6 h-6" />
+                                                        <tr ref={provided.innerRef} {...provided.draggableProps} className={`hover:bg-accent/30 transition-colors ${snapshot.isDragging ? 'bg-highlight/20 shadow-lg' : ''}`}>
+                                                            <td className="p-3 text-text-secondary cursor-move w-10" {...provided.dragHandleProps}>
+                                                                <DragHandleIcon className="w-5 h-5" />
                                                             </td>
-                                                            <td className="p-3">{menu.name}</td>
-                                                            <td className="p-3">
-                                                                <div className="flex space-x-2">
-                                                                    <button onClick={() => handleEditMenu(menu)} className="p-2 text-blue-400 hover:text-blue-300"><EditIcon className="w-5 h-5"/></button>
-                                                                    <button onClick={() => deleteMenuCategory(menu.id)} className="p-2 text-red-400 hover:text-red-300"><TrashIcon className="w-5 h-5"/></button>
+                                                            <td className="p-3 text-text-main font-medium">{menu.name}</td>
+                                                            <td className="p-3 text-right">
+                                                                <div className="flex justify-end space-x-1">
+                                                                    <button onClick={() => handleEditMenu(menu)} className="p-1.5 text-blue-500 hover:text-blue-700"><EditIcon className="w-4 h-4"/></button>
+                                                                    <button onClick={() => deleteMenuCategory(menu.id)} className="p-1.5 text-red-500 hover:text-red-700"><TrashIcon className="w-4 h-4"/></button>
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -382,71 +525,22 @@ const MenuTab: React.FC = () => {
                                             {provided.placeholder}
                                         </tbody>
                                     )}
-                                </Droppable>
+                                </StrictModeDroppable>
                             </table>
                         </div>
-                        <Modal isOpen={isMenuModalOpen} onClose={() => setMenuModalOpen(false)} title={editingMenu ? "Ndrysho Menunë" : "Shto Menu të Re"}>
-                            <MenuForm menu={editingMenu} onSave={handleSaveMenu} onCancel={() => setMenuModalOpen(false)} />
-                        </Modal>
                     </div>
                 )}
 
-                {activeSubTab === 'items' && (
-                    <div key="items-tab">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold">Rendit Artikujt e Menusë</h3>
-                             <button onClick={handleAddItem} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-blue-600"><PlusIcon className="w-5 h-5" /><span>Shto Artikull</span></button>
-                        </div>
-                        <div>
-                             <table className="w-full text-left">
-                                <thead className="bg-accent">
-                                    <tr>
-                                        <th className="p-3 w-12">Rendit</th>
-                                        <th className="p-3">Emri</th>
-                                        <th className="p-3">Menu</th>
-                                        <th className="p-3">Printeri</th>
-                                        <th className="p-3">Çmimi</th>
-                                        <th className="p-3">Veprimet</th>
-                                    </tr>
-                                </thead>
-                                <Droppable droppableId="items-droppable" type="ITEMS">
-                                    {(provided) => (
-                                        <tbody ref={provided.innerRef} {...provided.droppableProps} className="divide-y divide-accent">
-                                            {menuItems.map((item, index) => (
-                                                <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
-                                                    {(provided, snapshot) => (
-                                                        <tr ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? 'bg-highlight/20' : ''}>
-                                                            <td className="p-3 text-text-secondary" {...provided.dragHandleProps}>
-                                                                <DragHandleIcon className="w-6 h-6" />
-                                                            </td>
-                                                            <td className="p-3">{item.name}</td>
-                                                            <td className="p-3">{item.category}</td>
-                                                            <td className="p-3">{item.printer}</td>
-                                                            <td className="p-3">{formatCurrency(item.price)}</td>
-                                                            <td className="p-3">
-                                                                <div className="flex space-x-2">
-                                                                    <button onClick={() => handleEditItem(item)} className="p-2 text-blue-400 hover:text-blue-300"><EditIcon className="w-5 h-5"/></button>
-                                                                    <button onClick={() => deleteMenuItem(item.id)} className="p-2 text-red-400 hover:text-red-300"><TrashIcon className="w-5 h-5"/></button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {provided.placeholder}
-                                        </tbody>
-                                    )}
-                                </Droppable>
-                            </table>
-                        </div>
-                        <Modal isOpen={isItemModalOpen} onClose={() => setItemModalOpen(false)} title={editingItem ? "Ndrysho Artikullin e Menusë" : "Shto Artikull të Ri në Menu"}>
-                            <MenuItemForm item={editingItem} onSave={handleSaveItem} onCancel={() => setItemModalOpen(false)} />
-                        </Modal>
-                        <DataManagement />
-                    </div>
-                )}
-            </div>
-        </DragDropContext>
+                {/* MODALS */}
+                <Modal isOpen={isItemModalOpen} onClose={() => setItemModalOpen(false)} title={editingItem ? "Ndrysho Artikullin" : "Shto Artikull të Ri"}>
+                    <MenuItemForm item={editingItem} onSave={handleSaveItem} onCancel={() => setItemModalOpen(false)} />
+                </Modal>
+                
+                <Modal isOpen={isMenuModalOpen} onClose={() => setMenuModalOpen(false)} title={editingMenu ? "Ndrysho Menunë" : "Shto Menu të Re"}>
+                    <MenuForm menu={editingMenu} onSave={handleSaveMenu} onCancel={() => setMenuModalOpen(false)} />
+                </Modal>
+            </DragDropContext>
+        </div>
     );
 };
 

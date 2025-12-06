@@ -444,26 +444,28 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const reorderMenuItems = useCallback(async (items: MenuItem[]) => {
-    const sortedItems = [...items].sort((a, b) => {
-      if (a.display_order === null && b.display_order === null) return 0;
-      if (a.display_order === null) return 1;
-      if (b.display_order === null) return -1;
-      return a.display_order - b.display_order;
-    });
-    setMenuItems(sortedItems);
-    await db.bulkPut(sortedItems, 'menuItems');
+    // 1. Assign new display_order based on their current array index
+    const updatedItems = items.map((item, index) => ({
+      ...item,
+      display_order: index + 1
+    }));
+
+    // 2. Update State Immediately
+    setMenuItems(updatedItems);
     
+    // 3. Update Local DB
+    await db.bulkPut(updatedItems, 'menuItems');
+    
+    // 4. Sync with Server
     if (isOnline && isBackendConfigured) {
-      const orderedIds = sortedItems.filter(item => item.display_order !== null).map(item => item.id);
-      if (orderedIds.length > 0) {
-        try {
-          await fetch(`${SOCKET_URL}/api/menu-items/reorder`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderedIds })
-          });
-        } catch (error) { console.error('Failed to sync reorder:', error); }
-      }
+      const orderedIds = updatedItems.map(item => item.id);
+      try {
+        await fetch(`${SOCKET_URL}/api/menu-items/reorder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderedIds })
+        });
+      } catch (error) { console.error('Failed to sync reorder:', error); }
     }
   }, [isOnline]);
 
@@ -777,7 +779,9 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const handleShareYourState = () => { 
         if (isMasterClient.current) {
             console.log('📤 MASTER: Sharing state with new client...');
-            socket.emit('here-is-my-state', tablesRef.current); 
+            socket.emit('here-is-my-state', tablesRef.current);
+            // Critical: Re-assert identity in case server restarted and forgot us
+            socket.emit('identify-as-master'); 
         }
     };
     

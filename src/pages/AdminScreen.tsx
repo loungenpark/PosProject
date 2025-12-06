@@ -6,7 +6,7 @@ import { CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, Pr
 
 // Sub-components
 import UsersTab from '../components/admin/UsersTab';
-import SupplyTab from '../components/admin/SupplyTab';
+// SupplyTab import removed
 import MenuTab from '../components/admin/MenuTab';
 import StockTab from '../components/admin/StockTab';
 
@@ -14,7 +14,7 @@ import StockTab from '../components/admin/StockTab';
 
 
 // --- Main Admin Screen Component ---
-type AdminTab = 'menu' | 'stock' | 'supply' | 'users' | 'tax' | 'tables' | 'operationalDay' | 'printimi' | 'profile';
+type AdminTab = 'menu' | 'stock' | 'users' | 'tax' | 'tables' | 'operationalDay' | 'printimi' | 'profile';
 
 // Note: No props needed as it's a top-level route now
 const AdminScreen: React.FC = () => {
@@ -22,10 +22,11 @@ const AdminScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('menu');
 
   return (
-    <div className="fixed inset-0 bg-primary z-50 flex flex-col">
-      <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-4 shadow-md z-10">
-        <h1 className="text-xl font-bold text-text-main">Menaxhimi</h1>
-        <div className="flex items-center space-x-4">
+    // Changed fixed inset-0 to min-h-screen to allow window scrolling
+    <div className="min-h-screen bg-primary z-50 flex flex-col relative">
+      <header className="sticky top-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md z-40">
+        <h1 className="hidden md:block text-xl font-bold text-text-main">Menaxhimi</h1>
+        <div className="flex items-center justify-end w-full md:w-auto space-x-2 md:space-x-4">
           <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors flex items-center space-x-2">
             <RestaurantIcon className="w-5 h-5" />
             <span>POS</span>
@@ -40,10 +41,10 @@ const AdminScreen: React.FC = () => {
         </div>
       </header>
 
-      {/* Changed layout from row (sidebar) to col (top tabs) */}
-      <div className="flex flex-col flex-grow overflow-hidden">
-        {/* Horizontal Scrollable Tabs */}
-        <nav className="w-full bg-secondary p-2 flex overflow-x-auto space-x-2 border-b border-accent flex-shrink-0">
+      {/* Changed flex-grow overflow-hidden to just flex-grow */}
+      <div className="flex flex-col flex-grow">
+        {/* Horizontal Scrollable Tabs - Sticky below header */}
+        <nav className="sticky top-[72px] z-30 w-full bg-secondary p-2 flex overflow-x-auto space-x-2 border-b border-accent flex-shrink-0 shadow-sm">
             <button onClick={() => setActiveTab('menu')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'menu' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
                 <MenuIcon className="w-5 h-5"/>
                 <span>Menutë</span>
@@ -51,10 +52,6 @@ const AdminScreen: React.FC = () => {
             <button onClick={() => setActiveTab('stock')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'stock' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
                 <BoxIcon className="w-5 h-5"/>
                 <span>Stoku</span>
-            </button>
-            <button onClick={() => setActiveTab('supply')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'supply' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
-                <UploadIcon className="w-5 h-5"/>
-                <span>Furnizim</span>
             </button>
             <button onClick={() => setActiveTab('users')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'users' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
                 <UserGroupIcon className="w-5 h-5"/>
@@ -83,11 +80,10 @@ const AdminScreen: React.FC = () => {
             </button>
         </nav>
 
-        {/* Main Content (Scrolls independently) */}
-        <main className="flex-grow p-4 md:p-6 overflow-y-auto w-full">
+        {/* Main Content - Removed overflow-y-auto to fix nested scroll DnD issue */}
+        <main className="flex-grow p-4 md:p-6 w-full">
             {activeTab === 'menu' && <MenuTab />}
             {activeTab === 'stock' && <StockTab />}
-            {activeTab === 'supply' && <SupplyTab />}
             {activeTab === 'users' && <UsersTab />}
             {activeTab === 'tax' && <TaxSettings />}
             {activeTab === 'tables' && <TableSettings />}
@@ -98,6 +94,7 @@ const AdminScreen: React.FC = () => {
       </div>
     </div>
   );
+
 };
 
 export default AdminScreen;
