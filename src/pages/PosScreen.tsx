@@ -98,16 +98,31 @@ const PosScreen: React.FC = () => {
     } else { setCurrentOrderItems([]); }
   }, [activeTable]);
 
+  // Track screen size for responsive logic
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleSelectTable = (tableId: number) => {
     setActiveTableId(tableId);
-    if(menuCategories.length > 0) { setSelectedCategory(menuCategories[0].name); }
+    // Only auto-select first category on Desktop. On Mobile, show the list first.
+    if (!isMobile && menuCategories.length > 0) { 
+        setSelectedCategory(menuCategories[0].name); 
+    } else {
+        setSelectedCategory(null);
+    }
   };
 
   useEffect(() => {
-    if (activeTableId !== null && menuCategories.length > 0 && !selectedCategory) {
+    // Auto-select first category only if Desktop and nothing is selected
+    if (!isMobile && activeTableId !== null && menuCategories.length > 0 && !selectedCategory) {
         setSelectedCategory(menuCategories[0].name);
     }
-  }, [activeTableId, menuCategories, selectedCategory]);
+  }, [activeTableId, menuCategories, selectedCategory, isMobile]);
   
   const filteredMenuItems = useMemo(() => {
     return selectedCategory ? menuItems.filter(item => item.category === selectedCategory) : menuItems;
@@ -268,26 +283,74 @@ const PosScreen: React.FC = () => {
       </header>
 
       <div className="flex flex-grow overflow-hidden">
-        <main className="w-1/2 md:flex-grow flex flex-col p-4 overflow-hidden">
-             <div className="flex space-x-2 overflow-x-auto pb-2 mb-4 flex-shrink-0">
-                {menuCategories.map(category => (
-                    <button key={category.id} onClick={() => setSelectedCategory(category.name)} className={`px-4 py-2 rounded-md text-base font-bold whitespace-nowrap transition-colors ${selectedCategory === category.name ? 'bg-highlight text-white' : 'bg-accent text-text-secondary hover:bg-highlight hover:text-white'}`}>{category.name}</button>
-                ))}
-            </div>
-            <div className="flex-grow overflow-y-auto">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {filteredMenuItems.map(item => {
-                        const isOutOfStock = item.trackStock && isFinite(item.stock) && item.stock <= 0;
-                        return (
-                            <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-20 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'hover:ring-2 hover:ring-highlight hover:-translate-y-1'}`}>
-                                <p className="text-sm font-semibold text-text-main">{item.name}</p>
-                                <p className="text-xs text-highlight mt-1">{formatCurrency(item.price)}</p>
-                                {isOutOfStock && <div className="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">STOKU 0</span></div>}
+      <main className="w-1/2 md:flex-grow flex flex-col p-4 overflow-hidden">
+            {/* MOBILE VIEW LOGIC */}
+            {isMobile ? (
+                !selectedCategory ? (
+                    // VIEW 1: Vertical List of Categories
+                    <div className="flex-grow overflow-y-auto space-y-3">
+                         {menuCategories.map(category => (
+                            <button 
+                                key={category.id} 
+                                onClick={() => setSelectedCategory(category.name)} 
+                                className="w-full py-4 px-6 bg-secondary rounded-lg shadow-md text-left flex justify-between items-center active:scale-95 transition-transform"
+                            >
+                                <span className="text-lg font-bold text-text-main">{category.name}</span>
+                                {/* Small chevron hint */}
+                                <span className="text-text-secondary">›</span>
                             </button>
-                        )
-                    })}
-                </div>
-            </div>
+                        ))}
+                    </div>
+                ) : (
+                    // VIEW 2: Sticky Header + Items
+                    <>
+                        <button 
+                            onClick={() => setSelectedCategory(null)} 
+                            className="flex-shrink-0 w-full py-3 px-4 mb-3 bg-highlight text-white rounded-lg shadow-md flex items-center font-bold text-lg active:opacity-90 transition-opacity"
+                        >
+                            <ChevronLeftIcon className="w-6 h-6 mr-2" />
+                            {selectedCategory}
+                        </button>
+                        <div className="flex-grow overflow-y-auto">
+                            <div className="grid grid-cols-2 gap-3">
+                                {filteredMenuItems.map(item => {
+                                    const isOutOfStock = item.trackStock && isFinite(item.stock) && item.stock <= 0;
+                                    return (
+                                        <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-24 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
+                                            <p className="text-sm font-semibold text-text-main leading-tight">{item.name}</p>
+                                            <p className="text-xs text-highlight mt-1 font-bold">{formatCurrency(item.price)}</p>
+                                            {isOutOfStock && <div className="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">STOKU 0</span></div>}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )
+            ) : (
+                // DESKTOP VIEW LOGIC (Original)
+                <>
+                    <div className="flex space-x-2 overflow-x-auto pb-2 mb-4 flex-shrink-0">
+                        {menuCategories.map(category => (
+                            <button key={category.id} onClick={() => setSelectedCategory(category.name)} className={`px-4 py-2 rounded-md text-base font-bold whitespace-nowrap transition-colors ${selectedCategory === category.name ? 'bg-highlight text-white' : 'bg-accent text-text-secondary hover:bg-highlight hover:text-white'}`}>{category.name}</button>
+                        ))}
+                    </div>
+                    <div className="flex-grow overflow-y-auto">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            {filteredMenuItems.map(item => {
+                                const isOutOfStock = item.trackStock && isFinite(item.stock) && item.stock <= 0;
+                                return (
+                                    <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-20 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'hover:ring-2 hover:ring-highlight hover:-translate-y-1'}`}>
+                                        <p className="text-sm font-semibold text-text-main">{item.name}</p>
+                                        <p className="text-xs text-highlight mt-1">{formatCurrency(item.price)}</p>
+                                        {isOutOfStock && <div className="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">STOKU 0</span></div>}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </>
+            )}
         </main>
 
 
