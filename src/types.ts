@@ -60,9 +60,18 @@ export interface Sale {
   tableName: string;
 }
 
+export interface Section {
+  id: number;
+  name: string;
+  display_order: number;
+  isHidden?: boolean;
+  isDefault?: boolean;
+}
+
 export interface Table {
   id: number;
   name: string;
+  sectionId?: number | null; // --- ADDED: Links table to a section
   order: Order | null;
 }
 
@@ -102,11 +111,14 @@ export interface BootstrapData {
   users: User[];
   menuItems: MenuItem[];
   menuCategories: MenuCategory[];
+  sections: Section[]; // --- ADDED
+  tables: any[];       // --- ADDED: Raw tables from DB (will be mapped to Table interface)
   taxRate: number;
   tableCount: number;
   companyInfo: CompanyInfo;
   history: HistoryEntry[];
   operationalDayStartHour: number;
+  allTablesCustomName: string; // Add the missing property
 }
 
 export interface StockUpdateItem {

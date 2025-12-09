@@ -145,11 +145,13 @@ app.post('/api/login', asyncHandler(async (req, res) => {
 
 // 2. BOOTSTRAP
 app.get('/api/bootstrap', asyncHandler(async (req, res) => {
-  const [users, menuItems, menuCategories, settings] = await Promise.all([
+  const [users, menuItems, menuCategories, settings, sections, tables] = await Promise.all([
     query('SELECT * FROM users WHERE active = TRUE ORDER BY username ASC'),
     query('SELECT *, category_name as category, stock_threshold as "stockThreshold", track_stock as "trackStock", stock_group_id as "stockGroupId" FROM menu_items ORDER BY display_order ASC, name ASC'),
     query('SELECT * FROM menu_categories ORDER BY display_order ASC, name ASC'),
-    query("SELECT key, value FROM settings") 
+    query("SELECT key, value FROM settings"),
+    query('SELECT * FROM sections WHERE active = TRUE ORDER BY display_order ASC'),
+    query('SELECT * FROM tables WHERE active = TRUE ORDER BY id ASC')
   ]);
 
   const findSetting = (key, defaultValue) => {
@@ -167,17 +169,21 @@ app.get('/api/bootstrap', asyncHandler(async (req, res) => {
     address: findSetting('companyAddress', ''),
     phone: findSetting('companyPhone', '')
   };
-
-  console.log("📤 Bootstrap Sending Company Info:", companyInfo);
+  
+  // NEW: Get the custom name for "All" view
+  const allTablesCustomName = findSetting('all_tables_custom_name', '');
 
   res.json({
     users: users.rows,
     menuItems: menuItems.rows,
     menuCategories: menuCategories.rows,
+    sections: sections.rows,
+    tables: tables.rows,
     taxRate: taxRate,
     tableCount: tableCount,
     operationalDayStartHour: operationalDayStartHour,
-    companyInfo
+    companyInfo,
+    allTablesCustomName // Add to bootstrap payload
   });
 }));
 
@@ -683,6 +689,23 @@ app.post('/api/settings/operational-day', asyncHandler(async (req, res) => {
   res.json({ success: true, newHour: hour });
 }));
 
+// NEW: Generic Setting Updater
+app.post('/api/settings', asyncHandler(async (req, res) => {
+    const { key, value } = req.body;
+    if (!key) {
+        return res.status(400).json({ message: 'Key is required.' });
+    }
+
+    const upsertQuery = `INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`;
+    await query(upsertQuery, [key, String(value)]);
+
+    // Notify all clients of the change
+    io.emit('setting-updated', { key, value });
+    
+    console.log(`✅ Setting updated: ${key} = ${value}`);
+    res.json({ success: true, key, value });
+}));
+
 // 10. STOCK MANAGEMENT (Bulk Update)
 app.post('/api/stock/bulk-update', asyncHandler(async (req, res) => {
   const { movements, reason, userId } = req.body; // movements: [{ itemId, quantity }]
@@ -855,6 +878,166 @@ app.post('/api/settings/table-count', asyncHandler(async (req, res) => {
     console.log(`✅ Database: Table count updated to ${count}`);
     res.json({ success: true, newCount: count });
 }));
+
+// 12. SECTIONS & ZONES
+app.get('/api/sections', asyncHandler(async (req, res) => {
+  // Map snake_case from DB to camelCase for Frontend
+  const { rows } = await query(`
+    SELECT id, name, display_order, is_hidden as "isHidden", is_default as "isDefault" 
+    FROM sections 
+    ORDER BY display_order ASC
+  `);
+  res.json(rows);
+}));
+
+app.post('/api/sections', asyncHandler(async (req, res) => {
+  const { name } = req.body;
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ message: 'Emri i zonës nuk mund të jetë bosh.' });
+  }
+
+  // 1. Check if a section with this name exists (active or inactive)
+  const existing = await query('SELECT * FROM sections WHERE name = $1', [name]);
+
+  if (existing.rows.length > 0) {
+    const section = existing.rows[0];
+    if (section.active) {
+      // It exists and is active, so this is a conflict.
+      return res.status(409).json({ message: 'Një zonë me këtë emër ekziston tashmë.' });
+    } else {
+      // It exists but is inactive -> reactivate it.
+      const { rows } = await query('UPDATE sections SET active = TRUE WHERE id = $1 RETURNING *', [section.id]);
+      return res.json(rows[0]);
+    }
+  } else {
+    // It does not exist -> create it.
+    const { rows } = await query(
+      'INSERT INTO sections (name, display_order) VALUES ($1, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM sections)) RETURNING *',
+      [name]
+    );
+    res.status(201).json(rows[0]);
+  }
+}));
+
+app.put('/api/sections/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { name, isHidden, isDefault } = req.body;
+
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ message: 'Emri i zonës nuk mund të jetë bosh.' });
+  }
+
+  // 1. If setting as Default, remove default from all others first
+  if (isDefault === true) {
+    await query('UPDATE sections SET is_default = false');
+  }
+
+  // 2. Update the section
+  // COALESCE ensures we don't overwrite with NULL if the frontend sends a partial update
+  const { rows } = await query(
+    `UPDATE sections 
+     SET name = $1, 
+         is_hidden = COALESCE($2, is_hidden), 
+         is_default = COALESCE($3, is_default)
+     WHERE id = $4 
+     RETURNING id, name, display_order, is_hidden as "isHidden", is_default as "isDefault"`,
+    [name, isHidden, isDefault, id]
+  );
+
+  if (rows.length === 0) {
+    return res.status(404).json({ message: 'Zona nuk u gjet.' });
+  }
+  
+  res.json(rows[0]);
+}));
+
+app.delete('/api/sections/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  // 1. Soft-delete all tables within this section
+  await query('UPDATE tables SET active = FALSE WHERE section_id = $1', [id]);
+  // 2. Soft-delete the section itself
+  await query('UPDATE sections SET active = FALSE WHERE id = $1', [id]);
+  res.json({ success: true });
+  }));
+
+// 13. TABLE MANAGEMENT (Physical Tables)
+app.get('/api/tables', asyncHandler(async (req, res) => {
+  const { rows } = await query('SELECT * FROM tables WHERE active = TRUE ORDER BY id ASC');
+  res.json(rows);
+}));
+
+app.post('/api/tables', asyncHandler(async (req, res) => {
+  const { name, sectionId } = req.body;
+  const finalSectionId = sectionId ? parseInt(sectionId) : null;
+  
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ message: 'Emri i tavolinës nuk mund të jetë bosh.' });
+  }
+
+  // 1. Check if a table with this name exists (globally)
+  const existing = await query('SELECT * FROM tables WHERE name = $1', [name]);
+
+  if (existing.rows.length > 0) {
+    const table = existing.rows[0];
+    if (table.active) {
+      // It exists and is active, conflict.
+      return res.status(409).json({ message: 'Një tavolinë me këtë emër ekziston tashmë.' });
+    } else {
+      // It exists but is inactive -> reactivate and move it to the new section.
+      const { rows } = await query(
+          'UPDATE tables SET active = TRUE, section_id = $1 WHERE id = $2 RETURNING *', 
+          [finalSectionId, table.id]
+      );
+      return res.json(rows[0]);
+    }
+  } else {
+    // It does not exist -> create a new one.
+    const { rows } = await query(
+        'INSERT INTO tables (name, section_id, active) VALUES ($1, $2, TRUE) RETURNING *',
+        [name, finalSectionId]
+    );
+    res.status(201).json(rows[0]);
+  }
+}));
+
+app.put('/api/tables/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { name, sectionId } = req.body;
+  
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ message: 'Emri i tavolinës nuk mund të jetë bosh.' });
+  }
+
+  // 1. Check for conflicts: Does another table already use this name?
+  const conflictCheck = await query(
+    'SELECT id FROM tables WHERE name = $1 AND id != $2 AND active = TRUE',
+    [name.trim(), id]
+  );
+
+  if (conflictCheck.rows.length > 0) {
+    return res.status(409).json({ message: 'Një tavolinë tjetër me këtë emër ekziston tashmë.' });
+  }
+
+  // 2. If no conflict, proceed with the update.
+  const finalSectionId = sectionId ? parseInt(sectionId) : null;
+  const { rows } = await query(
+      'UPDATE tables SET name = $1, section_id = $2 WHERE id = $3 RETURNING *',
+      [name.trim(), finalSectionId, id]
+  );
+  
+  if (rows.length === 0) {
+      return res.status(404).json({ message: 'Tavolina nuk u gjet.' });
+  }
+
+  res.json(rows[0]);
+}));
+
+app.delete('/api/tables/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await query('UPDATE tables SET active = FALSE WHERE id = $1', [id]);
+  res.json({ success: true });
+}));
+
 
 // --- SERVE FRONTEND (Production) ---
 if (process.env.NODE_ENV === 'production') {

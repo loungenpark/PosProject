@@ -1,5 +1,5 @@
 console.log("⚠️ API IS POINTING TO:", import.meta.env.VITE_API_URL || "http://localhost:3001");
-import { MenuItem, Order, Sale, User, UserRole, MenuCategory } from "../types";
+import { MenuItem, Order, Sale, User, UserRole, MenuCategory, BootstrapData, Section, Table } from "../types";
 
 // --- ✅ START: MODIFIED API URL ✅ ---
 // Ensure this IP matches your Server PC's IP address
@@ -94,7 +94,28 @@ export const login = (pin: string): Promise<{user: User | null}> => requestJSON(
 });
 
 // --- Bootstrap (Updated with tableCount and operational day) ---
-export const bootstrap = (): Promise<{ users: User[], menuItems: MenuItem[], menuCategories: MenuCategory[], taxRate: number, tableCount: number, operationalDayStartHour: number, companyInfo?: any }> => requestJSON('/api/bootstrap');
+export const bootstrap = (): Promise<BootstrapData> => requestJSON('/api/bootstrap');
+
+// --- Sections & Tables (Zone Management) ---
+export const addSection = (name: string): Promise<Section> => requestJSON('/api/sections', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+});
+export const deleteSection = (id: number): Promise<{ success: boolean }> => requestJSON(`/api/sections/${id}`, {
+    method: 'DELETE',
+});
+
+export const addTable = (name: string, sectionId: number | null): Promise<Table> => requestJSON('/api/tables', {
+    method: 'POST',
+    body: JSON.stringify({ name, sectionId }),
+});
+export const updateTable = (id: number, name: string, sectionId: number | null): Promise<Table> => requestJSON(`/api/tables/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, sectionId }),
+});
+export const deleteTable = (id: number): Promise<{ success: boolean }> => requestJSON(`/api/tables/${id}`, {
+    method: 'DELETE',
+});
 
 // --- Users ---
 export const addUser = (user: Omit<User, 'id'>): Promise<User> => requestJSON('/api/users', {

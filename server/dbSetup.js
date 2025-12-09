@@ -20,6 +20,14 @@ export async function initDatabase() {
     
     // 2. Execute the entire SQL script
     await query(schemaSql);
+
+    // --- MIGRATION: Ensure sections has new columns (Safe for existing DBs) ---
+    await query(`
+      ALTER TABLE sections 
+      ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT FALSE;
+    `);
+    
     console.log('✅ Database schema applied successfully.');
 
     // 3. Seed Default Users (If fresh install)

@@ -1,7 +1,8 @@
 import React, { useState, } from 'react';
 import { usePos } from '../context/PosContext';
 import ProfileTab from '../components/admin/ProfileTab';
-import { TaxSettings, TableSettings, PrintingSettings, OperationalDaySettings } from '../components/admin/SettingsTab';;
+import { TaxSettings, PrintingSettings, OperationalDaySettings } from '../components/admin/SettingsTab';
+import TableManager from '../components/admin/TableManager';
 import { CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, UploadIcon, RestaurantIcon, ClockIcon  } from '../components/common/Icons';
 
 // Sub-components
@@ -86,7 +87,7 @@ const AdminScreen: React.FC = () => {
             {activeTab === 'stock' && <StockTab />}
             {activeTab === 'users' && <UsersTab />}
             {activeTab === 'tax' && <TaxSettings />}
-            {activeTab === 'tables' && <TableSettings />}
+            {activeTab === 'tables' && <TableManager />}
             {activeTab === 'operationalDay' && <OperationalDaySettings />}
             {activeTab === 'printimi' && <PrintingSettings />}
             {activeTab === 'profile' && <ProfileTab />}

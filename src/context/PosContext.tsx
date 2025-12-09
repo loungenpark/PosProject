@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { User, MenuItem, Sale, Order, Table, UserRole, MenuCategory, HistoryEntry, OrderItem, CompanyInfo, StockUpdateItem } from '../types';
+import { User, MenuItem, Sale, Order, Table, UserRole, MenuCategory, HistoryEntry, OrderItem, CompanyInfo, StockUpdateItem, Section  } from '../types';
 import * as db from '../utils/db';
 import * as api from '../utils/api';
 import { io, Socket } from 'socket.io-client';
@@ -39,6 +39,19 @@ interface PosContextState {
   addWaste: (itemId: number, quantity: number, reason: string) => Promise<void>;
   operationalDayStartHour: number;
   updateOperationalDayStartHour: (hour: number) => Promise<void>;
+
+  // Sections & Tables Management
+  sections: Section[];
+  allSectionConfig: { isHidden: boolean; isDefault: boolean; customName: string }; 
+  addSection: (name: string) => Promise<void>;
+  updateSectionName: (id: number | 'all', name: string) => Promise<void>;
+  toggleSectionVisibility: (id: number | 'all') => void; // Updated Type
+  setSectionDefault: (id: number | 'all') => void;       // Updated Type
+  deleteSection: (id: number) => Promise<void>;
+  // Tables
+  addTable: (name: string, sectionId: number | null) => Promise<void>;
+  updateTable: (id: number, name: string, sectionId: number | null) => Promise<void>;
+  deleteTable: (id: number) => Promise<void>;
 }
 
 const PosContext = createContext<PosContextState | undefined>(undefined);
@@ -53,6 +66,27 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [users, setUsers] = useState<User[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
+  const [serverSections, setServerSections] = useState<Section[]>([]);
+  const [sectionPrefs, setSectionPrefs] = useState<Record<string, any>>({}); // The new source of truth for local prefs
+
+  // We compute the final 'sections' by merging Server Data + React State
+  const { sections, allSectionConfig } = useMemo(() => {
+    const localPrefs = sectionPrefs; // Read from React state, not localStorage
+    
+    const computedSections = serverSections.map(s => ({
+        ...s,
+        isHidden: localPrefs[s.id]?.isHidden ?? false,
+        isDefault: localPrefs[s.id]?.isDefault ?? false
+    }));
+
+    const allConfig = {
+      isHidden: localPrefs['all']?.isHidden ?? false,
+      isDefault: localPrefs['all']?.isDefault ?? false,
+      customName: localPrefs['all']?.customName || ''
+    };
+
+    return { sections: computedSections, allSectionConfig: allConfig };
+  }, [serverSections, sectionPrefs]); // Depend on the new state variable
   const [sales, setSales] = useState<Sale[]>([]);
   const [saleToPrint, setSaleToPrint] = useState<Sale | null>(null);
   const [orderToPrint, setOrderToPrint] = useState<OrderToPrint | null>(null);
@@ -134,37 +168,70 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const fetchAndCacheData = useCallback(async () => {
-      if (!isBackendConfigured) return;
-      try {
-        let { users: serverUsers, menuItems: serverItems, menuCategories: serverCats, taxRate, tableCount, companyInfo: serverCompanyInfo, operationalDayStartHour: serverStartHour } = await api.bootstrap();
-        
-        if (serverCompanyInfo) {
-            setCompanyInfo(serverCompanyInfo);
-        }
+    if (!isBackendConfigured) return;
+    try {
+      // --- UPDATED DESTRUCTURING to include sections and tables ---
+      let { 
+          users: serverUsers, 
+          menuItems: serverItems, 
+          menuCategories: serverCats, 
+          sections: serverSections, 
+          tables: serverTables,
+          taxRate, 
+          tableCount, 
+          companyInfo: serverCompanyInfo, 
+          operationalDayStartHour: serverStartHour,
+          allTablesCustomName // NEW: Get custom name from server
+      } = await api.bootstrap();
 
-        if (typeof serverStartHour === 'number' && serverStartHour >= 0 && serverStartHour <= 23) {
-            setOperationalDayStartHour(serverStartHour);
-        }
+      // NEW: Update state with the synced custom name
+      if (typeof allTablesCustomName === 'string') {
+        setSectionPrefs(currentPrefs => ({
+            ...currentPrefs,
+            'all': { ...(currentPrefs['all'] || {}), customName: allTablesCustomName }
+        }));
+      }
+      
+      if (serverCompanyInfo) setCompanyInfo(serverCompanyInfo);
+      if (typeof serverStartHour === 'number') setOperationalDayStartHour(serverStartHour);
+      
+      // 1. SET SECTIONS (Raw server data only)
+      setServerSections(serverSections || []);
 
-        if (typeof tableCount === 'number' && tableCount > 0) {
-
-            const currentLocal = parseInt(localStorage.getItem('tableCount') || '0', 10);
-            if (tableCount !== currentLocal) {
-                console.log(`📥 Syncing Table Count from DB: ${tableCount}`);
-                localStorage.setItem('tableCount', tableCount.toString());
-                
-                setTables(prevTables => {
-                    return Array.from({ length: tableCount }, (_, i) => {
-                        const tableId = i + 1;
-                        const existing = prevTables.find(t => t.id === tableId);
-                        if (existing && existing.order) {
-                            return existing;
-                        }
-                        return { id: tableId, name: `${tableId}`, order: null };
-                    });
-                });
-            }
+      // 2. SMART TABLE INIT
+      // Check if we have Explicit Tables from DB (Sections Mode)
+      if (serverTables && serverTables.length > 0) {
+          console.log(`📥 Loaded ${serverTables.length} explicit tables from DB.`);
+          
+          setTables(prevTables => {
+              // Map server tables to local state, preserving active orders if IDs match
+              return serverTables.map((st: any) => {
+                  const existing = prevTables.find(t => t.id === st.id);
+                  return {
+                      id: st.id,
+                      name: st.name,
+                      sectionId: st.section_id, // Map snake_case from DB to camelCase
+                      order: existing ? existing.order : null
+                  };
+              });
+          });
+      } 
+      else if (typeof tableCount === 'number' && tableCount > 0) {
+          // Fallback: Legacy Numeric Mode
+          const currentLocal = parseInt(localStorage.getItem('tableCount') || '0', 10);
+          // Only force update if count changed or we have no tables
+          if (tableCount !== currentLocal || tables.length === 0) {
+              console.log(`📥 Syncing Table Count from DB: ${tableCount}`);
+              localStorage.setItem('tableCount', tableCount.toString());
+              setTables(prevTables => {
+                  return Array.from({ length: tableCount }, (_, i) => {
+                      const tableId = i + 1;
+                      const existing = prevTables.find(t => t.id === tableId);
+                      return existing || { id: tableId, name: `${tableId}`, order: null };
+                  });
+              });
           }
+      }
           
           const salesData = await api.getSales();
           const historyData = await api.getHistory();
@@ -272,17 +339,167 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateOperationalDayStartHour = useCallback(async (hour: number) => {
     setOperationalDayStartHour(hour);
-    // This is a core setting, so we only allow updating it when online to prevent sync issues.
     if (isOnline && isBackendConfigured) {
       try {
         await api.updateOperationalDayStartHour(hour);
         await addHistoryEntry(0, `Operational day start hour set to ${hour}:00`);
-      } catch (error) {
-        console.error('Failed to update operational day start hour:', error);
-        // Optional: Revert state if API call fails
-      }
+      } catch (error) { console.error('Failed to update operational day start hour:', error); }
     }
   }, [isOnline, addHistoryEntry]);
+
+  // --- SECTIONS & TABLES MANAGEMENT (Online Only for Config Safety) ---
+  
+  const addSection = useCallback(async (name: string) => {
+    try {
+        const res = await fetch(`${SOCKET_URL}/api/sections`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        const newSection = await res.json();
+        setServerSections(prev => [...prev, newSection]);
+    } catch (e) { console.error("Failed to add section", e); }
+}, []);
+
+  // A. Update Section Name (Server for standard, AND now for 'all')
+  const updateSectionName = useCallback(async (id: number | 'all', name: string) => {
+    if (id === 'all') {
+        // Now saves to server via the new generic endpoint
+        await fetch(`${SOCKET_URL}/api/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'all_tables_custom_name', value: name })
+        });
+        // The server will broadcast the change via socket, no need for optimistic update
+    } else {
+        try {
+            setServerSections(prev => prev.map(s => s.id === id ? { ...s, name } : s));
+            await fetch(`${SOCKET_URL}/api/sections/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+        } catch (e) { console.error("Failed to update section name", e); fetchAndCacheData(); }
+    }
+  }, [fetchAndCacheData]);
+
+  // B. Local Visibility Toggle
+  const toggleSectionVisibility = useCallback((id: number | 'all') => {
+    setSectionPrefs(currentPrefs => {
+        const key = String(id);
+        const newPrefs = { ...currentPrefs }; // Create a shallow copy
+        const currentSettings = newPrefs[key] || {};
+        
+        newPrefs[key] = { ...currentSettings, isHidden: !currentSettings.isHidden };
+        
+        localStorage.setItem('sectionPreferences', JSON.stringify(newPrefs));
+        return newPrefs;
+    });
+  }, []);
+
+  // C. Local Default Toggle
+  const setSectionDefault = useCallback((id: number | 'all') => {
+    setSectionPrefs(currentPrefs => {
+        const newPrefs: Record<string, any> = {};
+        
+        // Step 1: Copy all preferences and set their isDefault to false
+        for (const key in currentPrefs) {
+            if (Object.prototype.hasOwnProperty.call(currentPrefs, key)) {
+                newPrefs[key] = { ...currentPrefs[key], isDefault: false };
+            }
+        }
+
+        const keyForDefault = String(id);
+        
+        // Step 2: Set the target key's isDefault to true, preserving other properties
+        const existingTargetPrefs = newPrefs[keyForDefault] || {};
+        newPrefs[keyForDefault] = { ...existingTargetPrefs, isDefault: true };
+        
+        localStorage.setItem('sectionPreferences', JSON.stringify(newPrefs));
+        return newPrefs;
+    });
+  }, []);
+
+  const deleteSection = useCallback(async (id: number) => {
+    try {
+        // 1. Delete from Server
+        await fetch(`${SOCKET_URL}/api/sections/${id}`, { method: 'DELETE' });
+
+        // 2. Remove from Local State
+        setServerSections(prev => prev.filter(s => s.id !== id));
+        
+        // 3. Clean up Local Preferences State and localStorage
+        setSectionPrefs(currentPrefs => {
+            const key = String(id);
+            const newPrefs = { ...currentPrefs };
+            if (newPrefs[key]) {
+                delete newPrefs[key];
+                localStorage.setItem('sectionPreferences', JSON.stringify(newPrefs));
+            }
+            return newPrefs;
+        });
+
+        // 4. Refresh table data to handle any tables that were in the deleted section
+        await fetchAndCacheData();
+    } catch (e) { console.error("Failed to delete section", e); }
+  }, [fetchAndCacheData]);
+
+  const addTable = useCallback(async (name: string, sectionId: number | null) => {
+      try {
+          const res = await fetch(`${SOCKET_URL}/api/tables`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, sectionId })
+          });
+          const newDbTable = await res.json();
+          // Convert snake_case to camelCase and add order:null
+          const newTable: Table = { 
+              id: newDbTable.id, 
+              name: newDbTable.name, 
+              sectionId: newDbTable.section_id, 
+              order: null 
+          };
+          setTables(prev => [...prev, newTable]);
+      } catch (e) { console.error("Failed to add table", e); }
+  }, []);
+
+  const updateTable = useCallback(async (id: number, name: string, sectionId: number | null) => {
+      // Pessimistic Update: We wait for the server's response before changing the state.
+      try {
+          const res = await fetch(`${SOCKET_URL}/api/tables/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, sectionId })
+          });
+
+          if (!res.ok) {
+              const errorData = await res.json();
+              // Throw an error that the component can catch and display
+              throw new Error(errorData.message || `Server responded with status ${res.status}`);
+          }
+
+          const updatedDbTable = await res.json();
+          
+          // --- SUCCESS ---
+          // Only update the state after a successful response from the server.
+          setTables(prev => prev.map(t => 
+              t.id === id 
+              ? { ...t, name: updatedDbTable.name, sectionId: updatedDbTable.section_id } 
+              : t
+          ));
+      } catch (e) { 
+          console.error("Failed to update table:", e); 
+          // Re-throw the error so the calling component (TableManager) knows about the failure.
+          throw e;
+      }
+  }, []);
+
+  const deleteTable = useCallback(async (id: number) => {
+      try {
+          await fetch(`${SOCKET_URL}/api/tables/${id}`, { method: 'DELETE' });
+          setTables(prev => prev.filter(t => t.id !== id));
+      } catch (e) { console.error("Failed to delete table", e); }
+  }, []);
   
   const login = useCallback(async (pin: string): Promise<boolean> => {
     let user = users.find((u) => u.pin === pin);
@@ -799,11 +1016,23 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     socket.off('process-client-order-update');
     socket.off('share-your-state');
     socket.off('request-initial-state');
+    socket.off('setting-updated'); // NEW: Remove previous listener
 
     socket.on('connect', () => { 
       console.log(`✅ SOCKET CONNECTED (${isMasterClient.current ? 'MASTER/ADMIN' : 'CLIENT/WAITER'})`);
       if (isMasterClient.current) socket.emit('identify-as-master');
       else socket.emit('request-latest-state');
+    });
+
+    // NEW: Listen for setting updates from the server
+    socket.on('setting-updated', ({ key, value }) => {
+        console.log(`🔧 Received setting update: ${key} = ${value}`);
+        if (key === 'all_tables_custom_name') {
+            setSectionPrefs(currentPrefs => ({
+                ...currentPrefs,
+                'all': { ...(currentPrefs['all'] || {}), customName: value }
+            }));
+        }
     });
 
     socket.on('order-updated-from-server', handleOrderUpdate);
@@ -832,12 +1061,16 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (startupEffectRan.current === true) { return; }
 
+    // ... inside bootstrap function of main useEffect
     const bootstrap = async () => {
-        setIsLoading(true);
-        await db.initDB();
-        
-        // 1. LOAD FROM LOCALSTORAGE
-        let countToLoad = parseInt(localStorage.getItem('tableCount') || '50', 10);
+      setIsLoading(true);
+      await db.initDB();
+      
+      // Load section preferences into React State once on startup
+      setSectionPrefs(JSON.parse(localStorage.getItem('sectionPreferences') || '{}'));
+
+      // 1. LOAD FROM LOCALSTORAGE
+      let countToLoad = parseInt(localStorage.getItem('tableCount') || '50', 10);
         if (!countToLoad || countToLoad < 1) countToLoad = 50;
         
         const savedTablesJSON = localStorage.getItem('activeTables');
@@ -1002,6 +1235,8 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTablesPerRow, setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
     refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
     operationalDayStartHour, updateOperationalDayStartHour,
+    sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
+    addTable, updateTable, deleteTable
   }), [
     isLoading, isOnline, isSyncing, loggedInUser, activeScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
@@ -1012,6 +1247,8 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
     refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
     operationalDayStartHour, updateOperationalDayStartHour,
+    sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
+    addTable, updateTable, deleteTable
   ]);
 
   return <PosContext.Provider value={value}>{children}</PosContext.Provider>;

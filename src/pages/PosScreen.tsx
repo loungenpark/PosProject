@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
-import { LogoutIcon, TrashIcon, CloseIcon, TableIcon, ChevronLeftIcon } from '../components/common/Icons';
+import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon } from '../components/common/Icons';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
@@ -79,12 +79,89 @@ const PaymentModal: React.FC<{
 
 // --- Main POS Screen Component ---
 const PosScreen: React.FC = () => {
-    const { loggedInUser, logout, setActiveScreen, menuItems, menuCategories, addSale, tables, saveOrderForTable, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate } = usePos();
+    // --- ADDED: sections from context ---
+    const { loggedInUser, logout, setActiveScreen, menuItems, menuCategories, addSale, tables, sections, allSectionConfig, saveOrderForTable, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate } = usePos();
     const [activeTableId, setActiveTableId] = useState<number | null>(null);
+    const [activeSectionId, setActiveSectionId] = useState<number | 'all'>('all'); // --- ADDED: Section State
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
   const [currentOrderItems, setCurrentOrderItems] = useState<OrderItem[]>([]);
   const activeTable = useMemo(() => tables.find(t => t.id === activeTableId), [tables, activeTableId]);
+
+  // --- ADDED: Filter Tables based on selected Section ---
+  const [isSectionDropdownOpen, setIsSectionDropdownOpen] = useState(false);
+  
+  // 1. FILTER VISIBLE SECTIONS
+  const visibleSections = useMemo(() => sections.filter(s => !s.isHidden), [sections]);
+  const hasSetDefaultRef = useRef(false);
+
+  // 2. APPLY DEFAULT OR FIRST VISIBLE SECTION
+  useEffect(() => {
+    // STARTUP LOGIC: If we haven't selected a default yet, FORCE selection based on config,
+    // ignoring the initial state of 'all' if it's not the configured default.
+    if (!hasSetDefaultRef.current) {
+         if (allSectionConfig.isDefault && !allSectionConfig.isHidden) {
+             setActiveSectionId('all');
+         } else {
+             const defaultSection = visibleSections.find(s => s.isDefault);
+             if (defaultSection) {
+                 setActiveSectionId(defaultSection.id);
+             } else if (!allSectionConfig.isHidden) {
+                 // Fallback to All if available
+                 setActiveSectionId('all');
+             } else if (visibleSections.length > 0) {
+                 // Fallback to first visible
+                 setActiveSectionId(visibleSections[0].id);
+             }
+         }
+         hasSetDefaultRef.current = true;
+         return; 
+    }
+
+    // RUNTIME LOGIC: Ensure current selection remains valid (e.g., if a section is hidden dynamically)
+    let isCurrentValid = false;
+    
+    if (activeSectionId === 'all') {
+        isCurrentValid = !allSectionConfig.isHidden;
+    } else if (activeSectionId === -1) {
+        isCurrentValid = true; 
+    } else {
+        isCurrentValid = visibleSections.some(s => s.id === activeSectionId);
+    }
+
+    if (!isCurrentValid) {
+        // If current became invalid, fallback logic
+        const defaultSection = visibleSections.find(s => s.isDefault);
+        if (defaultSection) setActiveSectionId(defaultSection.id);
+        else if (!allSectionConfig.isHidden) setActiveSectionId('all');
+        else if (visibleSections.length > 0) setActiveSectionId(visibleSections[0].id);
+    }
+  }, [visibleSections, activeSectionId, allSectionConfig]);
+
+  // Helper to get current section name for the header title
+  const activeSectionName = useMemo(() => {
+    if (activeSectionId === 'all') return allSectionConfig.customName || 'Të gjitha';
+    if (activeSectionId === -1) return 'Të Tjera';
+    return sections.find(s => s.id === activeSectionId)?.name || 'Zona';
+}, [activeSectionId, sections, allSectionConfig]);
+
+  const filteredTables = useMemo(() => {
+    if (sections.length === 0) return tables; 
+    
+    if (activeSectionId === 'all') {
+        // When 'all', we want tables from visible sections. 
+        // We do NOT want unassigned tables here if we are doing grouped rendering, 
+        // but for the sake of the 'filteredTables' variable generally, let's keep it broad.
+        // The render logic will handle the grouping.
+        const visibleSectionIds = visibleSections.map(s => s.id);
+        return tables.filter(t => t.sectionId && visibleSectionIds.includes(t.sectionId));
+    } 
+    
+    return tables.filter(t => {
+        if (activeSectionId === -1) return !t.sectionId;
+        return t.sectionId === activeSectionId;
+    });
+  }, [tables, sections, activeSectionId, visibleSections]);
 
   useEffect(() => {
     if (activeTable && activeTable.order) {
@@ -244,28 +321,143 @@ const PosScreen: React.FC = () => {
   );
   
   if (activeTableId === null) {
-    return (
-        <div className="h-screen w-screen flex flex-col bg-primary">
-            <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md">
-                {/* Left side: Hidden on mobile, Icon + Hello on PC */}
-                <div className="hidden md:flex items-center space-x-2">
-                    <TableIcon className="w-6 h-6 text-highlight"/>
-                    <h1 className="text-xl font-bold text-text-main">Hello</h1>
+    const unassignedTables = tables.filter(t => !t.sectionId);
+
+    // Helper: Render Grid to avoid duplication
+    const renderTableGrid = (tableList: typeof tables) => (
+        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}>
+            {tableList.map(table => (
+                <div key={table.id} className="aspect-square flex justify-center items-center">
+                    <button onClick={() => handleSelectTable(table.id)} className={`flex flex-col justify-center items-center rounded-lg shadow-lg transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-highlight ${table.order ? 'bg-highlight text-white' : 'bg-secondary text-text-main'}`} style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}>
+                        <span className="font-bold" style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}>{table.name}</span>
+                        {table.order && <span className="font-semibold" style={{ fontSize: `calc(0.75rem * ${tableSizePercent / 100})` }}>{formatCurrency(table.order.total)}</span>}
+                    </button>
                 </div>
-                <div className="flex-grow md:flex-grow-0 flex justify-end">
+            ))}
+        </div>
+    );
+
+    // Helper: Render "All" View (Grouped by Section) - NO "Të Tjera"
+    const renderAllSections = () => {
+        return (
+            <div className="space-y-8">
+                {visibleSections.map(section => {
+                    const sectionTables = tables.filter(t => t.sectionId === section.id);
+                    if (sectionTables.length === 0) return null;
+                    return (
+                        <div key={section.id}>
+                            <h3 className="text-lg font-bold text-text-secondary mb-3 border-b border-accent pb-1">{section.name}</h3>
+                            {renderTableGrid(sectionTables)}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    // Helper: Mobile Dropdown Item
+    const SectionOption = ({ id, name }: { id: number | 'all' | -1, name: string }) => (
+        <button 
+            onClick={() => {
+                setActiveSectionId(id);
+                setIsSectionDropdownOpen(false);
+            }} 
+            className={`w-full text-left px-6 py-4 border-b border-accent last:border-0 font-bold text-lg transition-colors ${activeSectionId === id ? 'bg-highlight text-white' : 'bg-secondary text-text-main hover:bg-primary'}`}
+        >
+            {name}
+        </button>
+    );
+
+    return (
+        <div className="h-screen w-screen flex flex-col bg-primary relative">
+            
+            {/* --- HEADER --- */}
+            <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 shadow-md z-20 relative h-[60px] md:h-[72px]">
+                
+                {/* LEFT: Zone Selector (Replaces "Hello") */}
+                <div className="flex-grow flex items-center mr-4 overflow-hidden h-full">
+                    {sections.length > 0 ? (
+                        isMobile ? (
+                            // MOBILE: Dropdown Trigger (Clean - No Icon)
+                            <button 
+                                onClick={() => setIsSectionDropdownOpen(!isSectionDropdownOpen)}
+                                className="bg-primary px-6 py-2 rounded-full border border-accent active:bg-accent transition-colors max-w-[200px] shadow-sm"
+                            >
+                                <span className="font-bold text-text-main truncate text-lg">{activeSectionName}</span>
+                            </button>
+                        ) : (
+                            // DESKTOP: Horizontal Tabs
+                            <div className="flex space-x-2 overflow-x-auto scrollbar-hide items-center h-full px-2">
+                                {!allSectionConfig.isHidden && (
+                                    <button 
+                                        onClick={() => setActiveSectionId('all')} 
+                                        className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all ${activeSectionId === 'all' ? 'bg-highlight text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-accent'}`}
+                                    >
+                                        {allSectionConfig.customName || 'Të gjitha'}
+                                    </button>
+                                )}
+                                {visibleSections.map(section => (
+                                    <button 
+                                        key={section.id} 
+                                        onClick={() => setActiveSectionId(section.id)} 
+                                        className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all ${activeSectionId === section.id ? 'bg-highlight text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-accent'}`}
+                                    >
+                                        {section.name}
+                                    </button>
+                                ))}
+                                {unassignedTables.length > 0 && (
+                                    <button 
+                                        onClick={() => setActiveSectionId(-1)} 
+                                        className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all ${activeSectionId === -1 ? 'bg-highlight text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-accent'}`}
+                                    >
+                                        Të Tjera
+                                    </button>
+                                )}
+                            </div>
+                        )
+                    ) : (
+                        <h1 className="text-xl font-bold text-text-main px-2">Tavolinat</h1>
+                    )}
+                </div>
+
+                {/* RIGHT: User Actions */}
+                <div className="flex-shrink-0">
                     <Header />
                 </div>
             </header>
-            <main className="flex-grow p-4 overflow-y-auto">
-                <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}>
-                    {tables.map(table => (
-                        <div key={table.id} className="aspect-square flex justify-center items-center">
-                            <button onClick={() => handleSelectTable(table.id)} className={`flex flex-col justify-center items-center rounded-lg shadow-lg transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-highlight ${table.order ? 'bg-highlight text-white' : 'bg-secondary text-text-main'}`} style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}>
-                                <span className="font-bold" style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}>{table.id}</span>
-                                {table.order && <span className="font-semibold" style={{ fontSize: `calc(0.75rem * ${tableSizePercent / 100})` }}>{formatCurrency(table.order.total)}</span>}
-                            </button>
-                        </div>
-                    ))}
+
+            {/* --- MOBILE DROPDOWN OVERLAY --- */}
+            {isMobile && isSectionDropdownOpen && (
+                <>
+                    {/* Backdrop */}
+                    <div className="fixed inset-0 bg-black/50 z-30" onClick={() => setIsSectionDropdownOpen(false)} />
+                    
+                    {/* Menu */}
+                    <div className="absolute top-[60px] left-2 w-64 bg-secondary rounded-lg shadow-2xl border border-accent z-40 flex flex-col max-h-[70vh] overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                        {!allSectionConfig.isHidden && <SectionOption id="all" name={allSectionConfig.customName || 'Të gjitha'} />}
+                        {visibleSections.map(s => <SectionOption key={s.id} id={s.id} name={s.name} />)}
+                        {unassignedTables.length > 0 && <SectionOption id={-1} name="Të Tjera" />}
+                    </div>
+                </>
+            )}
+
+            {/* --- MAIN GRID --- */}
+            <main className="flex-grow p-4 overflow-y-auto z-10">
+                <div className="pb-10">
+                    {activeSectionId === 'all' ? (
+                        renderAllSections()
+                    ) : (
+                        filteredTables.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center text-text-secondary opacity-50 py-20">
+                                <p className="text-lg">Asnjë tavolinë në këtë zonë.</p>
+                            </div>
+                        ) : (
+                            <div>
+                                <h3 className="text-lg font-bold text-text-secondary mb-3 border-b border-accent pb-1">{activeSectionName}</h3>
+                                {renderTableGrid(filteredTables)}
+                            </div>
+                        )
+                    )}
                 </div>
             </main>
         </div>

@@ -85,6 +85,23 @@ CREATE TABLE IF NOT EXISTS stock_movements (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 6. Floor Plan & Zones
+CREATE TABLE IF NOT EXISTS sections (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50) NOT NULL,
+  display_order INTEGER DEFAULT 0,
+  active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS tables (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50) UNIQUE NOT NULL, -- Enforce global uniqueness
+  section_id INTEGER REFERENCES sections(id), -- Removed ON DELETE SET NULL
+  x INTEGER DEFAULT 0,
+  y INTEGER DEFAULT 0,
+  active BOOLEAN DEFAULT TRUE
+);
+
 
 -- --------------------------------------------------------
 -- AUTO-MIGRATION SECTION
@@ -123,4 +140,30 @@ BEGIN
         -- Primary key exists, which implies uniqueness. Good.
         NULL;
     END IF;
+END $$;
+
+-- 4. Ensure tables/sections structure (Safe Migration for future updates)
+DO $$ 
+BEGIN 
+    -- Check if 'tables' table exists (if created previously) and ensure it has section_id
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='tables') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tables' AND column_name='section_id') THEN 
+            ALTER TABLE tables ADD COLUMN section_id INTEGER REFERENCES sections(id) ON DELETE SET NULL; 
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tables' AND column_name='active') THEN 
+            ALTER TABLE tables ADD COLUMN active BOOLEAN DEFAULT TRUE; 
+        END IF;
+    END IF;
+END $$;
+
+-- 5. Add 'active' to sections and update existing rows
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='sections' AND column_name='active') THEN 
+        ALTER TABLE sections ADD COLUMN active BOOLEAN DEFAULT TRUE; 
+    END IF; 
+
+    -- CRITICAL FIX: Update existing rows that had NULL set for the new 'active' column.
+    UPDATE sections SET active = TRUE WHERE active IS NULL;
 END $$;
