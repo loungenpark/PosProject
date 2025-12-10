@@ -27,6 +27,39 @@ export async function initDatabase() {
       ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT FALSE;
     `);
+
+    // --- ARCHITECTURE FIX: Active Orders & Idempotency ---
+    
+    // 1. Create Active Orders Table (Persist open tables)
+    await query(`
+      CREATE TABLE IF NOT EXISTS active_orders (
+        id SERIAL PRIMARY KEY,
+        table_id VARCHAR(50) NOT NULL UNIQUE,
+        session_uuid VARCHAR(100) NOT NULL,
+        items JSONB DEFAULT '[]',
+        status VARCHAR(20) DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 2. Add session_uuid to Sales (Prevent double spending)
+    await query(`
+      ALTER TABLE sales 
+      ADD COLUMN IF NOT EXISTS session_uuid VARCHAR(100);
+    `);
+
+    // 3. Enforce Uniqueness on Sales session_uuid (The actual bug fix)
+    // We use a DO block to ensure we don't try to add the constraint twice
+    await query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sales_session_uuid_key') THEN
+            ALTER TABLE sales ADD CONSTRAINT sales_session_uuid_key UNIQUE (session_uuid);
+        END IF;
+      END
+      $$;
+    `);
     
     console.log('✅ Database schema applied successfully.');
 

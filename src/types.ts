@@ -49,6 +49,17 @@ export interface Order {
   subtotal: number;
   tax: number;
   total: number;
+  sessionUuid?: string; // --- ADDED: Unique ID for Idempotency
+}
+
+// --- ADDED: Interface for Active Orders from DB ---
+export interface ActiveOrder {
+  id: number;
+  table_id: string;
+  session_uuid: string;
+  items: OrderItem[];
+  status: string;
+  updated_at: string;
 }
 
 export interface Sale {
@@ -111,14 +122,15 @@ export interface BootstrapData {
   users: User[];
   menuItems: MenuItem[];
   menuCategories: MenuCategory[];
-  sections: Section[]; // --- ADDED
-  tables: any[];       // --- ADDED: Raw tables from DB (will be mapped to Table interface)
+  sections: Section[]; 
+  tables: any[];       
+  activeOrders: ActiveOrder[]; // --- ADDED: Persistence Source of Truth
   taxRate: number;
   tableCount: number;
   companyInfo: CompanyInfo;
   history: HistoryEntry[];
   operationalDayStartHour: number;
-  allTablesCustomName: string; // Add the missing property
+  allTablesCustomName: string; 
 }
 
 export interface StockUpdateItem {

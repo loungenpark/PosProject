@@ -469,7 +469,7 @@ const PosScreen: React.FC = () => {
       <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md">
         <div className="flex items-center space-x-1 md:space-x-3">
             <button onClick={handleCancelOrder} className="p-1 md:p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors"><ChevronLeftIcon className="w-6 h-6"/></button>
-            <h1 className="text-lg md:text-xl font-bold text-text-main whitespace-nowrap">Porosi: {activeTable?.name}</h1>
+            <h1 className="text-lg md:text-xl font-bold text-text-main whitespace-nowrap">{activeTable?.name}</h1>
         </div>
         <Header />
       </header>

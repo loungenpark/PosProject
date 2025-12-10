@@ -104,16 +104,10 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const syncInProgress = useRef(false);
   const startupEffectRan = useRef(false);
 
-  // We consider "Desktop" or non-mobile to be the potential "Master" (usually the Admin/Cashier PC)
-  const isMasterClient = useRef(window.innerWidth > 900 || !/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
-  
-  // Ref to keep track of tables for Socket callbacks without dependency cycles
-  const tablesRef = useRef<Table[]>([]); 
   const socketRef = useRef<Socket | null>(null);
   
-  // --- 1. AUTO-SAVE ACTIVE TABLES & UPDATE REF ---
+  // --- 1. AUTO-SAVE ACTIVE TABLES ---
   useEffect(() => {
-    tablesRef.current = tables; // Update ref for socket access
     if (tables.length > 0) {
       localStorage.setItem('activeTables', JSON.stringify(tables));
     }
@@ -170,22 +164,23 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchAndCacheData = useCallback(async () => {
     if (!isBackendConfigured) return;
     try {
-      // --- UPDATED DESTRUCTURING to include sections and tables ---
+      // --- UPDATED DESTRUCTURING to include activeOrders ---
       let { 
-          users: serverUsers, 
-          menuItems: serverItems, 
-          menuCategories: serverCats, 
-          sections: serverSections, 
-          tables: serverTables,
-          taxRate, 
-          tableCount, 
-          companyInfo: serverCompanyInfo, 
-          operationalDayStartHour: serverStartHour,
-          allTablesCustomName // NEW: Get custom name from server
-      } = await api.bootstrap();
+        users: serverUsers, 
+        menuItems: serverItems, 
+        menuCategories: serverCats, 
+        sections: serverSections, 
+        tables: serverTables,
+        activeOrders, // <--- SERVER TRUTH
+        taxRate, 
+        tableCount, 
+        companyInfo: serverCompanyInfo, 
+        operationalDayStartHour: serverStartHour,
+        allTablesCustomName 
+    } = await api.bootstrap();
 
-      // NEW: Update state with the synced custom name
-      if (typeof allTablesCustomName === 'string') {
+    // NEW: Update state with the synced custom name
+    if (typeof allTablesCustomName === 'string') {
         setSectionPrefs(currentPrefs => ({
             ...currentPrefs,
             'all': { ...(currentPrefs['all'] || {}), customName: allTablesCustomName }
@@ -198,36 +193,81 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 1. SET SECTIONS (Raw server data only)
       setServerSections(serverSections || []);
 
-      // 2. SMART TABLE INIT
-      // Check if we have Explicit Tables from DB (Sections Mode)
+      // --- HELPER: Resolve Order from Server DB ---
+      const activeOrderMap = new Map();
+      if (Array.isArray(activeOrders)) {
+          activeOrders.forEach((ao: any) => activeOrderMap.set(String(ao.table_id), ao));
+      }
+
+      const resolveTableOrder = (tableId: number) => {
+          const dbOrder = activeOrderMap.get(String(tableId));
+          if (dbOrder) {
+              try {
+                  const items = typeof dbOrder.items === 'string' ? JSON.parse(dbOrder.items) : dbOrder.items;
+                  const subtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+                  const calculatedTax = subtotal * (typeof taxRate === 'number' ? taxRate : 0);
+                  
+                  return {
+                      items,
+                      subtotal,
+                      tax: calculatedTax,
+                      total: subtotal + calculatedTax,
+                      sessionUuid: dbOrder.session_uuid // <--- IDEMPOTENCY KEY
+                  } as Order;
+              } catch (e) {
+                  console.error(`Failed to parse order for table ${tableId}`, e);
+                  return null;
+              }
+          }
+          return null;
+      };
+
+      // 2. SMART TABLE INIT (Server Authority)
       if (serverTables && serverTables.length > 0) {
           console.log(`📥 Loaded ${serverTables.length} explicit tables from DB.`);
-          
           setTables(prevTables => {
-              // Map server tables to local state, preserving active orders if IDs match
               return serverTables.map((st: any) => {
-                  const existing = prevTables.find(t => t.id === st.id);
                   return {
                       id: st.id,
                       name: st.name,
-                      sectionId: st.section_id, // Map snake_case from DB to camelCase
-                      order: existing ? existing.order : null
+                      sectionId: st.section_id, 
+                      order: resolveTableOrder(st.id) // <--- Load from DB
                   };
               });
           });
       } 
       else if (typeof tableCount === 'number' && tableCount > 0) {
-          // Fallback: Legacy Numeric Mode
           const currentLocal = parseInt(localStorage.getItem('tableCount') || '0', 10);
-          // Only force update if count changed or we have no tables
-          if (tableCount !== currentLocal || tables.length === 0) {
+          if (tableCount !== currentLocal || tables.length === 0 || activeOrders.length > 0) {
               console.log(`📥 Syncing Table Count from DB: ${tableCount}`);
               localStorage.setItem('tableCount', tableCount.toString());
               setTables(prevTables => {
                   return Array.from({ length: tableCount }, (_, i) => {
                       const tableId = i + 1;
-                      const existing = prevTables.find(t => t.id === tableId);
-                      return existing || { id: tableId, name: `${tableId}`, order: null };
+                      return { 
+                          id: tableId, 
+                          name: `${tableId}`, 
+                          order: resolveTableOrder(tableId) // <--- Load from DB
+                      };
+                  });
+              });
+          }
+      }
+      else if (typeof tableCount === 'number' && tableCount > 0) {
+          // Fallback: Legacy Numeric Mode
+          const currentLocal = parseInt(localStorage.getItem('tableCount') || '0', 10);
+          // Update if count changed OR if we need to hydrate orders
+          if (tableCount !== currentLocal || tables.length === 0 || activeOrders.length > 0) {
+              console.log(`📥 Syncing Table Count from DB: ${tableCount}`);
+              localStorage.setItem('tableCount', tableCount.toString());
+              setTables(prevTables => {
+                  return Array.from({ length: tableCount }, (_, i) => {
+                      const tableId = i + 1;
+                      return { 
+                          id: tableId, 
+                          name: `${tableId}`, 
+                          order: resolveTableOrder(tableId) // <--- Use Server Truth
+                      };
                   });
               });
           }
@@ -693,32 +733,34 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (error) { console.error('Failed to refresh sales:', error); }
   }, []);
 
-  // --- UPDATED: Order Logic with better Socket Communication ---
+  // --- UPDATED: Order Logic (Direct to Server) ---
   const updateOrderForTable = useCallback((tableId: number, order: Order | null, emitToSocket = true) => {
     setTables(currentTables => {
-      // 1. Calculate New State
-      const updatedTables = currentTables.map(table => 
+      return currentTables.map(table => 
         table.id === tableId ? { ...table, order } : table
       );
-      
-      // 2. Emit if initiated locally
-      if (emitToSocket && socketRef.current?.connected) {
-        if (isMasterClient.current) {
-          // Admin/Master broadcasts to everyone
-          console.log(`📡 MASTER: Broadcasting update for Table ${tableId}`);
-          socketRef.current.emit('order-update', updatedTables);
-        } else {
-          // Waiter/Client sends request to server -> server tells Master -> Master broadcasts
-          console.log(`📡 CLIENT: Sending update for Table ${tableId} to Server`);
-          socketRef.current.emit('client-order-update', { tableId, order });
-        }
-      }
-      return updatedTables;
     });
+      
+    if (emitToSocket && socketRef.current?.connected) {
+        console.log(`📡 Sending update for Table ${tableId} to Server`);
+        socketRef.current.emit('client-order-update', { tableId, order });
+    }
   }, []);
 
   const saveOrderForTable = useCallback(async (tableId: number, updatedOrder: Order | null, newItems: OrderItem[]) => {
-    // 1. Update the "Active" state (for Waiter view) - keeps local sync working
+    
+    // --- IDEMPOTENCY FIX: Generate Session UUID ---
+    if (updatedOrder) {
+        const currentTable = tables.find(t => t.id === tableId);
+        const existingUuid = (currentTable?.order as any)?.sessionUuid;
+        const newUuid = (window.crypto && window.crypto.randomUUID) 
+            ? window.crypto.randomUUID() 
+            : (Date.now().toString(36) + Math.random().toString(36).substr(2));
+
+        (updatedOrder as any).sessionUuid = existingUuid || newUuid;
+    }
+
+    // 1. Update the "Active" state
     updateOrderForTable(tableId, updatedOrder, true);
 
     // 2. CREATE HISTORY TICKET (For Admin "Blue P")
@@ -969,93 +1011,59 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [fetchAndCacheData]);
 
 
-  // --- SOCKET CONNECTION (ROBUST) ---
+  // --- SOCKET CONNECTION (CLEAN - SERVER AUTHORITY) ---
   useEffect(() => {
-    // 1. Establish Connection
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL, {
         reconnection: true, 
         reconnectionAttempts: 10, 
         reconnectionDelay: 1000,
-        transports: ['websocket', 'polling'] // Force stable transport
+        transports: ['websocket', 'polling'] 
       });
     }
     const socket = socketRef.current;
 
-    // 2. Define Handlers
-    const handleOrderUpdate = (updatedTablesData: Table[]) => {
-      console.log('📥 RECEIVED ORDER UPDATE from Server', updatedTablesData.length);
-      setTables(updatedTablesData);
-    };
-    
+    // Handlers
     const handleSaleFinalized = (newSaleData: Sale) => { 
-        setSales(prev => [newSaleData, ...prev]); 
+        setSales(prev => [newSaleData, ...prev]);
+        // Also ensure table is cleared if the server doesn't send an order update event for it
+        setTables(prev => prev.map(t => t.id === newSaleData.tableId ? { ...t, order: null } : t));
     };
-    
-    // Logic for Master (Admin) to share state with new Clients
-    const handleShareYourState = () => { 
-        if (isMasterClient.current) {
-            console.log('📤 MASTER: Sharing state with new client...');
-            socket.emit('here-is-my-state', tablesRef.current);
-            // Critical: Re-assert identity in case server restarted and forgot us
-            socket.emit('identify-as-master'); 
-        }
-    };
-    
-    // Logic for Client (Waiter) to ask for state
-    const handleRequestInitialState = () => { 
-        if (isMasterClient.current) {
-             socket.emit('provide-initial-state', tablesRef.current); 
-        }
-    };
-    
-    // 3. Attach Listeners (Remove duplicates first)
-    socket.off('connect');
-    socket.off('order-updated-from-server');
-    socket.off('sale-finalized-from-server');
-    socket.off('process-client-order-update');
-    socket.off('share-your-state');
-    socket.off('request-initial-state');
-    socket.off('setting-updated'); // NEW: Remove previous listener
 
-    socket.on('connect', () => { 
-      console.log(`✅ SOCKET CONNECTED (${isMasterClient.current ? 'MASTER/ADMIN' : 'CLIENT/WAITER'})`);
-      if (isMasterClient.current) socket.emit('identify-as-master');
-      else socket.emit('request-latest-state');
-    });
-
-    // NEW: Listen for setting updates from the server
-    socket.on('setting-updated', ({ key, value }) => {
-        console.log(`🔧 Received setting update: ${key} = ${value}`);
+    const handleSettingUpdated = ({ key, value }: { key: string, value: any }) => {
         if (key === 'all_tables_custom_name') {
             setSectionPrefs(currentPrefs => ({
                 ...currentPrefs,
                 'all': { ...(currentPrefs['all'] || {}), customName: value }
             }));
         }
-    });
-
-    socket.on('order-updated-from-server', handleOrderUpdate);
-    socket.on('sale-finalized-from-server', handleSaleFinalized);
-    
-    // Critical: Listen for client updates and route them correctly
-    socket.on('process-client-order-update', ({ tableId, order }) => {
-        console.log(`🔄 Processing Client Update for Table ${tableId}`);
-        updateOrderForTable(tableId, order, false); // false = Don't re-emit to avoid loops
-    });
-
-    socket.on('share-your-state', handleShareYourState);
-    socket.on('request-initial-state', handleRequestInitialState);
-
-    // 4. Cleanup (Only disconnect on actual unmount, not re-render)
-    return () => {
-       // We INTENTIONALLY do not disconnect here in development to prevent 
-       // flickering connections during hot-reloads.
-       // However, we must remove listeners to prevent duplicates.
-       socket.off('order-updated-from-server', handleOrderUpdate);
-       socket.off('sale-finalized-from-server', handleSaleFinalized);
     };
-  }, []); // Empty dependency array = Run once on mount
+    
+    // 3. Attach Listeners
+    socket.off('connect');
+    socket.off('process-client-order-update'); // The Standard Event
+    socket.off('sale-finalized-from-server');
+    socket.off('setting-updated');
+
+    socket.on('connect', () => { 
+      console.log(`✅ SOCKET CONNECTED`);
+    });
+
+    // Listen for updates from Server (Broadcasted from other clients)
+    socket.on('process-client-order-update', ({ tableId, order }: { tableId: number, order: Order | null }) => {
+        console.log(`📥 Received Server Update for Table ${tableId}`);
+        updateOrderForTable(tableId, order, false);
+    });
+
+    socket.on('sale-finalized-from-server', handleSaleFinalized);
+    socket.on('setting-updated', handleSettingUpdated);
+
+    return () => {
+       socket.off('process-client-order-update');
+       socket.off('sale-finalized-from-server', handleSaleFinalized);
+       socket.off('setting-updated', handleSettingUpdated);
+    };
+  }, []);
 
   // --- BOOTSTRAP (INIT) LOGIC ---
   useEffect(() => {

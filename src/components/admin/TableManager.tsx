@@ -5,7 +5,8 @@ import { TrashIcon, PlusIcon, TableIcon, BoxIcon, PencilIcon, SaveIcon, CloseIco
 const TableManager: React.FC = () => {
     const { 
         sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
-        tables, addTable, updateTable, deleteTable 
+        tables, addTable, updateTable, deleteTable,
+        tablesPerRow, setTablesPerRow, tableSizePercent, setTableSizePercent, tableButtonSizePercent, setTableButtonSizePercent
     } = usePos();
 
     // UI State
@@ -19,6 +20,7 @@ const TableManager: React.FC = () => {
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [sectionToDelete, setSectionToDelete] = useState<{id: number; name: string} | null>(null);
+    const [isDeleteAllTablesModalOpen, setIsDeleteAllTablesModalOpen] = useState(false); // <--- NEW STATE
 
     // Batch Creation State
     const [batchPrefix, setBatchPrefix] = useState('T-');
@@ -112,14 +114,22 @@ const TableManager: React.FC = () => {
         }
     };
 
-    const handleDeleteAllInZone = async () => {
+    // Open the confirmation modal
+    const handleDeleteAllInZone = () => {
         if (activeSectionId === 'all') return;
-        if (!window.confirm(`Jeni të sigurt që doni të fshini TË GJITHA tavolinat në këtë zonë? (${filteredTables.length} tavolina)`)) return;
+        if (filteredTables.length === 0) return; // Nothing to delete
+        setIsDeleteAllTablesModalOpen(true);
+    };
+
+    // Actual execution logic
+    const confirmDeleteAllTables = async () => {
+        if (activeSectionId === 'all') return;
 
         // Delete one by one (Frontend Loop)
         for (const table of filteredTables) {
             await deleteTable(table.id);
         }
+        setIsDeleteAllTablesModalOpen(false);
     };
 
     const handleRenameTable = async (id: number, currentName: string, newName: string, event: React.FocusEvent<HTMLInputElement>) => {
@@ -309,6 +319,62 @@ const TableManager: React.FC = () => {
 
             {/* RIGHT COLUMN: TABLES GRID */}
             <div className="w-full md:w-3/4 bg-secondary p-6 rounded-lg flex flex-col shadow-lg border border-accent">
+
+                {/* --- VISUAL SETTINGS TOOLBAR (NEW) --- */}
+                <div className="bg-primary p-3 rounded-lg border border-accent mb-6 flex flex-wrap gap-4 items-center shadow-inner">
+                    <div className="flex items-center gap-2">
+                         <span className="text-sm font-bold text-text-secondary">Tavolina në rresht:</span>
+                         <input 
+                            type="number" 
+                            min="2" max="10"
+                            value={tablesPerRow}
+                            onChange={(e) => setTablesPerRow(Number(e.target.value))}
+                            className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                         />
+                    </div>
+                    <div className="h-6 w-px bg-accent hidden sm:block"></div>
+                    <div className="flex items-center gap-2">
+                         <span className="text-sm font-bold text-text-secondary">Madhësia (Buton):</span>
+                         <input 
+                            type="number" 
+                            min="50" max="150"
+                            value={tableButtonSizePercent}
+                            onChange={(e) => setTableButtonSizePercent(Number(e.target.value))}
+                            className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                         />
+                         <span className="text-xs text-text-secondary">%</span>
+                    </div>
+                    <div className="h-6 w-px bg-accent hidden sm:block"></div>
+                    <div className="flex items-center gap-2">
+                         <span className="text-sm font-bold text-text-secondary">Madhësia (Text):</span>
+                         <input 
+                            type="number" 
+                            min="50" max="200"
+                            value={tableSizePercent}
+                            onChange={(e) => setTableSizePercent(Number(e.target.value))}
+                            className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                         />
+                         <span className="text-xs text-text-secondary">%</span>
+                    </div>
+
+                    <div className="flex-grow"></div>
+                    
+                    {/* Reset Button */}
+                    <button 
+                        onClick={() => {
+                            setTablesPerRow(5);
+                            setTableButtonSizePercent(100);
+                            setTableSizePercent(100);
+                        }}
+                        className="flex items-center gap-1 text-xs font-bold text-text-secondary hover:text-highlight transition-colors bg-secondary px-3 py-1.5 rounded border border-accent"
+                        title="Reseto në vlerat fillestare"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                        </svg>
+                        Reseto
+                    </button>
+                </div>
                 
                 {/* Header / Tools */}
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4 border-b border-accent pb-4">
@@ -340,7 +406,7 @@ const TableManager: React.FC = () => {
                                 type="number" 
                                 value={startNum}
                                 onChange={(e) => setStartNum(e.target.value)}
-                                className="w-20 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold"
+                                className="w-20 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Nga"
                             />
                             <span className="text-text-secondary">-</span>
@@ -349,7 +415,7 @@ const TableManager: React.FC = () => {
                                 type="number" 
                                 value={endNum}
                                 onChange={(e) => setEndNum(e.target.value)}
-                                className="w-20 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold"
+                                className="w-20 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Deri"
                             />
 
@@ -376,30 +442,38 @@ const TableManager: React.FC = () => {
 
                 {/* THE GRID */}
                 <div className="flex-grow overflow-y-auto pr-2">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {/* Dynamic Grid Column Style */}
+                    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}>
                         
                         {filteredTables.map(table => (
-                            <div key={table.id} className="aspect-square bg-primary rounded-lg shadow-sm p-2 flex flex-col relative group border border-transparent hover:border-highlight transition-all">
-                                
-                                {/* Delete Button (Top Right) */}
-                                <button 
-                                    onClick={() => deleteTable(table.id)}
-                                    className="absolute top-1 right-1 p-2 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                            <div className="aspect-square flex justify-center items-center" key={table.id}>
+                                <div 
+                                    className="bg-primary rounded-lg shadow-sm flex flex-col relative group border border-transparent hover:border-highlight transition-all"
+                                    style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}
                                 >
-                                    <TrashIcon className="w-4 h-4"/>
-                                </button>
+                                    
+                                    {/* Delete Button (Top Right - scaled slightly to not obscure small buttons) */}
+                                    <button 
+                                        onClick={() => deleteTable(table.id)}
+                                        className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-accent"
+                                        title="Fshij Tavolinën"
+                                    >
+                                        <TrashIcon className="w-3 h-3"/>
+                                    </button>
 
-                                {/* Table Name Input */}
-                                <div className="flex-grow flex items-center justify-center">
-                                    <input 
-                                        type="text" 
-                                        defaultValue={table.name}
-                                        onBlur={(e) => handleRenameTable(table.id, table.name, e.target.value, e)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') e.currentTarget.blur();
-                                        }}
-                                        className="bg-transparent text-center text-xl font-bold text-text-main w-full focus:bg-secondary focus:outline-none rounded py-2"
-                                    />
+                                    {/* Table Name Input */}
+                                    <div className="flex-grow flex items-center justify-center overflow-hidden">
+                                        <input 
+                                            type="text" 
+                                            defaultValue={table.name}
+                                            onBlur={(e) => handleRenameTable(table.id, table.name, e.target.value, e)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') e.currentTarget.blur();
+                                            }}
+                                            style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}
+                                            className="bg-transparent text-center font-bold text-text-main w-full focus:bg-secondary focus:outline-none rounded py-1 px-1"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -437,6 +511,34 @@ const TableManager: React.FC = () => {
                                 className="px-6 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
                             >
                                 Fshij Zonën
+                            </button>
+                            </div>
+                    </div>
+                </div>
+            )}
+
+            {/* DELETE ALL TABLES CONFIRMATION MODAL */}
+            {isDeleteAllTablesModalOpen && activeSectionId !== 'all' && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+                    <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-accent">
+                        <h3 className="text-xl font-bold text-text-main mb-4">Konfirmo Fshirjen Masive</h3>
+                        <p className="text-text-secondary mb-6">
+                            Jeni të sigurt që doni të fshini <strong className="text-highlight">{filteredTables.length} tavolina</strong> në zonën <strong className="text-white">{sections.find(s => s.id === activeSectionId)?.name}</strong>?
+                            <br />
+                            <span className="text-red-400 mt-2 block">Ky veprim nuk mund të kthehet pas.</span>
+                        </p>
+                        <div className="flex justify-end gap-4">
+                            <button 
+                                onClick={() => setIsDeleteAllTablesModalOpen(false)}
+                                className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-accent transition-colors"
+                            >
+                                Anulo
+                            </button>
+                            <button 
+                                onClick={confirmDeleteAllTables}
+                                className="px-6 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+                            >
+                                Fshij Të Gjitha
                             </button>
                         </div>
                     </div>

@@ -53,51 +53,53 @@ const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
 // --- SOCKET LOGIC ---
-let masterClientId = null; // We still track it for Initial State requests
-
 io.on('connection', (socket) => {
   console.log(`✅ Client connected: ${socket.id}`);
-  
-  // 1. Identification
-  socket.on('identify-as-master', () => {
-    console.log(`👑 Client ${socket.id} identified as MASTER (PC)`);
-    masterClientId = socket.id;
-  });
+  // Note: We no longer use "Master Client". The Database is the Master.
 
-  // 2. Client asking for state (Waiter connects)
-  socket.on('request-latest-state', () => {
-    if (masterClientId) {
-      socket.to(masterClientId).emit('share-your-state');
-    } else {
-        console.log("⚠️ No Master found in memory. Broadcasting 'share-your-state' to ALL clients to find Master...");
-        // Fallback: Ask everyone. The real Master will respond because of its isMasterClient check.
-        io.emit('share-your-state');
-    }
-  });
-
-  // 3. Master providing state
-  socket.on('here-is-my-state', (tablesData) => {
-    // If server restarted and lost masterClientId, recover it here:
-    if (!masterClientId) {
-        console.log(`👑 Master recovered/identified via state sharing: ${socket.id}`);
-        masterClientId = socket.id;
-    }
-    io.emit('order-updated-from-server', tablesData);
-  });
-
-  // 4. ORDER UPDATES (Active Table State)
-  socket.on('client-order-update', ({ tableId, order }) => {
+  // 4. ORDER UPDATES (Active Table State - PERSISTED & BROADCAST)
+  socket.on('client-order-update', async ({ tableId, order }) => {
     console.log(`🔄 Update received for Table ${tableId}`);
-    socket.broadcast.emit('process-client-order-update', { tableId, order });
+    
+    try {
+        const hasItems = order && order.items && order.items.length > 0;
+        
+        if (hasItems) {
+            const sessionUuid = order.sessionUuid || `temp-${tableId}-${Date.now()}`;
+            const itemsJson = JSON.stringify(order.items);
+            
+            await query(`
+                INSERT INTO active_orders (table_id, session_uuid, items, status, updated_at)
+                VALUES ($1, $2, $3, 'open', NOW())
+                ON CONFLICT (table_id) 
+                DO UPDATE SET 
+                    items = EXCLUDED.items, 
+                    session_uuid = CASE WHEN EXCLUDED.session_uuid LIKE 'temp-%' THEN active_orders.session_uuid ELSE EXCLUDED.session_uuid END,
+                    updated_at = NOW();
+            `, [tableId, sessionUuid, itemsJson]);
+        } else {
+            await query('DELETE FROM active_orders WHERE table_id = $1', [tableId]);
+        }
+    } catch (err) {
+        console.error("❌ Failed to persist order update:", err.message);
+    }
+
+    // B. BROADCAST: We send the specific update to EVERYONE (except sender, usually)
+    // The frontend will merge this into its local state
+    socket.broadcast.emit('table-update-v2', { tableId, order });
   });
 
-  socket.on('order-update', (updatedTablesData) => {
-    socket.broadcast.emit('order-updated-from-server', updatedTablesData);
-  });
+  // Legacy listener removal (Stop using full-list updates)
+  // socket.on('order-update') is REMOVED to prevent Master Client overwrites
 
   // 5. SALES & PRINTING
   socket.on('sale-finalized', (newSaleData) => {
+    // 1. Notify about the sale (for Reports/Lists)
     socket.broadcast.emit('sale-finalized-from-server', newSaleData);
+    
+    // 2. FORCE CLEAR TABLE (Vital for Sync)
+    // Even though the client *should* have sent a clear update, we enforce it here.
+    socket.broadcast.emit('table-update-v2', { tableId: newSaleData.tableId, order: null });
   });
 
   socket.on('print-order-ticket', async (orderData) => {
@@ -123,12 +125,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    if (socket.id === masterClientId) {
-      console.log(`👑 Master disconnected: ${socket.id}`);
-      masterClientId = null;
-    } else {
-       console.log(`🔌 Client disconnected: ${socket.id}`);
-    }
+    console.log(`🔌 Client disconnected: ${socket.id}`);
   });
 });
 
@@ -145,13 +142,14 @@ app.post('/api/login', asyncHandler(async (req, res) => {
 
 // 2. BOOTSTRAP
 app.get('/api/bootstrap', asyncHandler(async (req, res) => {
-  const [users, menuItems, menuCategories, settings, sections, tables] = await Promise.all([
+  const [users, menuItems, menuCategories, settings, sections, tables, activeOrders] = await Promise.all([
     query('SELECT * FROM users WHERE active = TRUE ORDER BY username ASC'),
     query('SELECT *, category_name as category, stock_threshold as "stockThreshold", track_stock as "trackStock", stock_group_id as "stockGroupId" FROM menu_items ORDER BY display_order ASC, name ASC'),
     query('SELECT * FROM menu_categories ORDER BY display_order ASC, name ASC'),
     query("SELECT key, value FROM settings"),
     query('SELECT * FROM sections WHERE active = TRUE ORDER BY display_order ASC'),
-    query('SELECT * FROM tables WHERE active = TRUE ORDER BY id ASC')
+    query('SELECT * FROM tables WHERE active = TRUE ORDER BY id ASC'),
+    query('SELECT * FROM active_orders') // <--- Load persisted orders
   ]);
 
   const findSetting = (key, defaultValue) => {
@@ -183,7 +181,8 @@ app.get('/api/bootstrap', asyncHandler(async (req, res) => {
     tableCount: tableCount,
     operationalDayStartHour: operationalDayStartHour,
     companyInfo,
-    allTablesCustomName // Add to bootstrap payload
+    allTablesCustomName, // Add to bootstrap payload
+    activeOrders: activeOrders.rows // <--- Send to client
   });
 }));
 
@@ -304,12 +303,31 @@ app.post('/api/sales', asyncHandler(async (req, res) => {
   const sale_uuid = `sale-${Date.now()}`;
   const date = new Date();
 
-  // 1. Create the Sale Record
+  // --- IDEMPOTENCY CHECK (The Bug Fix) ---
+  // If the frontend sends a sessionUuid, we check if it's already paid.
+  const sessionUuid = order.sessionUuid || null;
+
+  if (sessionUuid) {
+      const duplicateCheck = await query('SELECT id FROM sales WHERE session_uuid = $1', [sessionUuid]);
+      if (duplicateCheck.rows.length > 0) {
+          console.warn(`⚠️ Blocked duplicate payment for session: ${sessionUuid}`);
+          // Return 200 OK but with a flag so frontend knows it was already done (or 409 if strict)
+          // We will throw an error to stop the process safely.
+          return res.status(409).json({ message: 'Kjo porosi është paguar tashmë!' });
+      }
+  }
+
+  // 1. Create the Sale Record (Now including session_uuid)
   const saleResult = await query(
-      'INSERT INTO sales (sale_uuid, date, user_id, table_id, table_name, subtotal, tax, total) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-      [sale_uuid, date, user.id, tableId, tableName, order.subtotal, order.tax, order.total]
+      'INSERT INTO sales (sale_uuid, date, user_id, table_id, table_name, subtotal, tax, total, session_uuid) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
+      [sale_uuid, date, user.id, tableId, tableName, order.subtotal, order.tax, order.total, sessionUuid]
   );
   const saleId = saleResult.rows[0].id;
+
+  // 2. Clear from Active Orders (It is now closed)
+  if (tableId) {
+      await query('DELETE FROM active_orders WHERE table_id = $1', [tableId]);
+  }
 
   // 2. Process Items and Update Stock
   for (const item of order.items) {
