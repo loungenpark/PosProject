@@ -3,7 +3,9 @@ import { usePos } from '../../context/PosContext';
 import { TrashIcon, PlusIcon, TableIcon, BoxIcon, PencilIcon, SaveIcon, CloseIcon } from '../common/Icons';
 
 const TableManager: React.FC = () => {
-    const { 
+    // I am correcting openTables to activeOrders, which is the correct variable from the context.
+    // We only need 'tables' for the check. Removing the incorrect 'activeOrders'.
+    const {
         sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
         tables, addTable, updateTable, deleteTable,
         tablesPerRow, setTablesPerRow, tableSizePercent, setTableSizePercent, tableButtonSizePercent, setTableButtonSizePercent
@@ -12,15 +14,18 @@ const TableManager: React.FC = () => {
     // UI State
     const [activeSectionId, setActiveSectionId] = useState<number | 'all'>('all');
     const [newSectionName, setNewSectionName] = useState('');
-    
+
     // Editing Section State
     const [editingSectionId, setEditingSectionId] = useState<number | 'all' | null>(null);
     const [editingSectionName, setEditingSectionName] = useState('');
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [sectionToDelete, setSectionToDelete] = useState<{id: number; name: string} | null>(null);
-    const [isDeleteAllTablesModalOpen, setIsDeleteAllTablesModalOpen] = useState(false); // <--- NEW STATE
+    const [sectionToDelete, setSectionToDelete] = useState<{ id: number; name: string } | null>(null);
+    const [isDeleteAllTablesModalOpen, setIsDeleteAllTablesModalOpen] = useState(false);
+
+    // Generic Info/Error Modal State
+    const [infoModal, setInfoModal] = useState({ isOpen: false, message: '' });
 
     // Batch Creation State
     const [batchPrefix, setBatchPrefix] = useState('T-');
@@ -29,8 +34,20 @@ const TableManager: React.FC = () => {
 
     // --- Computed Data ---
     const filteredTables = useMemo(() => {
-        if (activeSectionId === 'all') return tables;
-        return tables.filter(t => t.sectionId === activeSectionId);
+        // This function provides natural sorting for strings containing numbers (e.g., "T-2" before "T-10")
+        const naturalSort = (a: { name: string }, b: { name: string }) => {
+            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        };
+
+        const getFiltered = () => {
+            if (activeSectionId === 'all') {
+                return [...tables]; // Create a copy to sort
+            }
+            return tables.filter(t => t.sectionId === activeSectionId);
+        };
+
+        return getFiltered().sort(naturalSort);
+
     }, [tables, activeSectionId]);
 
     // --- Zone Actions ---
@@ -48,9 +65,9 @@ const TableManager: React.FC = () => {
 
     const handleSaveSection = async () => {
         if (editingSectionId !== null && editingSectionName.trim()) {
-             // Now supports saving 'all' locally via context
-             await updateSectionName(editingSectionId, editingSectionName.trim());
-             setEditingSectionId(null);
+            // Now supports saving 'all' locally via context
+            await updateSectionName(editingSectionId, editingSectionName.trim());
+            setEditingSectionId(null);
         }
     };
 
@@ -61,7 +78,7 @@ const TableManager: React.FC = () => {
 
     const toggleDefault = (e: React.MouseEvent, id: number | 'all', isCurrentDefault: boolean) => {
         e.stopPropagation();
-        if (isCurrentDefault) return; 
+        if (isCurrentDefault) return;
         setSectionDefault(id);
     };
 
@@ -73,8 +90,26 @@ const TableManager: React.FC = () => {
     const handleConfirmDelete = async () => {
         if (!sectionToDelete) return;
 
+        // --- VALIDATION ADDED ---
+        // Find all tables within the section being deleted
+        const tablesInSection = tables.filter(t => t.sectionId === sectionToDelete.id);
+        const activeTables = tablesInSection.filter(t => t.order); // Find tables with active orders
+
+        if (activeTables.length > 0) {
+            const tableNames = activeTables.map(t => t.name).join(', ');
+            setInfoModal({
+                isOpen: true,
+                message: `Nuk mund të fshihet zona. Tavolinat e mëposhtme kanë porosi aktive: \n\n${tableNames}`
+            });
+            // Close the confirmation modal
+            setIsDeleteModalOpen(false);
+            setSectionToDelete(null);
+            return; // Stop the deletion
+        }
+        // --- END VALIDATION ---
+
         await deleteSection(sectionToDelete.id);
-        
+
         if (activeSectionId === sectionToDelete.id) {
             setActiveSectionId('all');
         }
@@ -125,6 +160,21 @@ const TableManager: React.FC = () => {
     const confirmDeleteAllTables = async () => {
         if (activeSectionId === 'all') return;
 
+        // --- VALIDATION ADDED ---
+        const activeTables = filteredTables.filter(t => t.order);
+
+        if (activeTables.length > 0) {
+            const tableNames = activeTables.map(t => t.name).join(', ');
+            setInfoModal({
+                isOpen: true,
+                message: `Veprimi u ndalua. Tavolinat e mëposhtme kanë porosi aktive: \n\n${tableNames}`
+            });
+            // Close the confirmation modal
+            setIsDeleteAllTablesModalOpen(false);
+            return; // Stop the deletion
+        }
+        // --- END VALIDATION ---
+
         // Delete one by one (Frontend Loop)
         for (const table of filteredTables) {
             await deleteTable(table.id);
@@ -154,21 +204,39 @@ const TableManager: React.FC = () => {
         }
     };
 
+    const handleDeleteTable = (tableId: number) => {
+        // Find the specific table in the main 'tables' array from the context.
+        const tableToCheck = tables.find(table => table.id === tableId);
+
+        // A table is considered active if it exists and its 'order' property is not null.
+        if (tableToCheck && tableToCheck.order) {
+            // If it's active, show our new custom modal instead of the browser alert.
+            setInfoModal({
+                isOpen: true,
+                message: 'Kjo tavolinë ka një porosi aktive. Ju lutem mbyllni faturën para se ta fshini.'
+            });
+            return;
+        }
+
+        // If the table is not found or has no order, proceed with deletion.
+        deleteTable(tableId);
+    };
+
     return (
         <div className="flex flex-col md:flex-row h-[calc(100vh-140px)] gap-4 w-full max-w-7xl mx-auto">
-            
+
             {/* LEFT COLUMN: ZONES */}
             <div className="w-full md:w-1/4 bg-secondary p-4 rounded-lg flex flex-col shadow-lg border border-accent">
                 <h3 className="text-lg font-bold text-text-main mb-4 flex items-center gap-2">
-                    <BoxIcon className="w-5 h-5 text-highlight"/>
+                    <BoxIcon className="w-5 h-5 text-highlight" />
                     Zonat
                 </h3>
 
                 {/* Add Zone (Top) */}
                 <div className="flex gap-2 mb-4">
-                    <input 
-                        type="text" 
-                        placeholder="Emri i Zonës..." 
+                    <input
+                        type="text"
+                        placeholder="Emri i Zonës..."
                         value={newSectionName}
                         onChange={(e) => setNewSectionName(e.target.value)}
                         className="flex-grow bg-primary border-accent rounded-md p-2 text-text-main text-sm focus:ring-1 focus:ring-highlight"
@@ -185,28 +253,28 @@ const TableManager: React.FC = () => {
                     <div className={`group flex items-center gap-2 px-2 py-2 rounded-md transition-colors ${activeSectionId === 'all' ? 'bg-secondary border border-highlight' : 'hover:bg-primary'}`}>
                         {editingSectionId === 'all' ? (
                             <div className="flex-grow flex items-center gap-1">
-                                <input 
+                                <input
                                     autoFocus
-                                    type="text" 
+                                    type="text"
                                     value={editingSectionName}
                                     onChange={(e) => setEditingSectionName(e.target.value)}
                                     className="w-full bg-primary text-text-main text-sm p-1 rounded border border-highlight"
                                 />
-                                <button onClick={handleSaveSection} className="text-green-500 hover:text-green-400"><SaveIcon className="w-5 h-5"/></button>
-                                <button onClick={() => setEditingSectionId(null)} className="text-red-400 hover:text-red-300"><CloseIcon className="w-5 h-5"/></button>
+                                <button onClick={handleSaveSection} className="text-green-500 hover:text-green-400"><SaveIcon className="w-5 h-5" /></button>
+                                <button onClick={() => setEditingSectionId(null)} className="text-red-400 hover:text-red-300"><CloseIcon className="w-5 h-5" /></button>
                             </div>
                         ) : (
                             <>
-                                <button 
+                                <button
                                     onClick={() => setActiveSectionId('all')}
                                     className={`flex-grow text-left font-bold px-2 py-1 truncate ${activeSectionId === 'all' ? 'text-highlight' : 'text-text-main'}`}
                                 >
                                     {allSectionConfig.customName || 'Të gjitha tavolinat'}
                                 </button>
-                                
+
                                 {/* Default Button (Working for All) */}
-                                <button 
-                                    onClick={(e) => toggleDefault(e, 'all', allSectionConfig.isDefault)} 
+                                <button
+                                    onClick={(e) => toggleDefault(e, 'all', allSectionConfig.isDefault)}
                                     className={`p-1 transition-opacity ${allSectionConfig.isDefault ? 'text-yellow-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-yellow-400'}`}
                                     title={allSectionConfig.isDefault ? "Zona Kryesore" : "Vendos si Kryesore"}
                                 >
@@ -216,64 +284,64 @@ const TableManager: React.FC = () => {
                                 </button>
 
                                 {/* Hide Button (Working for All) */}
-                                <button 
-                                    onClick={(e) => toggleHide(e, 'all')} 
+                                <button
+                                    onClick={(e) => toggleHide(e, 'all')}
                                     className={`p-1 transition-opacity ${allSectionConfig.isHidden ? 'text-red-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-text-main'}`}
                                     title={allSectionConfig.isHidden ? "Shfaq Zonën" : "Fsheh Zonën"}
                                 >
                                     {allSectionConfig.isHidden ? (
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
                                         </svg>
                                     ) : (
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
                                     )}
                                 </button>
 
                                 {/* Edit Button */}
                                 <button onClick={() => handleStartEditSection('all', allSectionConfig.customName || 'Të gjitha tavolinat')} className="p-1 text-gray-500 hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <PencilIcon className="w-4 h-4"/>
+                                    <PencilIcon className="w-4 h-4" />
                                 </button>
-                                
+
                                 {/* Invisible Placeholder for alignment */}
                                 <span className="p-1 w-6 h-6 flex-shrink-0"></span>
                             </>
                         )}
                     </div>
-                    
+
                     <div className="h-px bg-accent my-2"></div>
 
                     {/* Dynamic Sections */}
                     {sections.map(section => (
                         <div key={section.id} className={`group flex items-center gap-2 px-2 py-2 rounded-md transition-colors ${activeSectionId === section.id ? 'bg-secondary border border-highlight' : 'hover:bg-primary'}`}>
-                            
+
                             {/* Render Mode: Edit vs View */}
                             {editingSectionId === section.id ? (
                                 <div className="flex-grow flex items-center gap-1">
-                                    <input 
+                                    <input
                                         autoFocus
-                                        type="text" 
+                                        type="text"
                                         value={editingSectionName}
                                         onChange={(e) => setEditingSectionName(e.target.value)}
                                         className="w-full bg-primary text-text-main text-sm p-1 rounded border border-highlight"
                                     />
-                                    <button onClick={handleSaveSection} className="text-green-500 hover:text-green-400"><SaveIcon className="w-5 h-5"/></button>
-                                    <button onClick={() => setEditingSectionId(null)} className="text-red-400 hover:text-red-300"><CloseIcon className="w-5 h-5"/></button>
+                                    <button onClick={handleSaveSection} className="text-green-500 hover:text-green-400"><SaveIcon className="w-5 h-5" /></button>
+                                    <button onClick={() => setEditingSectionId(null)} className="text-red-400 hover:text-red-300"><CloseIcon className="w-5 h-5" /></button>
                                 </div>
                             ) : (
                                 <>
-                                    <button 
+                                    <button
                                         onClick={() => setActiveSectionId(section.id)}
                                         className={`flex-grow text-left font-medium truncate ${activeSectionId === section.id ? 'text-highlight' : 'text-text-main'}`}
                                     >
                                         {section.name}
                                     </button>
-                                    
+
                                     {/* Default Button (Star) */}
-                                    <button 
+                                    <button
                                         onClick={(e) => toggleDefault(e, section.id, section.isDefault)}
                                         className={`p-1 transition-opacity ${section.isDefault ? 'text-yellow-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-yellow-400'}`}
                                         title={section.isDefault ? "Zona Kryesore" : "Vendos si Kryesore"}
@@ -284,31 +352,31 @@ const TableManager: React.FC = () => {
                                     </button>
 
                                     {/* Hide Button (Eye) */}
-                                    <button 
+                                    <button
                                         onClick={(e) => toggleHide(e, section.id)}
                                         className={`p-1 transition-opacity ${section.isHidden ? 'text-red-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-text-main'}`}
                                         title={section.isHidden ? "Shfaq Zonën" : "Fsheh Zonën"}
                                     >
                                         {section.isHidden ? (
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
                                             </svg>
                                         ) : (
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                             </svg>
                                         )}
                                     </button>
 
                                     {/* Edit Button */}
                                     <button onClick={() => handleStartEditSection(section.id, section.name)} className="p-1 text-gray-500 hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <PencilIcon className="w-4 h-4"/>
+                                        <PencilIcon className="w-4 h-4" />
                                     </button>
 
                                     {/* Delete Button */}
                                     <button onClick={() => handleDeleteSection(section.id, section.name)} className="p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <TrashIcon className="w-4 h-4"/>
+                                        <TrashIcon className="w-4 h-4" />
                                     </button>
                                 </>
                             )}
@@ -323,44 +391,44 @@ const TableManager: React.FC = () => {
                 {/* --- VISUAL SETTINGS TOOLBAR (NEW) --- */}
                 <div className="bg-primary p-3 rounded-lg border border-accent mb-6 flex flex-wrap gap-4 items-center shadow-inner">
                     <div className="flex items-center gap-2">
-                         <span className="text-sm font-bold text-text-secondary">Tavolina në rresht:</span>
-                         <input 
-                            type="number" 
+                        <span className="text-sm font-bold text-text-secondary">Tavolina në rresht:</span>
+                        <input
+                            type="number"
                             min="2" max="10"
                             value={tablesPerRow}
                             onChange={(e) => setTablesPerRow(Number(e.target.value))}
                             className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                         />
+                        />
                     </div>
                     <div className="h-6 w-px bg-accent hidden sm:block"></div>
                     <div className="flex items-center gap-2">
-                         <span className="text-sm font-bold text-text-secondary">Madhësia (Buton):</span>
-                         <input 
-                            type="number" 
+                        <span className="text-sm font-bold text-text-secondary">Madhësia (Buton):</span>
+                        <input
+                            type="number"
                             min="50" max="150"
                             value={tableButtonSizePercent}
                             onChange={(e) => setTableButtonSizePercent(Number(e.target.value))}
                             className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                         />
-                         <span className="text-xs text-text-secondary">%</span>
+                        />
+                        <span className="text-xs text-text-secondary">%</span>
                     </div>
                     <div className="h-6 w-px bg-accent hidden sm:block"></div>
                     <div className="flex items-center gap-2">
-                         <span className="text-sm font-bold text-text-secondary">Madhësia (Text):</span>
-                         <input 
-                            type="number" 
+                        <span className="text-sm font-bold text-text-secondary">Madhësia (Text):</span>
+                        <input
+                            type="number"
                             min="50" max="200"
                             value={tableSizePercent}
                             onChange={(e) => setTableSizePercent(Number(e.target.value))}
                             className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                         />
-                         <span className="text-xs text-text-secondary">%</span>
+                        />
+                        <span className="text-xs text-text-secondary">%</span>
                     </div>
 
                     <div className="flex-grow"></div>
-                    
+
                     {/* Reset Button */}
-                    <button 
+                    <button
                         onClick={() => {
                             setTablesPerRow(5);
                             setTableButtonSizePercent(100);
@@ -370,19 +438,19 @@ const TableManager: React.FC = () => {
                         title="Reseto në vlerat fillestare"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                         </svg>
                         Reseto
                     </button>
                 </div>
-                
+
                 {/* Header / Tools */}
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4 border-b border-accent pb-4">
                     <div>
                         <h3 className="text-xl font-bold text-text-main flex items-center gap-2">
-                            <TableIcon className="w-6 h-6 text-highlight"/>
-                            {activeSectionId === 'all' 
-                                ? (allSectionConfig.customName || 'Të gjitha tavolinat') 
+                            <TableIcon className="w-6 h-6 text-highlight" />
+                            {activeSectionId === 'all'
+                                ? (allSectionConfig.customName || 'Të gjitha tavolinat')
                                 : sections.find(s => s.id === activeSectionId)?.name || 'Zona'}
                         </h3>
                     </div>
@@ -391,10 +459,10 @@ const TableManager: React.FC = () => {
                     {activeSectionId !== 'all' && (
                         <div className="flex flex-wrap items-center gap-2 bg-primary p-2 rounded-lg border border-accent">
                             <span className="text-sm text-text-secondary font-bold px-2">Shto:</span>
-                            
+
                             {/* Prefix */}
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 value={batchPrefix}
                                 onChange={(e) => setBatchPrefix(e.target.value)}
                                 className="w-16 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold"
@@ -402,8 +470,8 @@ const TableManager: React.FC = () => {
                             />
 
                             {/* From */}
-                            <input 
-                                type="number" 
+                            <input
+                                type="number"
                                 value={startNum}
                                 onChange={(e) => setStartNum(e.target.value)}
                                 className="w-20 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -411,8 +479,8 @@ const TableManager: React.FC = () => {
                             />
                             <span className="text-text-secondary">-</span>
                             {/* To */}
-                            <input 
-                                type="number" 
+                            <input
+                                type="number"
                                 value={endNum}
                                 onChange={(e) => setEndNum(e.target.value)}
                                 className="w-20 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -420,7 +488,7 @@ const TableManager: React.FC = () => {
                             />
 
                             {/* Add Button */}
-                            <button 
+                            <button
                                 onClick={handleBatchAdd}
                                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-bold transition-colors ml-2"
                             >
@@ -430,7 +498,7 @@ const TableManager: React.FC = () => {
                             <div className="w-px h-6 bg-accent mx-2"></div>
 
                             {/* Delete All Button */}
-                            <button 
+                            <button
                                 onClick={handleDeleteAllInZone}
                                 className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/50 px-4 py-2 rounded text-sm font-bold transition-colors"
                             >
@@ -444,27 +512,27 @@ const TableManager: React.FC = () => {
                 <div className="flex-grow overflow-y-auto pr-2">
                     {/* Dynamic Grid Column Style */}
                     <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}>
-                        
+
                         {filteredTables.map(table => (
                             <div className="aspect-square flex justify-center items-center" key={table.id}>
-                                <div 
+                                <div
                                     className="bg-primary rounded-lg shadow-sm flex flex-col relative group border border-transparent hover:border-highlight transition-all"
                                     style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}
                                 >
-                                    
+
                                     {/* Delete Button (Top Right - scaled slightly to not obscure small buttons) */}
-                                    <button 
-                                        onClick={() => deleteTable(table.id)}
+                                    <button
+                                        onClick={() => handleDeleteTable(table.id)}
                                         className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-accent"
                                         title="Fshij Tavolinën"
                                     >
-                                        <TrashIcon className="w-3 h-3"/>
+                                        <TrashIcon className="w-3 h-3" />
                                     </button>
 
                                     {/* Table Name Input */}
                                     <div className="flex-grow flex items-center justify-center overflow-hidden">
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             defaultValue={table.name}
                                             onBlur={(e) => handleRenameTable(table.id, table.name, e.target.value, e)}
                                             onKeyDown={(e) => {
@@ -481,7 +549,7 @@ const TableManager: React.FC = () => {
 
                     {filteredTables.length === 0 && (
                         <div className="text-center py-20 text-text-secondary opacity-60">
-                            <TableIcon className="w-16 h-16 mx-auto mb-4"/>
+                            <TableIcon className="w-16 h-16 mx-auto mb-4" />
                             <p className="text-lg">Asnjë tavolinë në {activeSectionId === 'all' ? 'total' : 'këtë zonë'}.</p>
                             {activeSectionId !== 'all' && <p className="text-sm">Përdorni panelin lart për të shtuar tavolina (psh. 101 deri 110).</p>}
                         </div>
@@ -500,19 +568,19 @@ const TableManager: React.FC = () => {
                             <span className="text-red-400 mt-2 block">Të gjitha tavolinat brenda saj do të çaktivizohen.</span>
                         </p>
                         <div className="flex justify-end gap-4">
-                            <button 
+                            <button
                                 onClick={handleCancelDelete}
                                 className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-accent transition-colors"
                             >
                                 Anulo
                             </button>
-                            <button 
+                            <button
                                 onClick={handleConfirmDelete}
                                 className="px-6 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
                             >
                                 Fshij Zonën
                             </button>
-                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -528,17 +596,37 @@ const TableManager: React.FC = () => {
                             <span className="text-red-400 mt-2 block">Ky veprim nuk mund të kthehet pas.</span>
                         </p>
                         <div className="flex justify-end gap-4">
-                            <button 
+                            <button
                                 onClick={() => setIsDeleteAllTablesModalOpen(false)}
                                 className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-accent transition-colors"
                             >
                                 Anulo
                             </button>
-                            <button 
+                            <button
                                 onClick={confirmDeleteAllTables}
                                 className="px-6 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
                             >
                                 Fshij Të Gjitha
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* GENERIC INFO/ERROR MODAL */}
+            {infoModal.isOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+                    <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-accent">
+                        <h3 className="text-xl font-bold text-red-400 mb-4">Veprimi u Ndalua</h3>
+                        <p className="text-text-secondary mb-6 whitespace-pre-line">
+                            {infoModal.message}
+                        </p>
+                        <div className="flex justify-end gap-4">
+                            <button
+                                onClick={() => setInfoModal({ isOpen: false, message: '' })}
+                                className="px-8 py-2 rounded-md bg-highlight text-white font-semibold hover:bg-opacity-80 transition-colors"
+                            >
+                                OK
                             </button>
                         </div>
                     </div>
