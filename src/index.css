@@ -13,14 +13,14 @@
 */
 .receipt-container,
 .order-ticket-container {
-width: 58mm;
-padding: 5px;
-font-family: 'Courier New', Courier, monospace;
-font-size: 10pt;
-font-weight: bold;
-color: black;
-background: white;
-text-shadow: 0 0 0.5px black;
+  width: 58mm;
+  padding: 5px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10pt;
+  font-weight: bold;
+  color: black;
+  background: white;
+  text-shadow: 0 0 0.5px black;
 }
 
 /*
@@ -35,15 +35,31 @@ the print preview is correct but the physical print is wrong.
 @media print {
   @page {
     /* Set the physical size of the paper */
-    size: 58mm auto; /* Width is 58mm, height grows as needed */
-    
+    size: 58mm auto;
+    /* Width is 58mm, height grows as needed */
+
     /* Remove default browser margins from the printed page */
     margin: 0;
   }
 
   /* This rule is a safeguard that ensures the main app is hidden */
   /* when the print dialog is open on the main window. */
-  body > #root {
+  body>#root {
     display: none;
   }
+}
+
+/* ==========================================================================
+   GLOBAL UI OVERRIDES
+   ========================================================================== */
+
+/* Remove spinners (up/down arrows) from number inputs */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
 }

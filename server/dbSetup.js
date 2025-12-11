@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 export async function initDatabase() {
   try {
     const schemaPath = path.join(__dirname, 'database', 'schema.sql');
-    
+
     // 1. Read the Master Schema File
     if (!fs.existsSync(schemaPath)) {
       throw new Error('schema.sql file not found in server directory');
@@ -17,7 +17,7 @@ export async function initDatabase() {
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
     console.log('🔄 Initializing Database Schema...');
-    
+
     // 2. Execute the entire SQL script
     await query(schemaSql);
 
@@ -29,7 +29,7 @@ export async function initDatabase() {
     `);
 
     // --- ARCHITECTURE FIX: Active Orders & Idempotency ---
-    
+
     // 1. Create Active Orders Table (Persist open tables)
     await query(`
       CREATE TABLE IF NOT EXISTS active_orders (
@@ -60,19 +60,32 @@ export async function initDatabase() {
       END
       $$;
     `);
-    
+
+    // --- MIGRATION: Stock Valuation (Weighted Average) ---
+    // 1. Store running average cost on item
+    await query(`
+      ALTER TABLE menu_items 
+      ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) DEFAULT 0;
+    `);
+
+    // 2. Store specific cost history in movements
+    await query(`
+      ALTER TABLE stock_movements 
+      ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) DEFAULT 0;
+    `);
+
     console.log('✅ Database schema applied successfully.');
 
     // 3. Seed Default Users (If fresh install)
     const userCheck = await query('SELECT count(*) FROM users');
     if (parseInt(userCheck.rows[0].count) === 0) {
-        console.log('👤 Fresh Install Detected: Seeding default users...');
-        await query(`
+      console.log('👤 Fresh Install Detected: Seeding default users...');
+      await query(`
             INSERT INTO users (username, pin, role, active) VALUES 
             ('Admin', '1234', 'ADMIN', true),
             ('Kamarier', '0000', 'CASHIER', true);
         `);
-        console.log('✅ Default users created (Admin: 1234, Kamarier: 0000)');
+      console.log('✅ Default users created (Admin: 1234, Kamarier: 0000)');
     }
 
   } catch (e) {

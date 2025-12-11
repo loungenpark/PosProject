@@ -9,86 +9,86 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Standard request function for JSON APIs
 async function requestJSON(endpoint: string, options: RequestInit = {}) {
-  // --- NEW LOG ---
-  console.log(`--- ATTEMPTING TO FETCH: ${API_URL}${endpoint} ---`);
+    // --- NEW LOG ---
+    console.log(`--- ATTEMPTING TO FETCH: ${API_URL}${endpoint} ---`);
 
-  try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers: { 'Content-Type': 'application/json', ...options.headers },
-    });
-    
-    if (response.status >= 500) {
-        throw new Error(`Server error: ${response.status}`);
-    }
+    try {
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            ...options,
+            headers: { 'Content-Type': 'application/json', ...options.headers },
+        });
 
-    const text = await response.text();
-    const data = text ? JSON.parse(text) : {};
-    
-    if (!response.ok) {
-      throw new Error(data.message || `API request failed with status ${response.status}`);
-    }
-    return data;
-} catch (error) {
-    if (error instanceof TypeError) {
-        console.error(`--- NETWORK ERROR on ${endpoint}:`, error);
-        throw new Error('Network error. Could not connect to the server.');
-    }
-    
-    // ✅ Fix: Ensure we always throw a real Error object
-    if (error instanceof Error) {
-        console.error(`--- API ERROR on ${endpoint}:`, error.message);
-        throw error;
-    }
+        if (response.status >= 500) {
+            throw new Error(`Server error: ${response.status}`);
+        }
 
-    // Capture non-Error objects (like { message: '...' }) and wrap them
-    console.error(`--- API UNKNOWN EXCEPTION on ${endpoint}:`, error);
-    const errorMsg = (error as any)?.message || String(error);
-    throw new Error(errorMsg);
-  }
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
+
+        if (!response.ok) {
+            throw new Error(data.message || `API request failed with status ${response.status}`);
+        }
+        return data;
+    } catch (error) {
+        if (error instanceof TypeError) {
+            console.error(`--- NETWORK ERROR on ${endpoint}:`, error);
+            throw new Error('Network error. Could not connect to the server.');
+        }
+
+        // ✅ Fix: Ensure we always throw a real Error object
+        if (error instanceof Error) {
+            console.error(`--- API ERROR on ${endpoint}:`, error.message);
+            throw error;
+        }
+
+        // Capture non-Error objects (like { message: '...' }) and wrap them
+        console.error(`--- API UNKNOWN EXCEPTION on ${endpoint}:`, error);
+        const errorMsg = (error as any)?.message || String(error);
+        throw new Error(errorMsg);
+    }
 }
 
 // Special request function for FormData (file uploads)
 async function requestFormData(endpoint: string, formData: FormData) {
-  console.log(`--- ATTEMPTING TO FETCH (FormData): ${API_URL}${endpoint} ---`);
+    console.log(`--- ATTEMPTING TO FETCH (FormData): ${API_URL}${endpoint} ---`);
 
-  try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (response.status >= 500) {
-        throw new Error(`Server error: ${response.status}`);
-    }
+    try {
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            method: 'POST',
+            body: formData,
+        });
 
-    const text = await response.text();
-    const data = text ? JSON.parse(text) : {};
-    
-    if (!response.ok) {
-      throw new Error(data.message || `API request failed with status ${response.status}`);
-    }
-    return data;
-  } catch (error) {
-    if (error instanceof TypeError) {
-        console.error(`--- NETWORK ERROR on ${endpoint}:`, error);
-        throw new Error('Network error. Could not connect to the server.');
-    }
+        if (response.status >= 500) {
+            throw new Error(`Server error: ${response.status}`);
+        }
 
-    // ✅ Fix: Ensure we always throw a real Error object
-    if (error instanceof Error) {
-        console.error(`--- API ERROR on ${endpoint}:`, error.message);
-        throw error;
-    }
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
 
-    console.error(`--- API UNKNOWN EXCEPTION on ${endpoint}:`, error);
-    const errorMsg = (error as any)?.message || String(error);
-    throw new Error(errorMsg);
-  }
+        if (!response.ok) {
+            throw new Error(data.message || `API request failed with status ${response.status}`);
+        }
+        return data;
+    } catch (error) {
+        if (error instanceof TypeError) {
+            console.error(`--- NETWORK ERROR on ${endpoint}:`, error);
+            throw new Error('Network error. Could not connect to the server.');
+        }
+
+        // ✅ Fix: Ensure we always throw a real Error object
+        if (error instanceof Error) {
+            console.error(`--- API ERROR on ${endpoint}:`, error.message);
+            throw error;
+        }
+
+        console.error(`--- API UNKNOWN EXCEPTION on ${endpoint}:`, error);
+        const errorMsg = (error as any)?.message || String(error);
+        throw new Error(errorMsg);
+    }
 }
 
 // --- Auth ---
-export const login = (pin: string): Promise<{user: User | null}> => requestJSON('/api/login', {
+export const login = (pin: string): Promise<{ user: User | null }> => requestJSON('/api/login', {
     method: 'POST',
     body: JSON.stringify({ pin }),
 });
@@ -223,14 +223,16 @@ export const updateCompanyInfo = (info: { name: string, nui: string, address: st
 });
 
 // --- Stock Management ---
-export const addBulkStock = (movements: { itemId: number, quantity: number }[], reason: string, userId: number): Promise<any> => requestJSON('/api/stock/bulk-update', {
+// Updated to support 'correction' type
+export const addBulkStock = (movements: { itemId: number, quantity: number }[], reason: string, userId: number, type: 'supply' | 'correction' = 'supply'): Promise<any> => requestJSON('/api/stock/bulk-update', {
     method: 'POST',
-    body: JSON.stringify({ movements, reason, userId }),
+    body: JSON.stringify({ movements, reason, userId, type }),
 });
 
-export const addWaste = (itemId: number, quantity: number, reason: string, userId: number): Promise<any> => requestJSON('/api/stock/waste', {
+// Updated to support 'correction' type
+export const addWaste = (itemId: number, quantity: number, reason: string, userId: number, type: 'waste' | 'correction' = 'waste'): Promise<any> => requestJSON('/api/stock/waste', {
     method: 'POST',
-    body: JSON.stringify({ itemId, quantity, reason, userId }),
+    body: JSON.stringify({ itemId, quantity, reason, userId, type }),
 });
 
 export const getStockMovements = (itemId: number): Promise<any> => requestJSON(`/api/stock/movements/${itemId}`);

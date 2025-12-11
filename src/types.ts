@@ -11,7 +11,7 @@ export enum Printer {
 export interface User {
   id: number;
   username: string;
-  pin: string; 
+  pin: string;
   role: UserRole;
   active: boolean;
 }
@@ -27,6 +27,7 @@ export interface MenuItem {
   trackStock: boolean;
   display_order: number | null; // --- MODIFIED: Added display_order
   stockGroupId?: string | null;
+  cost_price?: number; // --- ADDED: Weighted Average Cost
 }
 
 export interface MenuCategory {
@@ -96,19 +97,19 @@ export interface HistoryEntry {
 
 // --- Types for Offline Sync Queue ---
 
-export type SyncActionType = 
-    | 'ADD_USER' | 'DELETE_USER' 
-    | 'ADD_SALE' 
-    | 'ADD_MENU_ITEM' | 'UPDATE_MENU_ITEM' | 'DELETE_MENU_ITEM'
-    | 'ADD_MENU_CATEGORY' | 'UPDATE_MENU_CATEGORY' | 'DELETE_MENU_CATEGORY'
-    | 'ADD_HISTORY_ENTRY'
-    | 'SET_TAX_RATE';
+export type SyncActionType =
+  | 'ADD_USER' | 'DELETE_USER'
+  | 'ADD_SALE'
+  | 'ADD_MENU_ITEM' | 'UPDATE_MENU_ITEM' | 'DELETE_MENU_ITEM'
+  | 'ADD_MENU_CATEGORY' | 'UPDATE_MENU_CATEGORY' | 'DELETE_MENU_CATEGORY'
+  | 'ADD_HISTORY_ENTRY'
+  | 'SET_TAX_RATE';
 
 export interface SyncQueueItem {
-    id?: number;
-    type: SyncActionType;
-    payload: any;
-    timestamp: number;
+  id?: number;
+  type: SyncActionType;
+  payload: any;
+  timestamp: number;
 }
 
 export interface CompanyInfo {
@@ -122,20 +123,21 @@ export interface BootstrapData {
   users: User[];
   menuItems: MenuItem[];
   menuCategories: MenuCategory[];
-  sections: Section[]; 
-  tables: any[];       
+  sections: Section[];
+  tables: any[];
   activeOrders: ActiveOrder[]; // --- ADDED: Persistence Source of Truth
   taxRate: number;
   tableCount: number;
   companyInfo: CompanyInfo;
   history: HistoryEntry[];
   operationalDayStartHour: number;
-  allTablesCustomName: string; 
+  allTablesCustomName: string;
 }
 
 export interface StockUpdateItem {
   itemId: number;
   quantity: number;
+  totalCost?: number; // --- ADDED: For supply valuation
 }
 
 export interface StockMovement {
