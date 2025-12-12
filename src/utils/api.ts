@@ -236,3 +236,9 @@ export const addWaste = (itemId: number, quantity: number, reason: string, userI
 });
 
 export const getStockMovements = (itemId: number): Promise<any> => requestJSON(`/api/stock/movements/${itemId}`);
+
+// --- Table Transfer ---
+export const transferTable = (sourceTableId: number, destTableId: number): Promise<{ success: boolean; message: string }> => requestJSON('/api/active-orders/transfer', {
+    method: 'PUT',
+    body: JSON.stringify({ sourceTableId, destTableId })
+});

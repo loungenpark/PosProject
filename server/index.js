@@ -101,6 +101,11 @@ io.on('connection', (socket) => {
     broadcastActiveOrders();
   });
 
+  // NEW: Table Transfer Endpoint
+  // Ideally this should be a REST endpoint, but since we are here in the socket logic...
+  // Actually, the plan called for a PUT endpoint. Let's scroll down to API section.
+
+
   // 5. PRINTING (Sales-related notifications are now handled directly in the /api/sales endpoint)
 
   socket.on('print-order-ticket', async (orderData) => {
@@ -212,6 +217,37 @@ app.post('/api/order-tickets', asyncHandler(async (req, res) => {
 
   const newTicket = { id: ticket_uuid, tableId, tableName, userId, items, total, date: new Date() };
   res.status(201).json(newTicket);
+}));
+
+// --- NEW: TRANSFER ACTIVE ORDER ---
+app.put('/api/active-orders/transfer', asyncHandler(async (req, res) => {
+  const { sourceTableId, destTableId } = req.body;
+
+  if (!sourceTableId || !destTableId) {
+    return res.status(400).json({ message: 'Missing source or destination table ID.' });
+  }
+
+  // 1. Transaction-like check
+  // Ensure destination is empty
+  const destCheck = await query('SELECT * FROM active_orders WHERE table_id = $1', [destTableId]);
+  if (destCheck.rows.length > 0) {
+    return res.status(409).json({ message: 'Tavolina e destinuar nuk është e lirë.' });
+  }
+
+  // Ensure source has an order
+  const sourceCheck = await query('SELECT * FROM active_orders WHERE table_id = $1', [sourceTableId]);
+  if (sourceCheck.rows.length === 0) {
+    return res.status(404).json({ message: 'Tavolina e burimit nuk ka porosi aktive.' });
+  }
+
+  // 2. Perform Transfer
+  // Update the table_id 
+  await query('UPDATE active_orders SET table_id = $1, updated_at = NOW() WHERE table_id = $2', [destTableId, sourceTableId]);
+
+  // 3. Broadcast Update
+  broadcastActiveOrders();
+
+  res.json({ success: true, message: 'Transfer successful' });
 }));
 
 // 4. SALES

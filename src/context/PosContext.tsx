@@ -52,6 +52,7 @@ interface PosContextState {
   addTable: (name: string, sectionId: number | null) => Promise<void>;
   updateTable: (id: number, name: string, sectionId: number | null) => Promise<void>;
   deleteTable: (id: number) => Promise<void>;
+  transferTable: (sourceId: number, destId: number) => Promise<void>;
 }
 
 const PosContext = createContext<PosContextState | undefined>(undefined);
@@ -539,6 +540,16 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await fetch(`${SOCKET_URL}/api/tables/${id}`, { method: 'DELETE' });
       setTables(prev => prev.filter(t => t.id !== id));
     } catch (e) { console.error("Failed to delete table", e); }
+  }, []);
+
+  const transferTable = useCallback(async (sourceId: number, destId: number) => {
+    // Optimistic update not really needed as the socket will broadcast the change immediately
+    try {
+      await api.transferTable(sourceId, destId);
+    } catch (e) {
+      console.error("Transfer failed", e);
+      throw e; // Re-throw so UI can catch and show alert
+    }
   }, []);
 
   const login = useCallback(async (pin: string): Promise<boolean> => {
@@ -1237,7 +1248,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
     operationalDayStartHour, updateOperationalDayStartHour,
     sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
-    addTable, updateTable, deleteTable
+    addTable, updateTable, deleteTable, transferTable
   }), [
     isLoading, isOnline, isSyncing, loggedInUser, activeScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
@@ -1249,7 +1260,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
     operationalDayStartHour, updateOperationalDayStartHour,
     sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
-    addTable, updateTable, deleteTable
+    addTable, updateTable, deleteTable, transferTable
   ]);
 
   return <PosContext.Provider value={value}>{children}</PosContext.Provider>;
