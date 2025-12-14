@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePos } from '../../context/PosContext';
-import { CloseIcon, SaveIcon } from '../common/Icons';
+import { CloseIcon, ChevronLeftIcon } from '../common/Icons';
 
 interface TransferModalProps {
     isOpen: boolean;
@@ -10,91 +10,207 @@ interface TransferModalProps {
 }
 
 const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTableId, sourceTableName }) => {
-    const { tables, transferTable } = usePos();
-    const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { tables, sections, transferTable } = usePos();
 
-    if (!isOpen) return null;
+    // Steps: 1 = Select Items, 2 = Select Target Table
+    const [step, setStep] = useState<1 | 2>(1);
 
-    // Filter for EMPTY tables only
-    // Exclude the source table itself (though it has an order so it wouldn't match !t.order, but safe to be sure)
-    const availableTables = tables.filter(t => !t.order && t.id !== sourceTableId);
+    // Selection State
+    const [selectedItemUniqueIds, setSelectedItemUniqueIds] = useState<string[]>([]);
+    const [activeSectionId, setActiveSectionId] = useState<number | 'all'>('all');
 
-    const handleTransfer = async () => {
-        if (!selectedTableId) return;
+    // Get source table details to list items
+    const sourceTable = useMemo(() => tables.find(t => t.id === sourceTableId), [tables, sourceTableId]);
+    const sourceItems = useMemo(() => sourceTable?.order?.items || [], [sourceTable]);
 
-        try {
-            setIsSubmitting(true);
-            await transferTable(sourceTableId, selectedTableId);
-            onClose();
-        } catch (error: any) {
-            alert(error.message || 'Transfer failed');
-        } finally {
-            setIsSubmitting(false);
+    // Reset state when opening
+    React.useEffect(() => {
+        if (isOpen) {
+            setStep(1);
+            setSelectedItemUniqueIds([]); // Default to none selected
+        }
+    }, [isOpen]);
+
+    // Handlers
+    const toggleItemSelection = (uniqueId: string) => {
+        setSelectedItemUniqueIds(prev =>
+            prev.includes(uniqueId)
+                ? prev.filter(id => id !== uniqueId)
+                : [...prev, uniqueId]
+        );
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedItemUniqueIds.length === sourceItems.length) {
+            setSelectedItemUniqueIds([]);
+        } else {
+            // Use uniqueId if available, fallback to constructing one (though Backend expects uniqueId)
+            const allIds = sourceItems.map(item => item.uniqueId || '').filter(id => id);
+            setSelectedItemUniqueIds(allIds);
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-[70] flex justify-center items-center p-4">
-            <div className="bg-secondary rounded-lg shadow-xl w-full max-w-md flex flex-col max-h-[80vh]">
+    const handleTransfer = async (targetTableId: number) => {
+        try {
+            // If nothing selected, assume Full Transfer (User skipped selection or selected all manually)
+            // But logic below enforces selection to proceed to Step 2.
 
-                {/* Header */}
-                <div className="flex justify-between items-center p-4 border-b border-accent">
-                    <h3 className="text-xl font-bold text-text-main">Transfero: {sourceTableName}</h3>
-                    <button onClick={onClose} className="p-2 text-text-secondary hover:text-text-main hover:bg-accent rounded-full transition-colors">
+            // If user selected ALL items, we can send undefined to trigger "Full Transfer" optimization,
+            // or just send all IDs. Let's send IDs to be precise.
+
+            const idsToSend = selectedItemUniqueIds.length === sourceItems.length
+                ? undefined // Full transfer optimization
+                : selectedItemUniqueIds;
+
+            await transferTable(sourceTableId, targetTableId, idsToSend);
+            onClose();
+        } catch (error: any) {
+            alert(error.message || "Gabim gjatë transferimit");
+        }
+    };
+
+    // Derived Data for Step 2
+    const filteredTargetTables = useMemo(() => {
+        let targets = tables.filter(t => t.id !== sourceTableId); // Cannot transfer to self
+        if (activeSectionId !== 'all') {
+            targets = targets.filter(t => t.sectionId === activeSectionId);
+        }
+        return targets;
+    }, [tables, activeSectionId, sourceTableId]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+            <div className="bg-secondary rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col border border-accent">
+
+                {/* HEADER */}
+                <div className="flex justify-between items-center p-4 border-b border-accent bg-secondary rounded-t-lg">
+                    <div className="flex items-center gap-3">
+                        {step === 2 && (
+                            <button onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-primary text-text-secondary">
+                                <ChevronLeftIcon className="w-6 h-6" />
+                            </button>
+                        )}
+                        <h2 className="text-xl font-bold text-text-main">
+                            {step === 1 ? `Zgjidh Artikujt (${sourceTableName})` : 'Zgjidh Tavolinën e Re'}
+                        </h2>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-text-secondary hover:text-white hover:bg-red-500 rounded-full transition-colors">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </div>
 
-                {/* Body */}
-                <div className="p-4 overflow-y-auto flex-grow">
-                    <p className="text-text-secondary mb-4">Zgjidh tavolinën e re ku dëshironi të transferoni porosinë:</p>
+                {/* CONTENT */}
+                <div className="flex-grow overflow-hidden flex flex-col p-4">
 
-                    {availableTables.length === 0 ? (
-                        <div className="text-center py-8 text-text-secondary opacity-60">
-                            Nuk ka tavolina të lira.
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-3 gap-3">
-                            {availableTables.map(table => (
+                    {/* STEP 1: SELECT ITEMS */}
+                    {step === 1 && (
+                        <div className="flex flex-col h-full">
+                            <div className="flex justify-between mb-4">
                                 <button
-                                    key={table.id}
-                                    onClick={() => setSelectedTableId(table.id)}
-                                    className={`
-                                        h-16 rounded-lg font-bold text-lg flex items-center justify-center transition-all shadow-sm
-                                        ${selectedTableId === table.id
-                                            ? 'bg-highlight text-white ring-4 ring-blue-900 scale-105'
-                                            : 'bg-primary text-text-main hover:bg-accent'
-                                        }
-                                    `}
+                                    onClick={toggleSelectAll}
+                                    className="text-highlight font-bold hover:underline"
                                 >
-                                    {table.name}
+                                    {selectedItemUniqueIds.length === sourceItems.length ? "Hiq të gjitha" : "Zgjidh të gjitha"}
                                 </button>
-                            ))}
+                                <span className="text-text-secondary">
+                                    {selectedItemUniqueIds.length} artikuj të zgjedhur
+                                </span>
+                            </div>
+
+                            <div className="flex-grow overflow-y-auto space-y-2 pr-2">
+                                {sourceItems.map((item, idx) => {
+                                    // Fallback for ID if uniqueId is missing (should not happen with new logic)
+                                    const uid = item.uniqueId || `fallback-${idx}`;
+                                    const isSelected = selectedItemUniqueIds.includes(uid);
+
+                                    return (
+                                        <div
+                                            key={uid}
+                                            onClick={() => toggleItemSelection(uid)}
+                                            className={`p-3 rounded-lg border cursor-pointer flex justify-between items-center transition-all
+                                                ${isSelected
+                                                    ? 'bg-highlight/20 border-highlight'
+                                                    : 'bg-primary border-accent hover:border-gray-500'}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-5 h-5 rounded border flex items-center justify-center
+                                                    ${isSelected ? 'bg-highlight border-highlight' : 'border-gray-500'}`}
+                                                >
+                                                    {isSelected && <span className="text-white text-xs">✓</span>}
+                                                </div>
+                                                <span className="font-semibold text-text-main">{item.name}</span>
+                                            </div>
+                                            <span className="font-bold text-text-main">
+                                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(item.price)}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="mt-4 pt-4 border-t border-accent flex justify-end">
+                                <button
+                                    onClick={() => setStep(2)}
+                                    disabled={selectedItemUniqueIds.length === 0}
+                                    className="px-8 py-3 bg-highlight text-white font-bold rounded-lg hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors shadow-lg"
+                                >
+                                    Vazhdo
+                                </button>
+                            </div>
                         </div>
                     )}
-                </div>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-accent flex justify-end space-x-3 bg-secondary rounded-b-lg">
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2 rounded-lg bg-accent text-text-main hover:bg-gray-600 transition-colors font-semibold"
-                    >
-                        Anulo
-                    </button>
-                    <button
-                        onClick={handleTransfer}
-                        disabled={!selectedTableId || isSubmitting}
-                        className="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors font-bold flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isSubmitting ? 'Duke transferuar...' : (
-                            <>
-                                <SaveIcon className="w-5 h-5 mr-2" />
-                                Transfero
-                            </>
-                        )}
-                    </button>
+                    {/* STEP 2: SELECT TABLE */}
+                    {step === 2 && (
+                        <div className="flex flex-col h-full">
+                            {/* Section Tabs */}
+                            <div className="flex space-x-2 overflow-x-auto pb-2 mb-4">
+                                <button
+                                    onClick={() => setActiveSectionId('all')}
+                                    className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-primary text-text-secondary hover:bg-accent'}`}
+                                >
+                                    Të gjitha
+                                </button>
+                                {sections.filter(s => !s.isHidden).map(section => (
+                                    <button
+                                        key={section.id}
+                                        onClick={() => setActiveSectionId(section.id)}
+                                        className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === section.id ? 'bg-highlight text-white' : 'bg-primary text-text-secondary hover:bg-accent'}`}
+                                    >
+                                        {section.name}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Table Grid */}
+                            <div className="flex-grow overflow-y-auto pr-2">
+                                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                    {filteredTargetTables.map(table => (
+                                        <button
+                                            key={table.id}
+                                            onClick={() => handleTransfer(table.id)}
+                                            className={`aspect-square flex flex-col justify-center items-center rounded-lg shadow-md transition-transform transform hover:-translate-y-1 p-2
+                                                ${table.order ? 'bg-orange-500/20 border-orange-500 border-2' : 'bg-primary border border-accent hover:border-highlight'}`}
+                                        >
+                                            <span className="text-xl font-bold text-text-main">{table.name}</span>
+                                            {table.order ? (
+                                                <span className="text-xs text-orange-400 font-bold mt-1">
+                                                    (E Hapur)
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-green-500 font-bold mt-1">
+                                                    E Lirë
+                                                </span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             </div>
         </div>

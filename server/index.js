@@ -219,35 +219,80 @@ app.post('/api/order-tickets', asyncHandler(async (req, res) => {
   res.status(201).json(newTicket);
 }));
 
-// --- NEW: TRANSFER ACTIVE ORDER ---
+// --- NEW: TRANSFER ACTIVE ORDER (Partial & Merge Support) ---
 app.put('/api/active-orders/transfer', asyncHandler(async (req, res) => {
-  const { sourceTableId, destTableId } = req.body;
+  const { sourceTableId, destTableId, transferItemIds } = req.body;
+  // transferItemIds: string[] (List of uniqueIds to move) - Optional
 
   if (!sourceTableId || !destTableId) {
     return res.status(400).json({ message: 'Missing source or destination table ID.' });
   }
 
-  // 1. Transaction-like check
-  // Ensure destination is empty
-  const destCheck = await query('SELECT * FROM active_orders WHERE table_id = $1', [destTableId]);
-  if (destCheck.rows.length > 0) {
-    return res.status(409).json({ message: 'Tavolina e destinuar nuk është e lirë.' });
-  }
-
-  // Ensure source has an order
-  const sourceCheck = await query('SELECT * FROM active_orders WHERE table_id = $1', [sourceTableId]);
-  if (sourceCheck.rows.length === 0) {
+  // 1. Fetch Source Order
+  const sourceRes = await query('SELECT * FROM active_orders WHERE table_id = $1', [sourceTableId]);
+  if (sourceRes.rows.length === 0) {
     return res.status(404).json({ message: 'Tavolina e burimit nuk ka porosi aktive.' });
   }
+  const sourceOrder = sourceRes.rows[0];
+  let sourceItems = typeof sourceOrder.items === 'string' ? JSON.parse(sourceOrder.items) : sourceOrder.items;
 
-  // 2. Perform Transfer
-  // Update the table_id 
-  await query('UPDATE active_orders SET table_id = $1, updated_at = NOW() WHERE table_id = $2', [destTableId, sourceTableId]);
+  // 2. Fetch Destination Order (for merging)
+  const destRes = await query('SELECT * FROM active_orders WHERE table_id = $1', [destTableId]);
+  let destItems = [];
+  let destSessionUuid = destRes.rows.length > 0 ? destRes.rows[0].session_uuid : `session-${destTableId}-${Date.now()}`;
 
-  // 3. Broadcast Update
+  if (destRes.rows.length > 0) {
+    const destOrder = destRes.rows[0];
+    destItems = typeof destOrder.items === 'string' ? JSON.parse(destOrder.items) : destOrder.items;
+  }
+
+  // 3. Determine Items to Move
+  let itemsToMove = [];
+
+  if (transferItemIds && Array.isArray(transferItemIds) && transferItemIds.length > 0) {
+    // --- PARTIAL TRANSFER ---
+    // Filter items that match the requested uniqueIds
+    itemsToMove = sourceItems.filter(item => transferItemIds.includes(item.uniqueId));
+
+    // Remove moved items from source
+    sourceItems = sourceItems.filter(item => !transferItemIds.includes(item.uniqueId));
+  } else {
+    // --- FULL TRANSFER ---
+    itemsToMove = [...sourceItems];
+    sourceItems = []; // Empty source
+  }
+
+  if (itemsToMove.length === 0) {
+    return res.status(400).json({ message: 'Asnjë artikull për të transferuar.' });
+  }
+
+  // 4. Append items to Destination (We DO NOT group/sum, we append lines to respect "No Grouping" rule)
+  destItems = [...destItems, ...itemsToMove];
+
+  // 5. Database Updates
+
+  // A. Update Source Table
+  if (sourceItems.length === 0) {
+    // If empty, delete the order
+    await query('DELETE FROM active_orders WHERE table_id = $1', [sourceTableId]);
+  } else {
+    // If items remain, update the JSON blob
+    await query('UPDATE active_orders SET items = $1, updated_at = NOW() WHERE table_id = $2', [JSON.stringify(sourceItems), sourceTableId]);
+  }
+
+  // B. Update Destination Table (Upsert)
+  const upsertQuery = `
+    INSERT INTO active_orders (table_id, session_uuid, items, status, updated_at)
+    VALUES ($1, $2, $3, 'open', NOW())
+    ON CONFLICT (table_id) 
+    DO UPDATE SET items = EXCLUDED.items, updated_at = NOW();
+  `;
+  await query(upsertQuery, [destTableId, destSessionUuid, JSON.stringify(destItems)]);
+
+  // 6. Broadcast Update
   broadcastActiveOrders();
 
-  res.json({ success: true, message: 'Transfer successful' });
+  res.json({ success: true, message: 'Transferimi u krye me sukses.' });
 }));
 
 // 4. SALES

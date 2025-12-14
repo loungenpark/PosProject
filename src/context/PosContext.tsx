@@ -52,7 +52,8 @@ interface PosContextState {
   addTable: (name: string, sectionId: number | null) => Promise<void>;
   updateTable: (id: number, name: string, sectionId: number | null) => Promise<void>;
   deleteTable: (id: number) => Promise<void>;
-  transferTable: (sourceId: number, destId: number) => Promise<void>;
+  // Updated to accept optional itemIds
+  transferTable: (sourceId: number, destId: number, itemIds?: string[]) => Promise<void>;
 }
 
 const PosContext = createContext<PosContextState | undefined>(undefined);
@@ -542,13 +543,28 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) { console.error("Failed to delete table", e); }
   }, []);
 
-  const transferTable = useCallback(async (sourceId: number, destId: number) => {
-    // Optimistic update not really needed as the socket will broadcast the change immediately
+  const transferTable = useCallback(async (sourceId: number, destId: number, itemIds?: string[]) => {
     try {
-      await api.transferTable(sourceId, destId);
+      const payload = {
+        sourceTableId: sourceId,
+        destTableId: destId,
+        transferItemIds: itemIds // Optional: If missing, does full transfer
+      };
+
+      const res = await fetch(`${SOCKET_URL}/api/active-orders/transfer`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Transfer failed');
+      }
+      // Success: Socket will handle the update via 'active-orders-updated'
     } catch (e) {
       console.error("Transfer failed", e);
-      throw e; // Re-throw so UI can catch and show alert
+      throw e;
     }
   }, []);
 
