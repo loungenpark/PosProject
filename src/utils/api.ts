@@ -101,6 +101,11 @@ export const addSection = (name: string): Promise<Section> => requestJSON('/api/
     method: 'POST',
     body: JSON.stringify({ name }),
 });
+// UPDATE SECTION (New: Supports Name, Visibility, Default)
+export const updateSection = (id: number, data: { name?: string, isHidden?: boolean, isDefault?: boolean }): Promise<Section> => requestJSON(`/api/sections/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+});
 export const deleteSection = (id: number): Promise<{ success: boolean }> => requestJSON(`/api/sections/${id}`, {
     method: 'DELETE',
 });
@@ -115,6 +120,26 @@ export const updateTable = (id: number, name: string, sectionId: number | null):
 });
 export const deleteTable = (id: number): Promise<{ success: boolean }> => requestJSON(`/api/tables/${id}`, {
     method: 'DELETE',
+});
+
+// --- Table Reordering (Manual Drag-and-Drop) ---
+export const reorderTables = (tables: { id: number; display_order: number }[]): Promise<void> => requestJSON('/api/tables/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ tables }),
+});
+
+export const resetSectionOrder = (sectionId: number): Promise<void> => requestJSON(`/api/sections/${sectionId}/reset-order`, {
+    method: 'POST',
+});
+
+export const resetTableOrder = (tableId: number): Promise<void> => requestJSON(`/api/tables/${tableId}/reset-order`, {
+    method: 'POST',
+});
+
+// Generic Settings Update (Used for "All Tables" custom name)
+export const updateSetting = (key: string, value: string): Promise<{ success: boolean }> => requestJSON('/api/settings', {
+    method: 'POST',
+    body: JSON.stringify({ key, value }),
 });
 
 // --- Users ---

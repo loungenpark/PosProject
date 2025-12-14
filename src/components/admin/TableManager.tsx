@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { usePos } from '../../context/PosContext';
 import { TrashIcon, PlusIcon, TableIcon, BoxIcon, PencilIcon, SaveIcon, CloseIcon } from '../common/Icons';
+import { DragDropContext, Droppable, Draggable, DropResult, DroppableProps } from 'react-beautiful-dnd';
+import * as api from '../../utils/api';
 
 const TableManager: React.FC = () => {
     // I am correcting openTables to activeOrders, which is the correct variable from the context.
@@ -14,6 +16,10 @@ const TableManager: React.FC = () => {
     // UI State
     const [activeSectionId, setActiveSectionId] = useState<number | 'all'>('all');
     const [newSectionName, setNewSectionName] = useState('');
+
+    // Reorder State
+    const [isReorderMode, setIsReorderMode] = useState(false);
+    const [localTables, setLocalTables] = useState<typeof tables>([]);
 
     // Editing Section State
     const [editingSectionId, setEditingSectionId] = useState<number | 'all' | null>(null);
@@ -29,26 +35,71 @@ const TableManager: React.FC = () => {
 
     // Batch Creation State
     const [batchPrefix, setBatchPrefix] = useState('T-');
-    const [startNum, setStartNum] = useState<string>('1');
-    const [endNum, setEndNum] = useState<string>('10');
+    const [startNum, setStartNum] = useState<string>('');
+    const [endNum, setEndNum] = useState<string>('');
 
     // --- Computed Data ---
     const filteredTables = useMemo(() => {
-        // This function provides natural sorting for strings containing numbers (e.g., "T-2" before "T-10")
-        const naturalSort = (a: { name: string }, b: { name: string }) => {
-            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-        };
+        // If in Reorder Mode, return the local state (drag-and-drop view)
+        if (isReorderMode) {
+            return localTables;
+        }
 
-        const getFiltered = () => {
-            if (activeSectionId === 'all') {
-                return [...tables]; // Create a copy to sort
+        // Otherwise, return tables from Context.
+        // We do NOT sort here anymore. We trust the order from PosContext (which comes directly from the DB).
+        // This ensures that PosScreen and TableManager always show the same order.
+        if (activeSectionId === 'all') {
+            return tables;
+        }
+
+        return tables.filter(t => t.sectionId === activeSectionId);
+
+    }, [tables, activeSectionId, isReorderMode, localTables]);
+
+    // --- Reorder Logic ---
+    const handleToggleReorder = async () => {
+        if (!isReorderMode) {
+            // Enter Reorder Mode: Initialize local state with current sorted view
+            setLocalTables([...filteredTables]);
+            setIsReorderMode(true);
+        } else {
+            // Save Changes
+            try {
+                // Map current index to display_order
+                const updates = localTables.map((t, index) => ({
+                    id: t.id,
+                    display_order: index
+                }));
+
+                await api.reorderTables(updates);
+                setIsReorderMode(false);
+            } catch (err) {
+                console.error("Failed to save order", err);
+                alert("Gabim gjatë ruajtjes së renditjes.");
             }
-            return tables.filter(t => t.sectionId === activeSectionId);
-        };
+        }
+    };
 
-        return getFiltered().sort(naturalSort);
+    const handleResetOrder = async () => {
+        if (activeSectionId === 'all') return;
+        if (!confirm("A jeni i sigurt? Kjo do të kthejë renditjen alfabetike.")) return;
 
-    }, [tables, activeSectionId]);
+        try {
+            await api.resetSectionOrder(activeSectionId);
+        } catch (err) {
+            alert("Gabim gjatë resetimit.");
+        }
+    };
+
+    const onDragEnd = (result: DropResult) => {
+        if (!result.destination) return;
+
+        const items = Array.from(localTables);
+        const [reorderedItem] = items.splice(result.source.index, 1);
+        items.splice(result.destination.index, 0, reorderedItem);
+
+        setLocalTables(items);
+    };
 
     // --- Zone Actions ---
 
@@ -386,43 +437,52 @@ const TableManager: React.FC = () => {
             </div>
 
             {/* RIGHT COLUMN: TABLES GRID */}
-            <div className="w-full md:w-3/4 bg-secondary p-6 rounded-lg flex flex-col shadow-lg border border-accent">
+            <div className="w-full md:w-3/4 bg-secondary p-4 md:p-6 rounded-lg flex flex-col shadow-lg border border-accent flex-1 min-h-0 overflow-hidden">
 
                 {/* --- VISUAL SETTINGS TOOLBAR (NEW) --- */}
-                <div className="bg-primary p-3 rounded-lg border border-accent mb-6 flex flex-wrap gap-4 items-center shadow-inner">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-text-secondary">Tavolina në rresht:</span>
+                <div className="bg-primary p-2 md:p-3 rounded-lg border border-accent mb-6 flex flex-wrap md:flex-row gap-2 md:gap-4 items-center shadow-inner overflow-x-auto flex-shrink-0">
+                    <div className="flex items-center gap-1 md:gap-2">
+                        <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
+                            <span className="hidden md:inline">Tavolina në rresht:</span>
+                            <span className="md:hidden">TR:</span>
+                        </span>
                         <input
                             type="number"
                             min="2" max="10"
                             value={tablesPerRow}
                             onChange={(e) => setTablesPerRow(Number(e.target.value))}
-                            className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                     </div>
-                    <div className="h-6 w-px bg-accent hidden sm:block"></div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-text-secondary">Madhësia (Buton):</span>
+                    <div className="h-4 md:h-6 w-px bg-accent hidden md:block"></div>
+                    <div className="flex items-center gap-1 md:gap-2">
+                        <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
+                            <span className="hidden md:inline">Madhësia (Buton):</span>
+                            <span className="md:hidden">MB:</span>
+                        </span>
                         <input
                             type="number"
                             min="50" max="150"
                             value={tableButtonSizePercent}
                             onChange={(e) => setTableButtonSizePercent(Number(e.target.value))}
-                            className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                        <span className="text-xs text-text-secondary">%</span>
+                        <span className="text-[10px] md:text-xs text-text-secondary">%</span>
                     </div>
-                    <div className="h-6 w-px bg-accent hidden sm:block"></div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-text-secondary">Madhësia (Text):</span>
+                    <div className="h-4 md:h-6 w-px bg-accent hidden md:block"></div>
+                    <div className="flex items-center gap-1 md:gap-2">
+                        <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
+                            <span className="hidden md:inline">Madhësia (Text):</span>
+                            <span className="md:hidden">MT:</span>
+                        </span>
                         <input
                             type="number"
                             min="50" max="200"
                             value={tableSizePercent}
                             onChange={(e) => setTableSizePercent(Number(e.target.value))}
-                            className="w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                        <span className="text-xs text-text-secondary">%</span>
+                        <span className="text-[10px] md:text-xs text-text-secondary">%</span>
                     </div>
 
                     <div className="flex-grow"></div>
@@ -434,38 +494,62 @@ const TableManager: React.FC = () => {
                             setTableButtonSizePercent(100);
                             setTableSizePercent(100);
                         }}
-                        className="flex items-center gap-1 text-xs font-bold text-text-secondary hover:text-highlight transition-colors bg-secondary px-3 py-1.5 rounded border border-accent"
+                        className="flex items-center justify-center gap-1 text-xs font-bold text-text-secondary hover:text-highlight transition-colors bg-secondary px-2 md:px-3 py-1 md:py-1.5 rounded border border-accent h-7 md:h-auto w-7 md:w-auto"
                         title="Reseto në vlerat fillestare"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                         </svg>
-                        Reseto
+                        <span className="hidden md:inline">Reseto</span>
                     </button>
                 </div>
 
                 {/* Header / Tools */}
-                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4 border-b border-accent pb-4">
-                    <div>
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4 border-b border-accent pb-4 flex-shrink-0">
+                    <div className="flex items-center gap-4">
                         <h3 className="text-xl font-bold text-text-main flex items-center gap-2">
                             <TableIcon className="w-6 h-6 text-highlight" />
                             {activeSectionId === 'all'
                                 ? (allSectionConfig.customName || 'Të gjitha tavolinat')
                                 : sections.find(s => s.id === activeSectionId)?.name || 'Zona'}
                         </h3>
+
+                        {/* Reorder Controls */}
+                        {activeSectionId !== 'all' && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleToggleReorder}
+                                    className={`px-3 py-1 rounded text-sm font-bold border transition-colors ${isReorderMode
+                                        ? 'bg-green-600 border-green-500 text-white hover:bg-green-700'
+                                        : 'bg-primary border-accent text-text-secondary hover:text-text-main'
+                                        }`}
+                                >
+                                    {isReorderMode ? 'Ruaj' : 'Rendit'}
+                                </button>
+
+                                {isReorderMode && (
+                                    <button
+                                        onClick={handleResetOrder}
+                                        className="px-3 py-1 rounded text-sm font-bold bg-primary border border-red-900/30 text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                        Reseto
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Batch Creator & Actions */}
                     {activeSectionId !== 'all' && (
-                        <div className="flex flex-wrap items-center gap-2 bg-primary p-2 rounded-lg border border-accent">
-                            <span className="text-sm text-text-secondary font-bold px-2">Shto:</span>
+                        <div className="flex items-center gap-1 md:gap-2 bg-primary p-1.5 md:p-2 rounded-lg border border-accent w-full md:w-auto">
+                            <span className="text-sm text-text-secondary font-bold px-2 hidden md:inline">Shto:</span>
 
                             {/* Prefix */}
                             <input
                                 type="text"
                                 value={batchPrefix}
                                 onChange={(e) => setBatchPrefix(e.target.value)}
-                                className="w-16 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold"
+                                className="w-10 md:w-16 bg-secondary border-accent rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold"
                                 placeholder="Pre"
                             />
 
@@ -474,35 +558,41 @@ const TableManager: React.FC = () => {
                                 type="number"
                                 value={startNum}
                                 onChange={(e) => setStartNum(e.target.value)}
-                                className="w-20 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-12 md:w-20 bg-secondary border-accent rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Nga"
                             />
-                            <span className="text-text-secondary">-</span>
+                            <span className="text-text-secondary text-xs md:text-base">-</span>
                             {/* To */}
                             <input
                                 type="number"
                                 value={endNum}
                                 onChange={(e) => setEndNum(e.target.value)}
-                                className="w-20 bg-secondary border-accent rounded p-2 text-center text-text-main text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-12 md:w-20 bg-secondary border-accent rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Deri"
                             />
 
                             {/* Add Button */}
                             <button
                                 onClick={handleBatchAdd}
-                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-bold transition-colors ml-2"
+                                className="bg-green-600 hover:bg-green-700 text-white w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-sm font-bold transition-colors ml-1 md:ml-2 flex items-center justify-center"
+                                title="Shto Tavolina"
                             >
-                                + Shto
+                                <span className="md:hidden text-lg">+</span>
+                                <span className="hidden md:inline">+ Shto</span>
                             </button>
 
-                            <div className="w-px h-6 bg-accent mx-2"></div>
+                            <div className="w-px h-6 bg-accent mx-1 md:mx-2"></div>
 
                             {/* Delete All Button */}
                             <button
                                 onClick={handleDeleteAllInZone}
-                                className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/50 px-4 py-2 rounded text-sm font-bold transition-colors"
+                                className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/50 w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-sm font-bold transition-colors flex items-center justify-center"
+                                title="Fshij Të Gjitha"
                             >
-                                Fshij Të Gjitha
+                                <span className="hidden md:inline">Fshij Të Gjitha</span>
+                                <span className="md:hidden">
+                                    <TrashIcon className="w-4 h-4" />
+                                </span>
                             </button>
                         </div>
                     )}
@@ -510,42 +600,85 @@ const TableManager: React.FC = () => {
 
                 {/* THE GRID */}
                 <div className="flex-grow overflow-y-auto pr-2">
-                    {/* Dynamic Grid Column Style */}
-                    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}>
-
-                        {filteredTables.map(table => (
-                            <div className="aspect-square flex justify-center items-center" key={table.id}>
+                    <DragDropContext onDragEnd={onDragEnd}>
+                        <StrictModeDroppable droppableId="tables-grid" direction="horizontal">
+                            {(provided) => (
                                 <div
-                                    className="bg-primary rounded-lg shadow-sm flex flex-col relative group border border-transparent hover:border-highlight transition-all"
-                                    style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}
+                                    ref={provided.innerRef}
+                                    {...provided.droppableProps}
+                                    className="grid gap-4"
+                                    style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}
                                 >
+                                    {filteredTables.map((table, index) => (
+                                        <Draggable
+                                            key={table.id}
+                                            draggableId={String(table.id)}
+                                            index={index}
+                                            isDragDisabled={!isReorderMode}
+                                        >
+                                            {(provided, snapshot) => (
+                                                <div
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    {...provided.dragHandleProps}
+                                                    className="aspect-square flex justify-center items-center"
+                                                    style={{
+                                                        ...provided.draggableProps.style, // Required for DND
+                                                    }}
+                                                >
+                                                    <div
+                                                        className={`bg-primary rounded-lg shadow-sm flex flex-col relative group border transition-all overflow-hidden
+                                                            ${isReorderMode ? 'cursor-grab active:cursor-grabbing border-highlight border-dashed' : 'border-transparent hover:border-highlight'}
+                                                            ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-highlight z-50' : ''}
+                                                        `}
+                                                        style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}
+                                                    >
+                                                        {/* Delete Button (Hidden in Reorder Mode) */}
+                                                        {!isReorderMode && (
+                                                            <button
+                                                                onClick={() => handleDeleteTable(table.id)}
+                                                                className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-accent"
+                                                                title="Fshij Tavolinën"
+                                                            >
+                                                                <TrashIcon className="w-3 h-3" />
+                                                            </button>
+                                                        )}
 
-                                    {/* Delete Button (Top Right - scaled slightly to not obscure small buttons) */}
-                                    <button
-                                        onClick={() => handleDeleteTable(table.id)}
-                                        className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-accent"
-                                        title="Fshij Tavolinën"
-                                    >
-                                        <TrashIcon className="w-3 h-3" />
-                                    </button>
+                                                        {/* Reorder Overlay (Visible only in Reorder Mode) */}
+                                                        {isReorderMode && (
+                                                            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/10">
+                                                                {/* Move Icon */}
+                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8 text-white drop-shadow-md opacity-80">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                                                                </svg>
+                                                            </div>
+                                                        )}
 
-                                    {/* Table Name Input */}
-                                    <div className="flex-grow flex items-center justify-center overflow-hidden">
-                                        <input
-                                            type="text"
-                                            defaultValue={table.name}
-                                            onBlur={(e) => handleRenameTable(table.id, table.name, e.target.value, e)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') e.currentTarget.blur();
-                                            }}
-                                            style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}
-                                            className="bg-transparent text-center font-bold text-text-main w-full focus:bg-secondary focus:outline-none rounded py-1 px-1"
-                                        />
-                                    </div>
+                                                        {/* Table Name Input */}
+                                                        <div className="flex-grow flex items-center justify-center overflow-hidden w-full relative">
+                                                            <input
+                                                                type="text"
+                                                                defaultValue={table.name}
+                                                                // Use pointer-events-none to let drag pass through to the container
+                                                                className={`bg-transparent text-center font-bold text-text-main w-full focus:bg-secondary focus:outline-none rounded py-1 px-1 
+                                                                    ${isReorderMode ? 'pointer-events-none opacity-50' : ''}`}
+                                                                style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}
+                                                                onBlur={(e) => handleRenameTable(table.id, table.name, e.target.value, e)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') e.currentTarget.blur();
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    ))}
+                                    {provided.placeholder}
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            )}
+                        </StrictModeDroppable>
+                    </DragDropContext>
 
                     {filteredTables.length === 0 && (
                         <div className="text-center py-20 text-text-secondary opacity-60">
@@ -634,6 +767,22 @@ const TableManager: React.FC = () => {
             )}
         </div>
     );
+};
+
+// --- Utility Component for React 18 Strict Mode Support ---
+export const StrictModeDroppable = ({ children, ...props }: DroppableProps) => {
+    const [enabled, setEnabled] = useState(false);
+    useEffect(() => {
+        const animation = requestAnimationFrame(() => setEnabled(true));
+        return () => {
+            cancelAnimationFrame(animation);
+            setEnabled(false);
+        };
+    }, []);
+    if (!enabled) {
+        return null;
+    }
+    return <Droppable {...props}>{children}</Droppable>;
 };
 
 export default TableManager;

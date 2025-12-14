@@ -84,6 +84,7 @@ export interface Table {
   id: number;
   name: string;
   sectionId?: number | null; // --- ADDED: Links table to a section
+  display_order?: number | null; // Added: Custom sort order for manual reordering (NULL = use name-based sort)
   order: Order | null;
 }
 
@@ -148,4 +149,10 @@ export interface StockMovement {
   created_at: string;
   username: string;
   item_name?: string;
+}
+
+// Add this to your Table interface in src/types.ts
+export interface Table {
+  // ... existing fields
+  display_order?: number | null;
 }

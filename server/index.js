@@ -154,7 +154,7 @@ app.get('/api/bootstrap', asyncHandler(async (req, res) => {
     query('SELECT * FROM menu_categories ORDER BY display_order ASC, name ASC'),
     query("SELECT key, value FROM settings"),
     query('SELECT * FROM sections WHERE active = TRUE ORDER BY display_order ASC'),
-    query('SELECT * FROM tables WHERE active = TRUE ORDER BY id ASC'),
+    query('SELECT * FROM tables WHERE active = TRUE ORDER BY display_order ASC NULLS LAST, name ASC'),
     query('SELECT * FROM active_orders') // <--- Load persisted orders
   ]);
 
@@ -1077,8 +1077,47 @@ app.delete('/api/sections/:id', asyncHandler(async (req, res) => {
 
 // 13. TABLE MANAGEMENT (Physical Tables)
 app.get('/api/tables', asyncHandler(async (req, res) => {
-  const { rows } = await query('SELECT * FROM tables WHERE active = TRUE ORDER BY id ASC');
+  const { rows } = await query('SELECT * FROM tables WHERE active = TRUE ORDER BY display_order ASC NULLS LAST, name ASC');
   res.json(rows);
+}));
+
+app.put('/api/tables/reorder', asyncHandler(async (req, res) => {
+  const { tables } = req.body; // Expects [{ id, display_order }]
+  if (!Array.isArray(tables)) { return res.status(400).json({ message: 'Invalid payload.' }); }
+
+  // Construct the CASE statement for bulk update
+  let queryText = 'UPDATE tables SET display_order = CASE id ';
+  const ids = [];
+
+  tables.forEach(({ id, display_order }) => {
+    queryText += `WHEN ${parseInt(id, 10)} THEN ${parseInt(display_order, 10)} `;
+    ids.push(id);
+  });
+
+  queryText += 'END WHERE id = ANY($1::int[])';
+
+  if (ids.length > 0) {
+    await query(queryText, [ids]);
+  }
+
+  // Emit event for real-time sync
+  io.emit('tables-reordered');
+
+  res.json({ success: true });
+}));
+
+app.post('/api/sections/:id/reset-order', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await query('UPDATE tables SET display_order = NULL WHERE section_id = $1', [id]);
+  io.emit('tables-reordered');
+  res.json({ success: true });
+}));
+
+app.post('/api/tables/:id/reset-order', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await query('UPDATE tables SET display_order = NULL WHERE id = $1', [id]);
+  io.emit('tables-reordered');
+  res.json({ success: true });
 }));
 
 app.post('/api/tables', asyncHandler(async (req, res) => {

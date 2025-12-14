@@ -1046,6 +1046,11 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     // This is the new, authoritative handler for all table state changes
+    const handleTablesReordered = () => {
+      console.log('📢 Tables reordered. Refreshing data...');
+      fetchAndCacheData();
+    };
+
     const handleActiveOrdersUpdate = (activeOrders: any[]) => {
       console.log('📢 Received full active orders update from server.');
       // Create a map for quick lookups of server orders
@@ -1097,11 +1102,13 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // This listener is now only for updating the Sales/Reports screen
     socket.on('sale-finalized-from-server', handleSaleFinalized);
     socket.on('setting-updated', handleSettingUpdated);
+    socket.on('tables-reordered', handleTablesReordered);
 
     return () => {
       socket.off('active-orders-updated', handleActiveOrdersUpdate);
       socket.off('sale-finalized-from-server', handleSaleFinalized);
       socket.off('setting-updated', handleSettingUpdated);
+      socket.off('tables-reordered', handleTablesReordered);
     };
   }, []);
 

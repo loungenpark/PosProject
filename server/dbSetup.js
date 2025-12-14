@@ -74,6 +74,12 @@ export async function initDatabase() {
       ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10, 2) DEFAULT 0;
     `);
 
+    // --- MIGRATION: Manual Table Ordering ---
+    await query(`
+      ALTER TABLE tables 
+      ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT NULL;
+    `);
+
     console.log('✅ Database schema applied successfully.');
 
     // 3. Seed Default Users (If fresh install)
