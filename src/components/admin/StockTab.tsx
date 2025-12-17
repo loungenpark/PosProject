@@ -26,9 +26,10 @@ interface ExtendedStockUpdateItem {
 const TabButton = ({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: React.ReactNode }) => (
     <button
         onClick={onClick}
-        className={`flex items-center space-x-2 px-6 py-3 font-semibold transition-all border-b-2 ${active
-            ? 'border-highlight text-highlight bg-highlight/10'
-            : 'border-transparent text-text-secondary hover:text-text-main hover:bg-accent/50'
+        // Updated to match the standard "bottom border" tab pattern used across the app.
+        className={`flex items-center space-x-2 px-6 py-3 font-semibold transition-colors border-b-2 ${active
+            ? 'border-highlight text-highlight'
+            : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'
             }`}
     >
         {icon}
@@ -40,9 +41,9 @@ const TabButton = ({ active, onClick, label, icon }: { active: boolean; onClick:
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center">
+        <div className="fixed inset-0 bg-primary/70 z-[60] flex justify-center items-center">
             <div className="bg-secondary rounded-lg shadow-xl w-full max-w-lg m-4 flex flex-col max-h-[90vh]">
-                <div className="flex justify-between items-center p-4 border-b border-accent flex-shrink-0">
+                <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0">
                     <h3 className="text-xl font-semibold text-text-main">{title}</h3>
                     <button onClick={onClose} className="text-text-secondary hover:text-text-main text-2xl">&times;</button>
                 </div>
@@ -83,23 +84,23 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
             ) : (
                 <div className="space-y-2">
                     {[
-                        { type: 'supply', label: 'Furnizim', data: data.supply, color: 'text-green-400' },
-                        { type: 'waste', label: 'Humbje', data: data.waste, color: 'text-red-400' },
-                        { type: 'correction', label: 'Korrigjim', data: data.correction, color: 'text-purple-400' },
-                        { type: 'sale', label: 'Shitje', data: data.sale, color: 'text-blue-400' }
+                        { type: 'supply', label: 'Furnizim', data: data.supply, color: 'text-success' },
+                        { type: 'waste', label: 'Humbje', data: data.waste, color: 'text-danger' },
+                        { type: 'correction', label: 'Korrigjim', data: data.correction, color: 'text-accent' },
+                        { type: 'sale', label: 'Shitje', data: data.sale, color: 'text-highlight' }
                     ].map(cat => (
                         <div key={cat.type} className="rounded-md overflow-hidden">
                             <div
                                 onClick={() => setExpanded(prev => prev === cat.type ? null : cat.type as any)}
-                                className={`flex justify-between items-center p-4 cursor-pointer transition-colors ${expanded === cat.type ? 'bg-accent' : 'bg-primary hover:bg-accent/50'}`}
+                                className={`flex justify-between items-center p-4 cursor-pointer transition-colors ${expanded === cat.type ? 'bg-border' : 'bg-primary hover:bg-border/50'}`}
                             >
                                 <span className={`font-bold ${cat.color}`}>{cat.label}</span>
-                                <span className={`font-mono text-lg font-bold ${cat.data.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <span className={`font-mono text-lg font-bold ${cat.data.total >= 0 ? 'text-success' : 'text-danger'}`}>
                                     {cat.data.total > 0 ? '+' : ''}{cat.data.total}
                                 </span>
                             </div>
                             {expanded === cat.type && cat.data.details.length > 0 && (
-                                <div className="bg-primary border-t border-accent p-2">
+                                <div className="bg-primary border-t border-border p-2">
                                     <table className="w-full text-left text-sm">
                                         <thead className="text-text-secondary">
                                             <tr>
@@ -109,14 +110,14 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
                                                 <th className="p-2">User</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-accent/30">
+                                        <tbody className="divide-y divide-border/30">
                                             {cat.data.details.map((m: any) => (
                                                 <tr key={m.id}>
                                                     <td className="p-2 whitespace-nowrap text-text-secondary">
                                                         {new Date(m.createdAt).toLocaleString('sq-AL', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                                     </td>
                                                     <td className="p-2 text-text-secondary truncate max-w-[150px]">{m.reason}</td>
-                                                    <td className={`p-2 text-right font-mono font-bold ${m.quantity > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    <td className={`p-2 text-right font-mono font-bold ${m.quantity > 0 ? 'text-success' : 'text-danger'}`}>
                                                         {m.quantity > 0 ? '+' : ''}{m.quantity}
                                                     </td>
                                                     <td className="p-2 text-xs text-text-secondary">{m.user || '-'}</td>
@@ -205,9 +206,9 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
 
     return (
         <div className="h-full overflow-hidden flex flex-col">
-            <div className="flex-grow overflow-y-auto rounded-lg border border-accent">
+            <div className="flex-grow overflow-y-auto rounded-lg border border-border">
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-accent sticky top-0 z-10 text-text-secondary font-semibold">
+                    <thead className="bg-border sticky top-0 z-10 text-text-secondary font-semibold">
                         <tr>
                             <th className="p-3">Artikulli</th>
                             <th className="p-3 text-center">Historiku</th>
@@ -219,7 +220,7 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                             <th className="p-3 text-right">Profit</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-accent bg-secondary">
+                    <tbody className="divide-y divide-border bg-secondary">
                         {sortedItems.map(item => {
                             const isLow = isFinite(item.stock) && item.stock <= item.stockThreshold;
                             const costPrice = Number(item.cost_price) || 0;
@@ -231,22 +232,22 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                             const profit = salesVal - stockVal;
 
                             return (
-                                <tr key={item.id} className={`hover:bg-primary/50 transition-colors ${isLow ? 'bg-red-900/10' : ''}`}>
+                                <tr key={item.id} className={`hover:bg-primary/50 transition-colors ${isLow ? 'bg-danger-bg' : ''}`}>
                                     <td className="p-3">
                                         <div className="flex flex-col">
                                             <span className="font-medium text-text-main">{item.name}</span>
-                                            {item.stockGroupId && <span className="text-xs text-blue-400 font-mono">🔗 {item.stockGroupId}</span>}
+                                            {item.stockGroupId && <span className="text-xs text-highlight font-mono">🔗 {item.stockGroupId}</span>}
                                         </div>
                                     </td>
                                     <td className="p-3 text-center">
-                                        <button onClick={() => setHistoryItem(item)} className="p-2 rounded-full text-blue-400 hover:bg-blue-900/20 transition-colors">
+                                        <button onClick={() => setHistoryItem(item)} className="p-2 rounded-full text-highlight hover:bg-highlight/20 transition-colors">
                                             <ClockIcon className="w-5 h-5" />
                                         </button>
                                     </td>
                                     <td className="p-3 text-right text-text-secondary font-mono">
                                         {item.stockThreshold}
                                     </td>
-                                    <td className={`p-3 text-right font-mono font-bold text-lg ${isLow ? 'text-red-500' : 'text-green-500'}`}>
+                                    <td className={`p-3 text-right font-mono font-bold text-lg ${isLow ? 'text-danger' : 'text-success'}`}>
                                         {item.stock}
                                     </td>
                                     <td className="p-3 text-right font-mono text-text-secondary">
@@ -258,7 +259,7 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                                     <td className="p-3 text-right font-mono text-text-main">
                                         {salesVal.toFixed(2)}€
                                     </td>
-                                    <td className={`p-3 text-right font-mono font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    <td className={`p-3 text-right font-mono font-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`}>
                                         {profit.toFixed(2)}€
                                     </td>
                                 </tr>
@@ -270,14 +271,14 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                     </tbody>
 
                     {/* STICKY FOOTER WITH TOTALS */}
-                    <tfoot className="sticky bottom-0 bg-secondary border-t-2 border-accent shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
+                    <tfoot className="sticky bottom-0 bg-secondary border-t-2 border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
                         <tr className="font-bold text-text-main">
                             <td className="p-3" colSpan={3}>TOTALET (Artikuj Unik)</td>
-                            <td className="p-3 text-right font-mono text-lg text-blue-400">{totals.stock}</td>
+                            <td className="p-3 text-right font-mono text-lg text-highlight">{totals.stock}</td>
                             <td className="p-3"></td>
                             <td className="p-3 text-right font-mono text-lg">{totals.costVal.toFixed(2)}€</td>
                             <td className="p-3 text-right font-mono text-lg">{totals.salesVal.toFixed(2)}€</td>
-                            <td className={`p-3 text-right font-mono text-lg ${totals.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            <td className={`p-3 text-right font-mono text-lg ${totals.profit >= 0 ? 'text-success' : 'text-danger'}`}>
                                 {totals.profit.toFixed(2)}€
                             </td>
                         </tr>
@@ -342,16 +343,16 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
     return (
         <div className="flex flex-col h-full space-y-4">
             <div className="grid grid-cols-2 gap-4">
-                <input type="text" placeholder="Furnitori" value={supplier} onChange={e => setSupplier(e.target.value)} className="bg-primary border-accent rounded p-2 text-text-main" />
-                <input type="text" placeholder="Nr. Faturës" value={invoiceRef} onChange={e => setInvoiceRef(e.target.value)} className="bg-primary border-accent rounded p-2 text-text-main" />
+                <input type="text" placeholder="Furnitori" value={supplier} onChange={e => setSupplier(e.target.value)} className="bg-primary border-border rounded p-2 text-text-main placeholder-text-subtle" />
+                <input type="text" placeholder="Nr. Faturës" value={invoiceRef} onChange={e => setInvoiceRef(e.target.value)} className="bg-primary border-border rounded p-2 text-text-main placeholder-text-subtle" />
             </div>
 
             <div className="relative">
-                <input ref={searchInputRef} type="text" placeholder="Kërko artikull..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-primary border-accent rounded p-3 pl-10 text-text-main focus:ring-highlight" />
+                <input ref={searchInputRef} type="text" placeholder="Kërko artikull..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-primary border-border rounded p-3 pl-10 text-text-main focus:ring-highlight" />
                 {searchTerm && (
-                    <div className="absolute top-full w-full bg-secondary border border-accent shadow-xl max-h-60 overflow-y-auto z-50">
+                    <div className="absolute top-full w-full bg-secondary border border-border shadow-xl max-h-60 overflow-y-auto z-50">
                         {filtered.map(item => (
-                            <button key={item.id} onClick={() => addToCart(item)} className="w-full text-left p-3 hover:bg-highlight hover:text-white border-b border-accent flex justify-between">
+                            <button key={item.id} onClick={() => addToCart(item)} className="w-full text-left p-3 hover:bg-highlight hover:text-white border-b border-border flex justify-between">
                                 <span>{item.name}</span><span className="opacity-70">{item.stock}</span>
                             </button>
                         ))}
@@ -359,9 +360,9 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                 )}
             </div>
 
-            <div className="flex-grow overflow-y-auto bg-primary border border-accent rounded-lg">
+            <div className="flex-grow overflow-y-auto bg-primary border border-border rounded-lg">
                 <table className="w-full text-left">
-                    <thead className="bg-accent text-text-secondary sticky top-0">
+                    <thead className="bg-border text-text-secondary sticky top-0">
                         <tr>
                             <th className="p-3">Artikulli</th>
                             <th className="p-3 text-center">Shto Sasi</th>
@@ -369,7 +370,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                             <th className="p-3"></th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-accent">
+                    <tbody className="divide-y divide-border">
                         {cart.map(c => {
                             const item = menuItems.find(i => i.id === c.itemId);
                             return item ? (
@@ -382,7 +383,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                             type="number"
                                             value={c.quantity}
                                             onChange={e => updateQty(c.itemId, parseFloat(e.target.value) || 0)}
-                                            className="w-24 bg-secondary border-accent rounded p-2 text-center font-bold text-text-main"
+                                            className="w-24 bg-secondary border-border rounded p-2 text-center font-bold text-text-main"
                                             placeholder="Sasia"
                                         />
                                     </td>
@@ -394,7 +395,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                                 type="number"
                                                 value={c.totalCost === 0 ? '' : c.totalCost}
                                                 onChange={e => updateTotalCost(c.itemId, parseFloat(e.target.value) || 0)}
-                                                className="w-28 bg-secondary border-accent rounded p-2 text-center font-bold text-text-main pl-6"
+                                                className="w-28 bg-secondary border-border rounded p-2 text-center font-bold text-text-main pl-6"
                                                 placeholder="0.00"
                                             />
                                             <span className="absolute left-2 top-2 text-text-secondary">€</span>
@@ -402,7 +403,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                     </td>
 
                                     <td className="p-3 text-right">
-                                        <button onClick={() => setCart(prev => prev.filter(x => x.itemId !== c.itemId))} className="text-red-400 hover:text-red-300">
+                                        <button onClick={() => setCart(prev => prev.filter(x => x.itemId !== c.itemId))} className="text-danger hover:text-danger-hover">
                                             <TrashIcon className="w-5 h-5" />
                                         </button>
                                     </td>
@@ -420,7 +421,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                         {cart.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)}€
                     </span>
                 </div>
-                <button onClick={handleSave} disabled={cart.length === 0 || isSaving} className="px-6 py-3 bg-green-600 text-white font-bold rounded hover:bg-green-700 disabled:opacity-50">
+                <button onClick={handleSave} disabled={cart.length === 0 || isSaving} className="px-6 py-3 bg-success text-white font-bold rounded hover:bg-success-hover disabled:bg-muted">
                     {isSaving ? 'Duke ruajtur...' : 'Ruaj Furnizimin'}
                 </button>
             </div>
@@ -476,9 +477,9 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
     };
 
     return (
-        <div className="max-w-xl mx-auto mt-8 p-6 bg-primary rounded-lg border border-accent shadow-lg">
+        <div className="max-w-xl mx-auto mt-8 p-6 bg-primary rounded-lg border border-border shadow-lg">
             <h3 className="text-xl font-bold text-text-main mb-6 flex items-center gap-2">
-                {mode === 'waste' ? <MinusCircleIcon className="w-6 h-6 text-red-500" /> : <CheckIcon className="w-6 h-6 text-blue-500" />}
+                {mode === 'waste' ? <MinusCircleIcon className="w-6 h-6 text-danger" /> : <CheckIcon className="w-6 h-6 text-highlight" />}
                 {mode === 'waste' ? 'Regjistro Humbje' : 'Korrigjo Stokun'}
             </h3>
 
@@ -486,11 +487,11 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                 {!selectedItem ? (
                     <div className="relative">
                         <label className="block text-sm text-text-secondary mb-1">Kërko Artikull</label>
-                        <input type="text" autoFocus value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-secondary border-accent rounded p-3 text-text-main focus:ring-highlight" placeholder="Shkruaj emrin..." />
+                        <input type="text" autoFocus value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-text-main focus:ring-highlight" placeholder="Shkruaj emrin..." />
                         {searchTerm && (
-                            <div className="absolute top-full w-full bg-secondary border border-accent shadow-xl max-h-48 overflow-y-auto z-10 mt-1 rounded">
+                            <div className="absolute top-full w-full bg-secondary border border-border shadow-xl max-h-48 overflow-y-auto z-10 mt-1 rounded">
                                 {filtered.map(item => (
-                                    <button key={item.id} onClick={() => { setSelectedItem(item); setSearchTerm(''); }} className="w-full text-left p-3 hover:bg-highlight hover:text-white border-b border-accent">
+                                    <button key={item.id} onClick={() => { setSelectedItem(item); setSearchTerm(''); }} className="w-full text-left p-3 hover:bg-highlight hover:text-white border-b border-border">
                                         {item.name} <span className="opacity-60 text-sm">({item.stock})</span>
                                     </button>
                                 ))}
@@ -498,7 +499,7 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                         )}
                     </div>
                 ) : (
-                    <div className="flex items-center justify-between bg-secondary p-3 rounded border border-accent">
+                    <div className="flex items-center justify-between bg-secondary p-3 rounded border border-border">
                         <div>
                             <span className="font-bold text-lg text-text-main">{selectedItem.name}</span>
                             <div className="text-sm text-text-secondary">Stoku Aktual: {selectedItem.stock}</div>
@@ -509,11 +510,11 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
 
                 {mode === 'correction' && selectedItem && (
                     <div className="flex gap-4">
-                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'add' ? 'bg-green-900/30 border-green-500 text-green-400' : 'bg-secondary border-accent text-text-secondary'}`}>
+                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'add' ? 'bg-success-bg border-success text-success' : 'bg-secondary border-border text-text-secondary'}`}>
                             <input type="radio" name="ctype" className="hidden" checked={correctionType === 'add'} onChange={() => setCorrectionType('add')} />
                             + Shto (Gjetur)
                         </label>
-                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'remove' ? 'bg-red-900/30 border-red-500 text-red-400' : 'bg-secondary border-accent text-text-secondary'}`}>
+                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'remove' ? 'bg-danger-bg border-danger text-danger' : 'bg-secondary border-border text-text-secondary'}`}>
                             <input type="radio" name="ctype" className="hidden" checked={correctionType === 'remove'} onChange={() => setCorrectionType('remove')} />
                             - Zbrit (Humbur)
                         </label>
@@ -524,13 +525,13 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                         <div>
                             <label className="block text-sm text-text-secondary mb-1">Sasia {mode === 'correction' ? '(Për t\'u korrigjuar)' : '(E Humbur)'}</label>
-                            <input type="number" min="1" required autoFocus value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-secondary border-accent rounded p-3 text-2xl font-bold text-center text-text-main focus:ring-highlight" placeholder="0" />
+                            <input type="number" min="1" required autoFocus value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-2xl font-bold text-center text-text-main focus:ring-highlight" placeholder="0" />
                         </div>
                         <div>
                             <label className="block text-sm text-text-secondary mb-1">Arsyeja / Shënim</label>
-                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-secondary border-accent rounded p-3 text-text-main focus:ring-highlight" placeholder={mode === 'waste' ? "psh. U thye" : "psh. Numërim fizik"} />
+                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-text-main focus:ring-highlight" placeholder={mode === 'waste' ? "psh. U thye" : "psh. Numërim fizik"} />
                         </div>
-                        <button disabled={isSubmitting} className={`w-full py-4 rounded-lg font-bold text-white shadow-lg transition-transform active:scale-95 ${mode === 'waste' || (mode === 'correction' && correctionType === 'remove') ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
+                        <button disabled={isSubmitting} className={`w-full py-4 rounded-lg font-bold text-white shadow-lg transition-transform active:scale-95 ${mode === 'waste' || (mode === 'correction' && correctionType === 'remove') ? 'bg-danger hover:bg-danger-hover' : 'bg-success hover:bg-success-hover'}`}>
                             {isSubmitting ? '...' : 'Konfirmo'}
                         </button>
                     </form>
@@ -555,7 +556,7 @@ const StockTab: React.FC = () => {
     return (
         <div className="bg-secondary rounded-lg shadow-sm h-full flex flex-col overflow-hidden relative">
             {/* Navigation Header (Sticky) */}
-            <div className="flex border-b border-accent bg-secondary flex-shrink-0 overflow-x-auto sticky top-0 z-20">
+            <div className="flex border-b border-border bg-secondary flex-shrink-0 overflow-x-auto sticky top-0 z-20">
                 <TabButton active={activeTab === 'pasqyra'} onClick={() => setActiveTab('pasqyra')} label="Pasqyra" icon={<BoxIcon className="w-5 h-5" />} />
                 <TabButton active={activeTab === 'furnizimi'} onClick={() => setActiveTab('furnizimi')} label="Furnizimi" icon={<PlusIcon className="w-5 h-5" />} />
                 <TabButton active={activeTab === 'humbje'} onClick={() => setActiveTab('humbje')} label="Humbje" icon={<MinusCircleIcon className="w-5 h-5" />} />
@@ -587,13 +588,13 @@ const StockTab: React.FC = () => {
                 title={alertConfig.isError ? "Gabim" : "Sukses"}
             >
                 <div className="flex flex-col items-center space-y-4 p-4">
-                    <div className={`p-4 rounded-full ${alertConfig.isError ? 'bg-red-100 text-red-500' : 'bg-green-100 text-green-500'}`}>
+                    <div className={`p-4 rounded-full ${alertConfig.isError ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success'}`}>
                         {alertConfig.isError ? <ExclamationIcon className="w-10 h-10" /> : <CheckIcon className="w-10 h-10" />}
                     </div>
                     <p className="text-lg text-center font-medium text-text-main">{alertConfig.message}</p>
                     <button
                         onClick={() => setAlertConfig(prev => ({ ...prev, show: false }))}
-                        className={`px-8 py-3 rounded-lg font-bold text-white shadow-md transition-transform active:scale-95 ${alertConfig.isError ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                        className={`px-8 py-3 rounded-lg font-bold text-white shadow-md transition-transform active:scale-95 ${alertConfig.isError ? 'bg-danger hover:bg-danger-hover' : 'bg-success hover:bg-success-hover'
                             }`}
                     >
                         Në Rregull

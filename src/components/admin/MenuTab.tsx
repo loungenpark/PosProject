@@ -45,9 +45,9 @@ interface ModalProps {
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex justify-center items-center">
+        <div className="fixed inset-0 bg-primary/75 z-[60] flex justify-center items-center">
             <div className="bg-secondary rounded-lg shadow-xl w-full max-w-lg m-4">
-                <div className="flex justify-between items-center p-4 border-b border-accent">
+                <div className="flex justify-between items-center p-4 border-b border-border">
                     <h3 className="text-xl font-semibold text-text-main">{title}</h3>
                     <button onClick={onClose} className="text-text-secondary hover:text-text-main"><CloseIcon className="w-6 h-6" /></button>
                 </div>
@@ -117,15 +117,15 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <label htmlFor="name" className="block text-sm font-medium text-text-secondary">Emri</label>
-                <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
+                <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
             </div>
             <div>
                 <label htmlFor="price" className="block text-sm font-medium text-text-secondary">Çmimi (€)</label>
-                <input type="number" name="price" id="price" value={formData.price} onChange={handleChange} required step="0.01" min="0" className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
+                <input type="number" name="price" id="price" value={formData.price} onChange={handleChange} required step="0.01" min="0" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
             </div>
             <div>
                 <label htmlFor="category" className="block text-sm font-medium text-text-secondary">Menu (Kategoria)</label>
-                <select name="category" id="category" value={formData.category} onChange={handleChange} required className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight">
+                <select name="category" id="category" value={formData.category} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight">
                     <option value="" disabled>Zgjidhni një menu</option>
                     {menuCategories.map(cat => (
                         <option key={cat.id} value={cat.name}>{cat.name}</option>
@@ -134,19 +134,19 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
             </div>
             <div>
                 <label htmlFor="printer" className="block text-sm font-medium text-text-secondary">Printeri</label>
-                <select name="printer" id="printer" value={formData.printer} onChange={handleChange} required className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight">
+                <select name="printer" id="printer" value={formData.printer} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight">
                     <option value={Printer.KITCHEN}>Kuzhina</option>
                     <option value={Printer.BAR}>Shank</option>
                 </select>
             </div>
             <div className="flex items-center space-x-2 pt-2">
-                <input type="checkbox" name="trackStock" id="trackStock" checked={formData.trackStock} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-highlight focus:ring-highlight" />
+                <input type="checkbox" name="trackStock" id="trackStock" checked={formData.trackStock} onChange={handleChange} className="h-4 w-4 rounded border-border text-highlight focus:ring-highlight" />
                 <label htmlFor="trackStock" className="text-sm font-medium text-text-secondary">Ndjek Stokun</label>
             </div>
 
             <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
                 <label htmlFor="stockGroupId" className="block text-sm font-medium text-text-secondary">Grupi i Stokut (ID e Përbashkët)</label>
-                <input type="text" name="stockGroupId" id="stockGroupId" value={formData.stockGroupId} onChange={handleChange} placeholder="psh. CAFFE (për të ndarë stokun)" className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
+                <input type="text" name="stockGroupId" id="stockGroupId" value={formData.stockGroupId} onChange={handleChange} placeholder="psh. CAFFE (për të ndarë stokun)" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
                 <p className="text-xs text-text-secondary mt-1">Artikujt me të njëjtin ID grupi (psh. "CAFFE") do të kenë stok të përbashkët.</p>
             </div>
 
@@ -154,11 +154,11 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
 
             <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
                 <label htmlFor="stockThreshold" className="block text-sm font-medium text-text-secondary">Pragu i Stokut të Ulët</label>
-                <input type="number" name="stockThreshold" id="stockThreshold" value={formData.stockThreshold ?? ''} onChange={handleChange} min="0" className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
+                <input type="number" name="stockThreshold" id="stockThreshold" value={formData.stockThreshold ?? ''} onChange={handleChange} min="0" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
             </div>
             <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-accent text-text-main hover:bg-gray-600">Anulo</button>
-                <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-blue-600 disabled:bg-gray-500">{isSaving ? 'Duke ruajtur...' : 'Ruaj Artikullin'}</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-text-main hover:bg-muted">Anulo</button>
+                <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? 'Duke ruajtur...' : 'Ruaj Artikullin'}</button>
             </div>
         </form>
     )
@@ -190,11 +190,11 @@ const MenuForm: React.FC<MenuFormProps> = ({ menu, onSave, onCancel }) => {
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <label htmlFor="menu-name" className="block text-sm font-medium text-text-secondary">Emri i Menusë</label>
-                <input type="text" id="menu-name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 block w-full bg-primary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
+                <input type="text" id="menu-name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
             </div>
             <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-accent text-text-main hover:bg-gray-600">Anulo</button>
-                <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-blue-600 disabled:bg-gray-500">{isSaving ? 'Duke ruajtur...' : 'Ruaj Menunë'}</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-text-main hover:bg-muted">Anulo</button>
+                <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? 'Duke ruajtur...' : 'Ruaj Menunë'}</button>
             </div>
         </form>
     );
@@ -321,21 +321,23 @@ const MenuTab: React.FC = () => {
     return (
         <div className="flex flex-col h-full w-full overflow-hidden">
             {/* Sub-Tabs Navigation */}
-            <div className="flex items-center space-x-1 bg-secondary p-1 rounded-lg mb-4 w-fit border border-accent flex-shrink-0">
+            <div className="flex space-x-2 mb-4 border-b border-border flex-shrink-0">
                 <button
                     onClick={() => setActiveSubTab('items')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSubTab === 'items'
-                            ? 'bg-highlight text-white shadow-sm'
-                            : 'text-text-secondary hover:text-text-main hover:bg-primary'
+                    // Apply the new "bottom border" tab style for consistency
+                    className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeSubTab === 'items'
+                        ? 'border-highlight text-highlight'
+                        : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'
                         }`}
                 >
                     Artikujt
                 </button>
                 <button
                     onClick={() => setActiveSubTab('categories')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSubTab === 'categories'
-                            ? 'bg-highlight text-white shadow-sm'
-                            : 'text-text-secondary hover:text-text-main hover:bg-primary'
+                    // Apply the new "bottom border" tab style for consistency
+                    className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeSubTab === 'categories'
+                        ? 'border-highlight text-highlight'
+                        : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'
                         }`}
                 >
                     Kategoritë
@@ -361,7 +363,7 @@ const MenuTab: React.FC = () => {
                                     placeholder="Kërko artikuj..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-2 border border-accent rounded-md leading-5 bg-primary text-text-main placeholder-text-secondary focus:outline-none focus:ring-1 focus:ring-highlight focus:border-highlight sm:text-sm"
+                                    className="block w-full pl-10 pr-3 py-2 border border-border rounded-md leading-5 bg-primary text-text-main placeholder-text-secondary focus:outline-none focus:ring-1 focus:ring-highlight focus:border-highlight sm:text-sm"
                                 />
                             </div>
 
@@ -371,7 +373,7 @@ const MenuTab: React.FC = () => {
                                 <input type="file" accept=".csv" onChange={handleImportFile} ref={importRef} className="hidden" id="csv-importer-header" />
                                 <label
                                     htmlFor="csv-importer-header"
-                                    className={`flex items-center space-x-1 px-3 py-2 bg-green-600 text-white text-sm rounded-md cursor-pointer hover:bg-green-700 transition-colors ${isImporting ? 'opacity-50' : ''}`}
+                                    className={`flex items-center space-x-1 px-3 py-2 bg-success text-white text-sm rounded-md cursor-pointer hover:bg-success-hover transition-colors ${isImporting ? 'opacity-50' : ''}`}
                                     title="Kolonat: Name, Price, Category, Printer"
                                 >
                                     <UploadIcon className="w-4 h-4" />
@@ -382,7 +384,7 @@ const MenuTab: React.FC = () => {
                                 <input type="file" accept=".csv" onChange={handleReorderFile} ref={reorderRef} className="hidden" id="csv-reorder-header" />
                                 <label
                                     htmlFor="csv-reorder-header"
-                                    className={`flex items-center space-x-1 px-3 py-2 bg-indigo-600 text-white text-sm rounded-md cursor-pointer hover:bg-indigo-700 transition-colors ${isReordering ? 'opacity-50' : ''}`}
+                                    className={`flex items-center space-x-1 px-3 py-2 bg-accent text-white text-sm rounded-md cursor-pointer hover:bg-accent-hover transition-colors ${isReordering ? 'opacity-50' : ''}`}
                                     title="Kolonat: Name"
                                 >
                                     <SortIcon className="w-4 h-4" />
@@ -390,7 +392,7 @@ const MenuTab: React.FC = () => {
                                 </label>
 
                                 {/* Add Button */}
-                                <button onClick={handleAddItem} className="flex items-center space-x-1 px-3 py-2 bg-highlight text-white text-sm rounded-md hover:bg-blue-600 transition-colors">
+                                <button onClick={handleAddItem} className="flex items-center space-x-1 px-3 py-2 bg-highlight text-white text-sm rounded-md hover:bg-highlight-hover transition-colors">
                                     <PlusIcon className="w-4 h-4" />
                                     <span className="hidden md:inline">Shto</span>
                                 </button>
@@ -398,9 +400,9 @@ const MenuTab: React.FC = () => {
                         </div>
 
                         {/* Table Container */}
-                        <div className="flex-grow bg-primary rounded-md border border-accent overflow-y-auto overflow-x-auto min-h-0">
+                        <div className="flex-grow bg-primary rounded-md border border-border overflow-y-auto overflow-x-auto min-h-0">
                             <table className="w-full text-left min-w-[700px] relative">
-                                <thead className="bg-accent sticky top-0 z-10 shadow-sm">
+                                <thead className="bg-border sticky top-0 z-10 shadow-sm">
                                     <tr>
                                         <th className="p-3 w-12 text-text-secondary">#</th>
                                         <th className="p-3 text-text-secondary font-medium">Emri</th>
@@ -414,11 +416,11 @@ const MenuTab: React.FC = () => {
                                 {searchQuery.trim() === '' ? (
                                     <StrictModeDroppable droppableId="items-droppable" type="ITEMS">
                                         {(provided) => (
-                                            <tbody ref={provided.innerRef} {...provided.droppableProps} className="divide-y divide-accent">
+                                            <tbody ref={provided.innerRef} {...provided.droppableProps} className="divide-y divide-border">
                                                 {menuItems.map((item, index) => (
                                                     <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
                                                         {(provided, snapshot) => (
-                                                            <tr ref={provided.innerRef} {...provided.draggableProps} className={`hover:bg-accent/30 transition-colors ${snapshot.isDragging ? 'bg-highlight/20 shadow-lg' : ''}`}>
+                                                            <tr ref={provided.innerRef} {...provided.draggableProps} className={`hover:bg-border/30 transition-colors ${snapshot.isDragging ? 'bg-highlight/20 shadow-lg' : ''}`}>
                                                                 <td className="p-3 text-text-secondary cursor-move" {...provided.dragHandleProps}>
                                                                     <DragHandleIcon className="w-5 h-5" />
                                                                 </td>
@@ -428,8 +430,8 @@ const MenuTab: React.FC = () => {
                                                                 <td className="p-3 text-highlight font-bold">{formatCurrency(item.price)}</td>
                                                                 <td className="p-3">
                                                                     <div className="flex space-x-2">
-                                                                        <button onClick={() => handleEditItem(item)} className="p-1.5 rounded hover:bg-blue-100 text-blue-500 hover:text-blue-700 transition-colors"><EditIcon className="w-4 h-4" /></button>
-                                                                        <button onClick={() => deleteMenuItem(item.id)} className="p-1.5 rounded hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                                        <button onClick={() => handleEditItem(item)} className="p-1.5 rounded text-highlight hover:bg-highlight/20 transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                                                        <button onClick={() => deleteMenuItem(item.id)} className="p-1.5 rounded text-danger hover:bg-danger/20 transition-colors"><TrashIcon className="w-4 h-4" /></button>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -441,9 +443,9 @@ const MenuTab: React.FC = () => {
                                         )}
                                     </StrictModeDroppable>
                                 ) : (
-                                    <tbody className="divide-y divide-accent">
+                                    <tbody className="divide-y divide-border">
                                         {filteredItems.length > 0 ? filteredItems.map((item) => (
-                                            <tr key={item.id} className="hover:bg-accent/30 transition-colors">
+                                            <tr key={item.id} className="hover:bg-border/30 transition-colors">
                                                 <td className="p-3 text-text-secondary opacity-30">
                                                     <div className="w-5 h-5 flex items-center justify-center font-mono text-xs">•</div>
                                                 </td>
@@ -453,8 +455,8 @@ const MenuTab: React.FC = () => {
                                                 <td className="p-3 text-highlight font-bold">{formatCurrency(item.price)}</td>
                                                 <td className="p-3">
                                                     <div className="flex space-x-2">
-                                                        <button onClick={() => handleEditItem(item)} className="p-1.5 rounded hover:bg-blue-100 text-blue-500 hover:text-blue-700 transition-colors"><EditIcon className="w-4 h-4" /></button>
-                                                        <button onClick={() => deleteMenuItem(item.id)} className="p-1.5 rounded hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                        <button onClick={() => handleEditItem(item)} className="p-1.5 rounded hover:bg-highlight-hover text-highlight hover:text-highlight-hover transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                                        <button onClick={() => deleteMenuItem(item.id)} className="p-1.5 rounded hover:bg-danger-hover text-danger hover:text-danger-hover transition-colors"><TrashIcon className="w-4 h-4" /></button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -477,14 +479,14 @@ const MenuTab: React.FC = () => {
                     <div className="flex flex-col flex-grow overflow-hidden bg-secondary p-4 md:p-6 rounded-lg shadow-sm animate-fade-in">
                         <div className="flex justify-between items-center mb-4 flex-shrink-0">
                             <h3 className="text-lg font-semibold text-text-main">Kategoritë (Menutë)</h3>
-                            <button onClick={handleAddMenu} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-blue-600 transition-colors">
+                            <button onClick={handleAddMenu} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-highlight-hover transition-colors">
                                 <PlusIcon className="w-5 h-5" /><span>Shto Kategori</span>
                             </button>
                         </div>
 
-                        <div className="flex-grow bg-primary rounded-md border border-accent overflow-y-auto min-h-0">
+                        <div className="flex-grow bg-primary rounded-md border border-border overflow-y-auto min-h-0">
                             <table className="w-full text-left min-w-[300px] relative">
-                                <thead className="bg-accent sticky top-0 z-10 shadow-sm">
+                                <thead className="bg-border sticky top-0 z-10 shadow-sm">
                                     <tr>
                                         <th className="p-3 w-12 text-text-secondary">#</th>
                                         <th className="p-3 text-text-secondary font-medium">Emri</th>
@@ -493,19 +495,19 @@ const MenuTab: React.FC = () => {
                                 </thead>
                                 <StrictModeDroppable droppableId="categories-droppable" type="CATEGORIES">
                                     {(provided) => (
-                                        <tbody ref={provided.innerRef} {...provided.droppableProps} className="divide-y divide-accent">
+                                        <tbody ref={provided.innerRef} {...provided.droppableProps} className="divide-y divide-border">
                                             {menuCategories.map((menu, index) => (
                                                 <Draggable key={menu.id} draggableId={menu.id.toString()} index={index}>
                                                     {(provided, snapshot) => (
-                                                        <tr ref={provided.innerRef} {...provided.draggableProps} className={`hover:bg-accent/30 transition-colors ${snapshot.isDragging ? 'bg-highlight/20 shadow-lg' : ''}`}>
+                                                        <tr ref={provided.innerRef} {...provided.draggableProps} className={`hover:bg-border/30 transition-colors ${snapshot.isDragging ? 'bg-highlight/20 shadow-lg' : ''}`}>
                                                             <td className="p-3 text-text-secondary cursor-move w-10" {...provided.dragHandleProps}>
                                                                 <DragHandleIcon className="w-5 h-5" />
                                                             </td>
                                                             <td className="p-3 text-text-main font-medium">{menu.name}</td>
                                                             <td className="p-3 text-right">
                                                                 <div className="flex justify-end space-x-1">
-                                                                    <button onClick={() => handleEditMenu(menu)} className="p-1.5 text-blue-500 hover:text-blue-700"><EditIcon className="w-4 h-4" /></button>
-                                                                    <button onClick={() => deleteMenuCategory(menu.id)} className="p-1.5 text-red-500 hover:text-red-700"><TrashIcon className="w-4 h-4" /></button>
+                                                                    <button onClick={() => handleEditMenu(menu)} className="p-1.5 rounded text-highlight hover:bg-highlight/20 transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                                                    <button onClick={() => deleteMenuCategory(menu.id)} className="p-1.5 rounded text-danger hover:bg-danger/20 transition-colors"><TrashIcon className="w-4 h-4" /></button>
                                                                 </div>
                                                             </td>
                                                         </tr>

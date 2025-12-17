@@ -35,22 +35,22 @@ const ProfileTab: React.FC = () => {
             <div className="space-y-4 bg-primary p-6 rounded-lg">
                 <div>
                     <label className="block text-sm font-medium text-text-secondary">Emri i Biznesit</label>
-                    <input type="text" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full bg-secondary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" placeholder="Emri i Restorantit" />
+                    <input type="text" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight placeholder-text-subtle" placeholder="Emri i Restorantit" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-text-secondary">NUI (Numri Unik Identifikues)</label>
-                    <input type="text" name="nui" value={formData.nui} onChange={handleChange} className="mt-1 block w-full bg-secondary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" placeholder="psh. 812345678" />
+                    <input type="text" name="nui" value={formData.nui} onChange={handleChange} className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight placeholder-text-subtle" placeholder="psh. 812345678" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-text-secondary">Adresa</label>
-                    <input type="text" name="address" value={formData.address} onChange={handleChange} className="mt-1 block w-full bg-secondary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" placeholder="Rruga, Qyteti" />
+                    <input type="text" name="address" value={formData.address} onChange={handleChange} className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight placeholder-text-subtle" placeholder="Rruga, Qyteti" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-text-secondary">Numri i Telefonit</label>
-                    <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="mt-1 block w-full bg-secondary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" placeholder="+383 4X XXX XXX" />
+                    <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight placeholder-text-subtle" placeholder="+383 4X XXX XXX" />
                 </div>
                 <div className="flex justify-end pt-4">
-                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-blue-600 transition-colors disabled:bg-gray-500">
+                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-highlight-hover transition-colors disabled:bg-muted">
                         {isSaving ? 'Duke ruajtur...' : 'Ruaj Të Dhënat'}
                     </button>
                 </div>

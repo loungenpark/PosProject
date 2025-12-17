@@ -277,7 +277,7 @@ const TableManager: React.FC = () => {
         <div className="flex flex-col md:flex-row h-[calc(100vh-140px)] gap-4 w-full max-w-7xl mx-auto">
 
             {/* LEFT COLUMN: ZONES */}
-            <div className="w-full md:w-1/4 bg-secondary p-4 rounded-lg flex flex-col shadow-lg border border-accent">
+            <div className="w-full md:w-1/4 bg-secondary p-4 rounded-lg flex flex-col shadow-lg border border-border">
                 <h3 className="text-lg font-bold text-text-main mb-4 flex items-center gap-2">
                     <BoxIcon className="w-5 h-5 text-highlight" />
                     Zonat
@@ -290,10 +290,10 @@ const TableManager: React.FC = () => {
                         placeholder="Emri i Zonës..."
                         value={newSectionName}
                         onChange={(e) => setNewSectionName(e.target.value)}
-                        className="flex-grow bg-primary border-accent rounded-md p-2 text-text-main text-sm focus:ring-1 focus:ring-highlight"
+                        className="flex-grow bg-primary border-border rounded-md p-2 text-text-main text-sm focus:ring-1 focus:ring-highlight"
                         onKeyDown={(e) => e.key === 'Enter' && handleAddSection()}
                     />
-                    <button onClick={handleAddSection} className="p-2 bg-green-600 rounded-md text-white hover:bg-green-700">
+                    <button onClick={handleAddSection} className="p-2 bg-success rounded-md text-white hover:bg-success-hover">
                         <PlusIcon className="w-5 h-5" />
                     </button>
                 </div>
@@ -301,7 +301,7 @@ const TableManager: React.FC = () => {
                 {/* Zone List */}
                 <div className="flex-grow overflow-y-auto space-y-2">
                     {/* "All" Entry with Buttons (No Delete) */}
-                    <div className={`group flex items-center gap-2 px-2 py-2 rounded-md transition-colors ${activeSectionId === 'all' ? 'bg-secondary border border-highlight' : 'hover:bg-primary'}`}>
+                    <div className={`group flex items-center gap-2 px-2 py-2 rounded-md transition-colors border ${activeSectionId === 'all' ? 'border-highlight' : 'border-transparent hover:border-highlight'}`}>
                         {editingSectionId === 'all' ? (
                             <div className="flex-grow flex items-center gap-1">
                                 <input
@@ -311,14 +311,14 @@ const TableManager: React.FC = () => {
                                     onChange={(e) => setEditingSectionName(e.target.value)}
                                     className="w-full bg-primary text-text-main text-sm p-1 rounded border border-highlight"
                                 />
-                                <button onClick={handleSaveSection} className="text-green-500 hover:text-green-400"><SaveIcon className="w-5 h-5" /></button>
-                                <button onClick={() => setEditingSectionId(null)} className="text-red-400 hover:text-red-300"><CloseIcon className="w-5 h-5" /></button>
+                                <button onClick={handleSaveSection} className="text-success hover:text-success-hover"><SaveIcon className="w-5 h-5" /></button>
+                                <button onClick={() => setEditingSectionId(null)} className="text-danger hover:text-danger-hover"><CloseIcon className="w-5 h-5" /></button>
                             </div>
                         ) : (
                             <>
                                 <button
                                     onClick={() => setActiveSectionId('all')}
-                                    className={`flex-grow text-left font-bold px-2 py-1 truncate ${activeSectionId === 'all' ? 'text-highlight' : 'text-text-main'}`}
+                                    className={`flex-grow text-left font-bold px-2 py-1 truncate ${activeSectionId === 'all' ? 'text-highlight' : 'text-text-main group-hover:text-highlight'}`}
                                 >
                                     {allSectionConfig.customName || 'Të gjitha tavolinat'}
                                 </button>
@@ -326,7 +326,7 @@ const TableManager: React.FC = () => {
                                 {/* Default Button (Working for All) */}
                                 <button
                                     onClick={(e) => toggleDefault(e, 'all', allSectionConfig.isDefault)}
-                                    className={`p-1 transition-opacity ${allSectionConfig.isDefault ? 'text-yellow-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-yellow-400'}`}
+                                    className={`p-1 transition-opacity ${allSectionConfig.isDefault ? 'text-warning opacity-100' : 'text-text-secondary opacity-0 group-hover:opacity-100 hover:text-warning'}`}
                                     title={allSectionConfig.isDefault ? "Zona Kryesore" : "Vendos si Kryesore"}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={allSectionConfig.isDefault ? "currentColor" : "none"} stroke="currentColor" className="w-4 h-4" strokeWidth="2">
@@ -337,7 +337,7 @@ const TableManager: React.FC = () => {
                                 {/* Hide Button (Working for All) */}
                                 <button
                                     onClick={(e) => toggleHide(e, 'all')}
-                                    className={`p-1 transition-opacity ${allSectionConfig.isHidden ? 'text-red-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-text-main'}`}
+                                    className={`p-1 transition-opacity ${allSectionConfig.isHidden ? 'text-danger opacity-100' : 'text-text-secondary opacity-0 group-hover:opacity-100 hover:text-danger'}`}
                                     title={allSectionConfig.isHidden ? "Shfaq Zonën" : "Fsheh Zonën"}
                                 >
                                     {allSectionConfig.isHidden ? (
@@ -353,7 +353,7 @@ const TableManager: React.FC = () => {
                                 </button>
 
                                 {/* Edit Button */}
-                                <button onClick={() => handleStartEditSection('all', allSectionConfig.customName || 'Të gjitha tavolinat')} className="p-1 text-gray-500 hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleStartEditSection('all', allSectionConfig.customName || 'Të gjitha tavolinat')} className="p-1 text-text-secondary hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
                                     <PencilIcon className="w-4 h-4" />
                                 </button>
 
@@ -363,13 +363,11 @@ const TableManager: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="h-px bg-accent my-2"></div>
+                    <div className="h-px bg-border my-2"></div>
 
                     {/* Dynamic Sections */}
                     {sections.map(section => (
-                        <div key={section.id} className={`group flex items-center gap-2 px-2 py-2 rounded-md transition-colors ${activeSectionId === section.id ? 'bg-secondary border border-highlight' : 'hover:bg-primary'}`}>
-
-                            {/* Render Mode: Edit vs View */}
+                        <div key={section.id} className={`group flex items-center gap-2 px-2 py-2 rounded-md transition-colors border ${activeSectionId === section.id ? 'border-highlight' : 'border-transparent hover:border-highlight'}`}>
                             {editingSectionId === section.id ? (
                                 <div className="flex-grow flex items-center gap-1">
                                     <input
@@ -379,14 +377,14 @@ const TableManager: React.FC = () => {
                                         onChange={(e) => setEditingSectionName(e.target.value)}
                                         className="w-full bg-primary text-text-main text-sm p-1 rounded border border-highlight"
                                     />
-                                    <button onClick={handleSaveSection} className="text-green-500 hover:text-green-400"><SaveIcon className="w-5 h-5" /></button>
-                                    <button onClick={() => setEditingSectionId(null)} className="text-red-400 hover:text-red-300"><CloseIcon className="w-5 h-5" /></button>
+                                    <button onClick={handleSaveSection} className="text-success hover:text-success-hover"><SaveIcon className="w-5 h-5" /></button>
+                                    <button onClick={() => setEditingSectionId(null)} className="text-danger hover:text-danger-hover"><CloseIcon className="w-5 h-5" /></button>
                                 </div>
                             ) : (
                                 <>
                                     <button
                                         onClick={() => setActiveSectionId(section.id)}
-                                        className={`flex-grow text-left font-medium truncate ${activeSectionId === section.id ? 'text-highlight' : 'text-text-main'}`}
+                                        className={`flex-grow text-left font-medium truncate ${activeSectionId === section.id ? 'text-highlight' : 'text-text-main group-hover:text-highlight'}`}
                                     >
                                         {section.name}
                                     </button>
@@ -394,7 +392,7 @@ const TableManager: React.FC = () => {
                                     {/* Default Button (Star) */}
                                     <button
                                         onClick={(e) => toggleDefault(e, section.id, section.isDefault)}
-                                        className={`p-1 transition-opacity ${section.isDefault ? 'text-yellow-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-yellow-400'}`}
+                                        className={`p-1 transition-opacity ${section.isDefault ? 'text-warning opacity-100' : 'text-text-secondary opacity-0 group-hover:opacity-100 hover:text-warning'}`}
                                         title={section.isDefault ? "Zona Kryesore" : "Vendos si Kryesore"}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={section.isDefault ? "currentColor" : "none"} stroke="currentColor" className="w-4 h-4" strokeWidth="2">
@@ -405,7 +403,7 @@ const TableManager: React.FC = () => {
                                     {/* Hide Button (Eye) */}
                                     <button
                                         onClick={(e) => toggleHide(e, section.id)}
-                                        className={`p-1 transition-opacity ${section.isHidden ? 'text-red-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-text-main'}`}
+                                        className={`p-1 transition-opacity ${section.isHidden ? 'text-danger opacity-100' : 'text-text-secondary opacity-0 group-hover:opacity-100 hover:text-danger'}`}
                                         title={section.isHidden ? "Shfaq Zonën" : "Fsheh Zonën"}
                                     >
                                         {section.isHidden ? (
@@ -421,12 +419,12 @@ const TableManager: React.FC = () => {
                                     </button>
 
                                     {/* Edit Button */}
-                                    <button onClick={() => handleStartEditSection(section.id, section.name)} className="p-1 text-gray-500 hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleStartEditSection(section.id, section.name)} className="p-1 text-text-secondary hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
                                         <PencilIcon className="w-4 h-4" />
                                     </button>
 
                                     {/* Delete Button */}
-                                    <button onClick={() => handleDeleteSection(section.id, section.name)} className="p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleDeleteSection(section.id, section.name)} className="p-1 text-text-secondary hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity">
                                         <TrashIcon className="w-4 h-4" />
                                     </button>
                                 </>
@@ -437,10 +435,10 @@ const TableManager: React.FC = () => {
             </div>
 
             {/* RIGHT COLUMN: TABLES GRID */}
-            <div className="w-full md:w-3/4 bg-secondary p-4 md:p-6 rounded-lg flex flex-col shadow-lg border border-accent flex-1 min-h-0 overflow-hidden">
+            <div className="w-full md:w-3/4 bg-secondary p-4 md:p-6 rounded-lg flex flex-col shadow-lg border border-border flex-1 min-h-0 overflow-hidden">
 
                 {/* --- VISUAL SETTINGS TOOLBAR (NEW) --- */}
-                <div className="bg-primary p-2 md:p-3 rounded-lg border border-accent mb-6 flex flex-wrap md:flex-row gap-2 md:gap-4 items-center shadow-inner overflow-x-auto flex-shrink-0">
+                <div className="bg-primary p-2 md:p-3 rounded-lg border border-border mb-6 flex flex-wrap md:flex-row gap-2 md:gap-4 items-center shadow-inner overflow-x-auto flex-shrink-0">
                     <div className="flex items-center gap-1 md:gap-2">
                         <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
                             <span className="hidden md:inline">Tavolina në rresht:</span>
@@ -451,10 +449,10 @@ const TableManager: React.FC = () => {
                             min="2" max="10"
                             value={tablesPerRow}
                             onChange={(e) => setTablesPerRow(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                     </div>
-                    <div className="h-4 md:h-6 w-px bg-accent hidden md:block"></div>
+                    <div className="h-4 md:h-6 w-px bg-border hidden md:block"></div>
                     <div className="flex items-center gap-1 md:gap-2">
                         <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
                             <span className="hidden md:inline">Madhësia (Buton):</span>
@@ -465,11 +463,11 @@ const TableManager: React.FC = () => {
                             min="50" max="150"
                             value={tableButtonSizePercent}
                             onChange={(e) => setTableButtonSizePercent(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <span className="text-[10px] md:text-xs text-text-secondary">%</span>
                     </div>
-                    <div className="h-4 md:h-6 w-px bg-accent hidden md:block"></div>
+                    <div className="h-4 md:h-6 w-px bg-border hidden md:block"></div>
                     <div className="flex items-center gap-1 md:gap-2">
                         <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
                             <span className="hidden md:inline">Madhësia (Text):</span>
@@ -480,7 +478,7 @@ const TableManager: React.FC = () => {
                             min="50" max="200"
                             value={tableSizePercent}
                             onChange={(e) => setTableSizePercent(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-accent rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <span className="text-[10px] md:text-xs text-text-secondary">%</span>
                     </div>
@@ -494,7 +492,7 @@ const TableManager: React.FC = () => {
                             setTableButtonSizePercent(100);
                             setTableSizePercent(100);
                         }}
-                        className="flex items-center justify-center gap-1 text-xs font-bold text-text-secondary hover:text-highlight transition-colors bg-secondary px-2 md:px-3 py-1 md:py-1.5 rounded border border-accent h-7 md:h-auto w-7 md:w-auto"
+                        className="flex items-center justify-center gap-1 text-xs font-bold text-text-secondary hover:text-highlight transition-colors bg-secondary px-2 md:px-3 py-1 md:py-1.5 rounded border border-border h-7 md:h-auto w-7 md:w-auto"
                         title="Reseto në vlerat fillestare"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -505,7 +503,7 @@ const TableManager: React.FC = () => {
                 </div>
 
                 {/* Header / Tools */}
-                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4 border-b border-accent pb-4 flex-shrink-0">
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4 border-b border-border pb-4 flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <h3 className="text-xl font-bold text-text-main flex items-center gap-2">
                             <TableIcon className="w-6 h-6 text-highlight" />
@@ -520,8 +518,8 @@ const TableManager: React.FC = () => {
                                 <button
                                     onClick={handleToggleReorder}
                                     className={`px-3 py-1 rounded text-sm font-bold border transition-colors ${isReorderMode
-                                        ? 'bg-green-600 border-green-500 text-white hover:bg-green-700'
-                                        : 'bg-primary border-accent text-text-secondary hover:text-text-main'
+                                        ? 'bg-success border-success text-white hover:bg-success-hover'
+                                        : 'bg-primary border-border text-text-secondary hover:text-text-main'
                                         }`}
                                 >
                                     {isReorderMode ? 'Ruaj' : 'Rendit'}
@@ -530,7 +528,7 @@ const TableManager: React.FC = () => {
                                 {isReorderMode && (
                                     <button
                                         onClick={handleResetOrder}
-                                        className="px-3 py-1 rounded text-sm font-bold bg-primary border border-red-900/30 text-red-400 hover:text-red-300 transition-colors"
+                                        className="px-3 py-1 rounded text-sm font-bold bg-primary border border-danger/30 text-danger hover:text-danger-hover transition-colors"
                                     >
                                         Reseto
                                     </button>
@@ -541,7 +539,7 @@ const TableManager: React.FC = () => {
 
                     {/* Batch Creator & Actions */}
                     {activeSectionId !== 'all' && (
-                        <div className="flex items-center gap-1 md:gap-2 bg-primary p-1.5 md:p-2 rounded-lg border border-accent w-full md:w-auto">
+                        <div className="flex items-center gap-1 md:gap-2 bg-primary p-1.5 md:p-2 rounded-lg border border-border w-full md:w-auto">
                             <span className="text-sm text-text-secondary font-bold px-2 hidden md:inline">Shto:</span>
 
                             {/* Prefix */}
@@ -549,7 +547,7 @@ const TableManager: React.FC = () => {
                                 type="text"
                                 value={batchPrefix}
                                 onChange={(e) => setBatchPrefix(e.target.value)}
-                                className="w-10 md:w-16 bg-secondary border-accent rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold"
+                                className="w-10 md:w-16 bg-secondary border-border rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold"
                                 placeholder="Pre"
                             />
 
@@ -558,7 +556,7 @@ const TableManager: React.FC = () => {
                                 type="number"
                                 value={startNum}
                                 onChange={(e) => setStartNum(e.target.value)}
-                                className="w-12 md:w-20 bg-secondary border-accent rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-12 md:w-20 bg-secondary border-border rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Nga"
                             />
                             <span className="text-text-secondary text-xs md:text-base">-</span>
@@ -567,26 +565,26 @@ const TableManager: React.FC = () => {
                                 type="number"
                                 value={endNum}
                                 onChange={(e) => setEndNum(e.target.value)}
-                                className="w-12 md:w-20 bg-secondary border-accent rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-12 md:w-20 bg-secondary border-border rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Deri"
                             />
 
                             {/* Add Button */}
                             <button
                                 onClick={handleBatchAdd}
-                                className="bg-green-600 hover:bg-green-700 text-white w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-sm font-bold transition-colors ml-1 md:ml-2 flex items-center justify-center"
+                                className="bg-success hover:bg-success-hover text-white w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-sm font-bold transition-colors ml-1 md:ml-2 flex items-center justify-center"
                                 title="Shto Tavolina"
                             >
                                 <span className="md:hidden text-lg">+</span>
                                 <span className="hidden md:inline">+ Shto</span>
                             </button>
 
-                            <div className="w-px h-6 bg-accent mx-1 md:mx-2"></div>
+                            <div className="w-px h-6 bg-border mx-1 md:mx-2"></div>
 
                             {/* Delete All Button */}
                             <button
                                 onClick={handleDeleteAllInZone}
-                                className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/50 w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-sm font-bold transition-colors flex items-center justify-center"
+                                className="bg-danger-bg text-danger hover:bg-danger hover:text-white border border-danger/50 w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-sm font-bold transition-colors flex items-center justify-center"
                                 title="Fshij Të Gjitha"
                             >
                                 <span className="hidden md:inline">Fshij Të Gjitha</span>
@@ -637,7 +635,7 @@ const TableManager: React.FC = () => {
                                                         {!isReorderMode && (
                                                             <button
                                                                 onClick={() => handleDeleteTable(table.id)}
-                                                                className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-accent"
+                                                                className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-text-secondary hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-border"
                                                                 title="Fshij Tavolinën"
                                                             >
                                                                 <TrashIcon className="w-3 h-3" />
@@ -646,7 +644,7 @@ const TableManager: React.FC = () => {
 
                                                         {/* Reorder Overlay (Visible only in Reorder Mode) */}
                                                         {isReorderMode && (
-                                                            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/10">
+                                                            <div className="absolute inset-0 flex items-center justify-center z-10 bg-primary/20">
                                                                 {/* Move Icon */}
                                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8 text-white drop-shadow-md opacity-80">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
@@ -692,24 +690,24 @@ const TableManager: React.FC = () => {
 
             {/* DELETE CONFIRMATION MODAL */}
             {isDeleteModalOpen && sectionToDelete && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-                    <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-accent">
+                <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
+                    <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
                         <h3 className="text-xl font-bold text-text-main mb-4">Konfirmo Fshirjen</h3>
                         <p className="text-text-secondary mb-6">
                             Jeni të sigurt që doni të fshini zonën <strong className="text-highlight">{sectionToDelete.name}</strong>?
                             <br />
-                            <span className="text-red-400 mt-2 block">Të gjitha tavolinat brenda saj do të çaktivizohen.</span>
+                            <span className="text-danger mt-2 block">Të gjitha tavolinat brenda saj do të çaktivizohen.</span>
                         </p>
                         <div className="flex justify-end gap-4">
                             <button
                                 onClick={handleCancelDelete}
-                                className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-accent transition-colors"
+                                className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-border transition-colors"
                             >
                                 Anulo
                             </button>
                             <button
                                 onClick={handleConfirmDelete}
-                                className="px-6 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+                                className="px-6 py-2 rounded-md bg-danger text-white font-semibold hover:bg-danger-hover transition-colors"
                             >
                                 Fshij Zonën
                             </button>
@@ -720,24 +718,24 @@ const TableManager: React.FC = () => {
 
             {/* DELETE ALL TABLES CONFIRMATION MODAL */}
             {isDeleteAllTablesModalOpen && activeSectionId !== 'all' && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-                    <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-accent">
+                <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
+                    <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
                         <h3 className="text-xl font-bold text-text-main mb-4">Konfirmo Fshirjen Masive</h3>
                         <p className="text-text-secondary mb-6">
                             Jeni të sigurt që doni të fshini <strong className="text-highlight">{filteredTables.length} tavolina</strong> në zonën <strong className="text-white">{sections.find(s => s.id === activeSectionId)?.name}</strong>?
                             <br />
-                            <span className="text-red-400 mt-2 block">Ky veprim nuk mund të kthehet pas.</span>
+                            <span className="text-danger mt-2 block">Ky veprim nuk mund të kthehet pas.</span>
                         </p>
                         <div className="flex justify-end gap-4">
                             <button
                                 onClick={() => setIsDeleteAllTablesModalOpen(false)}
-                                className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-accent transition-colors"
+                                className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-border transition-colors"
                             >
                                 Anulo
                             </button>
                             <button
                                 onClick={confirmDeleteAllTables}
-                                className="px-6 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+                                className="px-6 py-2 rounded-md bg-danger text-white font-semibold hover:bg-danger-hover transition-colors"
                             >
                                 Fshij Të Gjitha
                             </button>
@@ -748,9 +746,9 @@ const TableManager: React.FC = () => {
 
             {/* GENERIC INFO/ERROR MODAL */}
             {infoModal.isOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-                    <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-accent">
-                        <h3 className="text-xl font-bold text-red-400 mb-4">Veprimi u Ndalua</h3>
+                <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
+                    <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
+                        <h3 className="text-xl font-bold text-danger mb-4">Veprimi u Ndalua</h3>
                         <p className="text-text-secondary mb-6 whitespace-pre-line">
                             {infoModal.message}
                         </p>

@@ -24,6 +24,7 @@
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
     "file-saver": "^2.0.5",
+    "lucide-react": "^0.561.0",
     "multer": "^2.0.2",
     "node-thermal-printer": "^4.4.0",
     "papaparse": "^5.5.3",
@@ -38,9 +39,12 @@
   "devDependencies": {
     "@types/papaparse": "^5.5.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.23",
     "concurrently": "^8.2.2",
     "docx": "^9.5.1",
     "markdown-to-docx": "^1.2.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
     "typescript": "^5.2.2",
     "vite": "^5.2.0"
   }

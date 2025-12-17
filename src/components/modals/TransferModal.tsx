@@ -81,11 +81,11 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
-            <div className="bg-secondary rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col border border-accent">
+        <div className="fixed inset-0 bg-primary/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-secondary rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col border border-border">
 
                 {/* HEADER */}
-                <div className="flex justify-between items-center p-4 border-b border-accent bg-secondary rounded-t-lg">
+                <div className="flex justify-between items-center p-4 border-b border-border bg-secondary rounded-t-lg">
                     <div className="flex items-center gap-3">
                         {step === 2 && (
                             <button onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-primary text-text-secondary">
@@ -96,7 +96,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                             {step === 1 ? `Zgjidh Artikujt (${sourceTableName})` : 'Zgjidh Tavolinën e Re'}
                         </h2>
                     </div>
-                    <button onClick={onClose} className="p-2 text-text-secondary hover:text-white hover:bg-red-500 rounded-full transition-colors">
+                    <button onClick={onClose} className="p-2 text-text-secondary hover:text-main hover:bg-danger rounded-full transition-colors">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </div>
@@ -131,12 +131,12 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                             onClick={() => toggleItemSelection(uid)}
                                             className={`p-3 rounded-lg border cursor-pointer flex justify-between items-center transition-all
                                                 ${isSelected
-                                                    ? 'bg-highlight/20 border-highlight'
-                                                    : 'bg-primary border-accent hover:border-gray-500'}`}
+                                                    ? 'bg-primary/20 border-primary'
+                                                    : 'bg-primary border-border hover:border-muted'}`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-5 h-5 rounded border flex items-center justify-center
-                                                    ${isSelected ? 'bg-highlight border-highlight' : 'border-gray-500'}`}
+    ${isSelected ? 'bg-primary border-primary' : 'border-border'}`}
                                                 >
                                                     {isSelected && <span className="text-white text-xs">✓</span>}
                                                 </div>
@@ -150,11 +150,11 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                 })}
                             </div>
 
-                            <div className="mt-4 pt-4 border-t border-accent flex justify-end">
+                            <div className="mt-4 pt-4 border-t border-border flex justify-end">
                                 <button
                                     onClick={() => setStep(2)}
                                     disabled={selectedItemUniqueIds.length === 0}
-                                    className="px-8 py-3 bg-highlight text-white font-bold rounded-lg hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors shadow-lg"
+                                    className="px-8 py-3 bg-highlight text-white font-bold rounded-lg hover:bg-highlight-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors shadow-lg"
                                 >
                                     Vazhdo
                                 </button>
@@ -169,7 +169,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                             <div className="flex space-x-2 overflow-x-auto pb-2 mb-4">
                                 <button
                                     onClick={() => setActiveSectionId('all')}
-                                    className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-primary text-text-secondary hover:bg-accent'}`}
+                                    className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-primary text-text-secondary hover:bg-border'}`}
                                 >
                                     Të gjitha
                                 </button>
@@ -177,7 +177,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                     <button
                                         key={section.id}
                                         onClick={() => setActiveSectionId(section.id)}
-                                        className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === section.id ? 'bg-highlight text-white' : 'bg-primary text-text-secondary hover:bg-accent'}`}
+                                        className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === section.id ? 'bg-highlight text-white' : 'bg-primary text-text-secondary hover:bg-border'}`}
                                     >
                                         {section.name}
                                     </button>
@@ -192,15 +192,15 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                             key={table.id}
                                             onClick={() => handleTransfer(table.id)}
                                             className={`aspect-square flex flex-col justify-center items-center rounded-lg shadow-md transition-transform transform hover:-translate-y-1 p-2
-                                                ${table.order ? 'bg-orange-500/20 border-orange-500 border-2' : 'bg-primary border border-accent hover:border-highlight'}`}
+                                                ${table.order ? 'bg-warning-bg border-warning border-2' : 'bg-primary border border-border hover:border-highlight'}`}
                                         >
                                             <span className="text-xl font-bold text-text-main">{table.name}</span>
                                             {table.order ? (
-                                                <span className="text-xs text-orange-400 font-bold mt-1">
+                                                <span className="text-xs text-warning font-bold mt-1">
                                                     (E Hapur)
                                                 </span>
                                             ) : (
-                                                <span className="text-xs text-green-500 font-bold mt-1">
+                                                <span className="text-xs text-success font-bold mt-1">
                                                     E Lirë
                                                 </span>
                                             )}

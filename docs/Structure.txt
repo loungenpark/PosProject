@@ -1,4 +1,6 @@
-PS C:\Users\Lounge Park\PosProject> Get-ChildItem -Recurse | Where-Object { $_.FullName -notmatch "node_modules" -and $_.FullName -notmatch "\.git" } | ForEach-Object { $_.FullName.Replace($PWD.Path + "\", "") }
+PS D:\Projects\PosProject> Get-ChildItem -Recurse | Where-Object { $_.FullName -notmatch "node_modules" -and $_.FullName -notmatch "\.git" } | ForEach-Object { $_.FullName.Replace($PWD.Path + "\", "") }
+>>
+>>
 docs
 scripts
 seed
@@ -13,13 +15,15 @@ tsconfig.json
 vite.config.ts
 docs\z
 docs\.env.local.txt
+docs\colors and icons.docx
 docs\How to Install on a New PC.docx
 docs\info.txt
 docs\install to new PC info.docx
 docs\roadmap for operation business day.docx
 docs\Structure.txt
 docs\Summary of the App.docx
-docs\System Instuctions.docx
+docs\System Instructions2.docx
+docs\UI.xlsx
 docs\updates.docx
 docs\z\how to fix by google ai app.docx
 docs\z\New Microsoft Excel Worksheet.xlsx
@@ -31,6 +35,7 @@ docs\z\steps to install2.docx
 docs\z\Summary from app chat.docx
 docs\z\Summary from app chat.txt
 docs\z\Summary to Copy and Paste into a New Chat.txt
+docs\z\System Instuctions.docx
 scripts\startPos.bat
 seed\menu_import.csv
 seed\reorder_items.csv
@@ -52,25 +57,27 @@ src\constants.ts
 src\index.css
 src\index.tsx
 src\types.ts
+src\vite-env.d.ts
 src\components\admin
 src\components\common
+src\components\modals
 src\components\OrderTicket.tsx
 src\components\Receipt.tsx
 src\components\admin\MenuTab.tsx
 src\components\admin\ProfileTab.tsx
 src\components\admin\SettingsTab.tsx
 src\components\admin\StockTab.tsx
-src\components\admin\SupplyTab.tsx
+src\components\admin\TableManager.tsx
 src\components\admin\UsersTab.tsx
 src\components\common\Icons.tsx
 src\components\common\ToggleSwitch.tsx
+src\components\modals\TransferModal.tsx
 src\context\PosContext.tsx
 src\pages\AdminScreen.tsx
 src\pages\LoginScreen.tsx
+src\pages\PosScreen - Copy.tsx
 src\pages\PosScreen.tsx
 src\pages\SalesScreen.tsx
 src\utils\api.ts
 src\utils\db.ts
-PS C:\Users\Lounge Park\PosProject>
-
-
+PS D:\Projects\PosProject>

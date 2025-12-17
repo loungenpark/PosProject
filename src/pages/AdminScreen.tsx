@@ -28,15 +28,15 @@ const AdminScreen: React.FC = () => {
       <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md z-40">
         <h1 className="hidden md:block text-xl font-bold text-text-main">Menaxhimi</h1>
         <div className="flex items-center justify-end w-full md:w-auto space-x-2 md:space-x-4">
-          <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors flex items-center space-x-2">
+          <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-border text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors flex items-center space-x-2">
             <RestaurantIcon className="w-5 h-5" />
             <span>POS</span>
           </button>
-          <button onClick={() => setActiveScreen('sales')} className="px-4 py-2 bg-accent text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">
+          <button onClick={() => setActiveScreen('sales')} className="px-4 py-2 bg-border text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">
             Raporte
           </button>
           <span className="text-text-secondary ml-4"> {loggedInUser?.username}</span>
-          <button onClick={() => setActiveScreen('pos')} className="p-2 rounded-full text-text-secondary hover:bg-accent hover:text-white transition-colors">
+          <button onClick={() => setActiveScreen('pos')} className="p-2 rounded-full text-text-secondary hover:bg-border hover:text-text-main transition-colors">
             <CloseIcon className="w-6 h-6" />
           </button>
         </div>
@@ -45,37 +45,45 @@ const AdminScreen: React.FC = () => {
       {/* Container for Tabs and Content */}
       <div className="flex flex-col flex-grow overflow-hidden">
         {/* Tabs - Fixed height, no longer relies on sticky positioning */}
-        <nav className="z-30 w-full bg-secondary p-2 flex overflow-x-auto space-x-2 border-b border-accent flex-shrink-0 shadow-sm">
-          <button onClick={() => setActiveTab('menu')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'menu' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+        {/* Tabs - Fixed height, no longer relies on sticky positioning */}
+        <nav className="z-30 w-full bg-secondary p-2 flex overflow-x-auto space-x-2 border-b border-border flex-shrink-0 shadow-sm">
+          {/* Menu Tab */}
+          <button onClick={() => setActiveTab('menu')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'menu' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:text-highlight hover:border-highlight'}`}>
             <MenuIcon className="w-5 h-5" />
             <span>Menutë</span>
           </button>
-          <button onClick={() => setActiveTab('stock')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'stock' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+          {/* Stock Tab */}
+          <button onClick={() => setActiveTab('stock')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'stock' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:text-highlight hover:border-highlight'}`}>
             <BoxIcon className="w-5 h-5" />
             <span>Stoku</span>
           </button>
-          <button onClick={() => setActiveTab('users')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'users' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+          {/* Users Tab */}
+          <button onClick={() => setActiveTab('users')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:text-highlight hover:border-highlight'}`}>
             <UserGroupIcon className="w-5 h-5" />
             <span>Përdoruesit</span>
           </button>
-          <button onClick={() => setActiveTab('tables')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'tables' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+          {/* Tables Tab */}
+          <button onClick={() => setActiveTab('tables')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'tables' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:text-highlight hover:border-highlight'}`}>
             <TableIcon className="w-5 h-5" />
             <span>Tavolinat</span>
           </button>
-          <button onClick={() => setActiveTab('tax')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'tax' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+          {/* Tax Tab */}
+          <button onClick={() => setActiveTab('tax')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'tax' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:text-highlight hover:border-highlight'}`}>
             <PercentIcon className="w-5 h-5" />
             <span>Tatimi</span>
           </button>
-          <button onClick={() => setActiveTab('operationalDay')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'operationalDay' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+          {/* Operational Day Tab */}
+          <button onClick={() => setActiveTab('operationalDay')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'operationalDay' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:text-highlight hover:border-highlight'}`}>
             <ClockIcon className="w-5 h-5" />
             <span>Dita Operacionale</span>
           </button>
-
-          <button onClick={() => setActiveTab('printimi')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'printimi' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+          {/* Printing Tab */}
+          <button onClick={() => setActiveTab('printimi')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'printimi' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:text-highlight hover:border-highlight'}`}>
             <PrinterIcon className="w-5 h-5" />
             <span>Printimi</span>
           </button>
-          <button onClick={() => setActiveTab('profile')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 rounded-t-md transition-colors whitespace-nowrap ${activeTab === 'profile' ? 'bg-highlight text-white' : 'hover:bg-accent text-text-secondary'}`}>
+          {/* Profile Tab */}
+          <button onClick={() => setActiveTab('profile')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'profile' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:text-highlight hover:border-highlight'}`}>
             <RestaurantIcon className="w-5 h-5" />
             <span>Profil</span>
           </button>

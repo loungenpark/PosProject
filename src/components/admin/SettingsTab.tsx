@@ -23,29 +23,29 @@ export const TaxSettings: React.FC = () => {
             setIsSaving(false);
         }
     };
-    
+
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
             <h3 className="text-xl font-semibold mb-4 text-text-main">Tatimi</h3>
             <div className="space-y-6 bg-primary p-6 rounded-lg">
                 <div>
                     <label htmlFor="taxRate" className="block text-sm font-medium text-text-secondary">Norma e Tatimit (%)</label>
-                    <input 
-                        type="number" 
+                    <input
+                        type="number"
                         id="taxRate"
                         value={tax}
                         onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
                         min="0"
                         step="0.1"
-                        className="mt-1 block w-full bg-secondary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
+                        className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
                     />
                     <p className="text-xs text-text-secondary mt-1">Vendosni 0 për të çaktivizuar tatimin dhe fshehur rreshtat e nëntotalit/tatimit. Mos e përfshini simbolin %.</p>
                 </div>
-                 <div className="flex justify-end pt-2">
-                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-blue-600 transition-colors disabled:bg-gray-500">
+                <div className="flex justify-end pt-2">
+                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-highlight-hover transition-colors disabled:bg-muted">
                         {isSaving ? 'Duke ruajtur...' : 'Ruaj Ndryshimet'}
                     </button>
-                 </div>
+                </div>
             </div>
         </div>
     );
@@ -56,7 +56,7 @@ export const PrintingSettings: React.FC = () => {
     const [isPrintStation, setIsPrintStation] = useState(false);
     const [printOrdersEnabled, setPrintOrdersEnabled] = useState(false);
     const [printReceiptsEnabled, setPrintReceiptsEnabled] = useState(false);
-    
+
     useEffect(() => {
         setIsPrintStation(localStorage.getItem('isPrintStation') === 'true');
         setPrintOrdersEnabled(localStorage.getItem('isOrderTicketPrintingEnabled') !== 'false');
@@ -67,7 +67,7 @@ export const PrintingSettings: React.FC = () => {
         setIsPrintStation(enabled);
         localStorage.setItem('isPrintStation', String(enabled));
     };
-    
+
     const handleOrderPrintingChange = (enabled: boolean) => {
         setPrintOrdersEnabled(enabled);
         localStorage.setItem('isOrderTicketPrintingEnabled', String(enabled));
@@ -81,7 +81,7 @@ export const PrintingSettings: React.FC = () => {
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
             <h3 className="text-xl font-semibold mb-2 text-text-main">Konfigurimi i Printimit</h3>
-            <p className="text-gray-400 mb-6">Menaxho se si dhe ku printohen porositë dhe faturat për këtë pajisje.</p>
+            <p className="text-text-secondary mb-6">Menaxho se si dhe ku printohen porositë dhe faturat për këtë pajisje.</p>
             <div className="bg-primary rounded-lg p-6">
                 <ToggleSwitch
                     label="Stacion Printimi"
@@ -111,12 +111,12 @@ export const OperationalDaySettings: React.FC = () => {
     const { operationalDayStartHour, updateOperationalDayStartHour } = usePos();
     const [hour, setHour] = useState(operationalDayStartHour);
     const [isSaving, setIsSaving] = useState(false);
-   
+
     // Sync local state if the global context value changes
     useEffect(() => {
         setHour(operationalDayStartHour);
     }, [operationalDayStartHour]);
-    
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
@@ -129,7 +129,7 @@ export const OperationalDaySettings: React.FC = () => {
             setIsSaving(false);
         }
     };
-    
+
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
             <h3 className="text-xl font-semibold mb-4 text-text-main">Dita Operacionale</h3>
@@ -143,17 +143,17 @@ export const OperationalDaySettings: React.FC = () => {
                         onChange={(e) => setHour(parseInt(e.target.value, 10) || 0)}
                         min="0"
                         max="23"
-                        className="mt-1 block w-full bg-secondary border-accent rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
+                        className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
                     />
                     <p className="text-xs text-text-secondary mt-1">
                         Cakto orën (0-23) kur fillon dita e punës. P.sh., vlera '5' do të thotë që dita zgjat nga ora 5:00 e mëngjesit deri në 4:59 të ditës tjetër.
                     </p>
                 </div>
-                 <div className="flex justify-end pt-2">
-                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-blue-600 transition-colors disabled:bg-gray-500">
+                <div className="flex justify-end pt-2">
+                    <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-highlight-hover transition-colors disabled:bg-muted">
                         {isSaving ? 'Duke ruajtur...' : 'Ruaj Ndryshimet'}
                     </button>
-                 </div>
+                </div>
             </div>
         </div>
     );
