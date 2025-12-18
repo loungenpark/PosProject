@@ -2,7 +2,7 @@
 import { SyncQueueItem } from "../types";
 
 const DB_NAME = 'pos-offline-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented to trigger upgrade
 
 let db: IDBDatabase;
 
@@ -13,6 +13,7 @@ const STORES = {
     sales: 'sales',
     history: 'history',
     syncQueue: 'syncQueue',
+    sections: 'sections', // Added sections
 };
 
 export const initDB = (): Promise<IDBDatabase> => {
@@ -47,8 +48,12 @@ export const initDB = (): Promise<IDBDatabase> => {
             if (!tempDb.objectStoreNames.contains(STORES.sales)) {
                 tempDb.createObjectStore(STORES.sales, { keyPath: 'id' });
             }
-             if (!tempDb.objectStoreNames.contains(STORES.history)) {
+            if (!tempDb.objectStoreNames.contains(STORES.history)) {
                 tempDb.createObjectStore(STORES.history, { keyPath: 'id' });
+            }
+            // Create sections store
+            if (!tempDb.objectStoreNames.contains(STORES.sections)) {
+                tempDb.createObjectStore(STORES.sections, { keyPath: 'id' });
             }
             if (!tempDb.objectStoreNames.contains(STORES.syncQueue)) {
                 tempDb.createObjectStore(STORES.syncQueue, { keyPath: 'id', autoIncrement: true });
@@ -118,6 +123,7 @@ export const clearStaticData = async () => {
     await clearStore('users');
     await clearStore('menuItems');
     await clearStore('menuCategories');
+    await clearStore('sections'); // Clear sections as well
 }
 
 // --- Sync Queue Specific Functions ---

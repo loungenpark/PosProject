@@ -15,7 +15,8 @@ import {
     DownloadIcon,
     PieChartIcon, // Added
     GridIcon,     // Added
-    PackageIcon   // Added
+    PackageIcon,   // Added
+    BoxIcon      // Added for Stock button
 } from '../components/common/Icons';
 
 const formatCurrency = (amount: number | string) => {
@@ -440,6 +441,11 @@ const SalesScreen: React.FC = () => {
                     <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
                         <GridIcon className="w-5 h-5" />
                         <span className="hidden md:inline">POS</span>
+                    </button>
+                    {/* // New Stock Button */}
+                    <button onClick={() => setActiveScreen('stock')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+                        <BoxIcon className="w-5 h-5" />
+                        <span className="hidden md:inline">Stoku</span>
                     </button>
                     {/* // This button's style is also updated for consistency. */}
                     <button onClick={() => setActiveScreen('admin')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">

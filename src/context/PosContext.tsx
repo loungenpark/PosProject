@@ -12,8 +12,8 @@ interface OrderToPrint { table: Table; newItems: OrderItem[]; }
 
 interface PosContextState {
   isLoading: boolean; isOnline: boolean; isSyncing: boolean; loggedInUser: User | null;
-  activeScreen: 'pos' | 'sales' | 'admin';
-  setActiveScreen: (screen: 'pos' | 'sales' | 'admin') => void;
+  activeScreen: 'pos' | 'sales' | 'admin' | 'stock';
+  setActiveScreen: (screen: 'pos' | 'sales' | 'admin' | 'stock') => void;
   login: (pin: string) => Promise<boolean>; logout: () => void; users: User[];
   addUser: (user: Omit<User, 'id'>) => Promise<void>; deleteUser: (userId: number) => Promise<boolean>;
   menuItems: MenuItem[]; addMenuItem: (item: Omit<MenuItem, 'id'>) => Promise<void>;
@@ -60,7 +60,7 @@ const PosContext = createContext<PosContextState | undefined>(undefined);
 
 export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // --- STATE DEFINITIONS ---
-  const [activeScreen, setActiveScreen] = useState<'pos' | 'sales' | 'admin'>('pos');
+  const [activeScreen, setActiveScreen] = useState<'pos' | 'sales' | 'admin' | 'stock'>('pos');
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -146,11 +146,13 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const loadDataFromDb = useCallback(async () => {
-    const [dbUsers, dbMenuItems, dbMenuCategories, dbSales, dbHistory] = await Promise.all([
+    // Added db.getAll<Section>('sections')
+    const [dbUsers, dbMenuItems, dbMenuCategories, dbSales, dbHistory, dbSections] = await Promise.all([
       db.getAll<User>('users'), db.getAll<MenuItem>('menuItems'), db.getAll<MenuCategory>('menuCategories'),
-      db.getAll<Sale>('sales'), db.getAll<HistoryEntry>('history'),
+      db.getAll<Sale>('sales'), db.getAll<HistoryEntry>('history'), db.getAll<Section>('sections'),
     ]);
     setUsers(dbUsers);
+    setServerSections(dbSections || []); // Restore sections from local DB
     const sortedDbMenuItems = [...dbMenuItems].sort((a, b) => {
       if (a.display_order === null && b.display_order === null) return 0;
       if (a.display_order === null) return 1;
@@ -299,7 +301,8 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await Promise.all([
         db.bulkPut(serverUsers, 'users'),
         db.bulkPut(serverItems, 'menuItems'),
-        db.bulkPut(serverCats, 'menuCategories')
+        db.bulkPut(serverCats, 'menuCategories'),
+        db.bulkPut(serverSections || [], 'sections') // Save sections to DB
       ]);
 
       setUsers(serverUsers);
@@ -1134,52 +1137,64 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // ... inside bootstrap function of main useEffect
     const bootstrap = async () => {
-      setIsLoading(true);
-      await db.initDB();
+      try {
+        setIsLoading(true);
+        await db.initDB();
 
-      // Load section preferences into React State once on startup
-      setSectionPrefs(JSON.parse(localStorage.getItem('sectionPreferences') || '{}'));
-
-      // 1. LOAD FROM LOCALSTORAGE
-      let countToLoad = parseInt(localStorage.getItem('tableCount') || '50', 10);
-      if (!countToLoad || countToLoad < 1) countToLoad = 50;
-
-      const savedTablesJSON = localStorage.getItem('activeTables');
-      let initialTables: Table[] = [];
-
-      if (savedTablesJSON) {
+        // Safe JSON Parse for Preferences
         try {
-          const parsed = JSON.parse(savedTablesJSON);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            initialTables = parsed;
-          }
-        } catch (e) { console.error("Error parsing activeTables", e); }
-      }
-
-      if (initialTables.length === 0) {
-        initialTables = Array.from({ length: countToLoad }, (_, i) => ({
-          id: i + 1, name: `${i + 1}`, order: null
-        }));
-      }
-
-      setTables(initialTables);
-
-      setTablesPerRowState(parseInt(localStorage.getItem('tablesPerRow') || '5', 10));
-      setTableSizePercentState(parseInt(localStorage.getItem('tableSizePercent') || '100', 10));
-      setTableButtonSizePercentState(parseInt(localStorage.getItem('tableButtonSizePercent') || '100', 10));
-
-      // 2. SERVER SYNC
-      if (isBackendConfigured && navigator.onLine) {
-        try {
-          await fetchAndCacheData();
-          await syncOfflineData();
-        } catch (error) {
-          console.error("Startup sync failed:", error);
+          const savedPrefs = localStorage.getItem('sectionPreferences');
+          setSectionPrefs(savedPrefs ? JSON.parse(savedPrefs) : {});
+        } catch (e) {
+          console.error("Error parsing sectionPreferences, resetting.", e);
+          setSectionPrefs({});
         }
-      } else {
-        await loadDataFromDb();
+
+        // 1. LOAD TABLES INIT (Visual Placeholder)
+        let countToLoad = parseInt(localStorage.getItem('tableCount') || '50', 10);
+        if (!countToLoad || countToLoad < 1) countToLoad = 50;
+
+        // Try to recover last known state from localStorage purely for visual consistency before sync
+        const savedTablesJSON = localStorage.getItem('activeTables');
+        let initialTables: Table[] = [];
+        if (savedTablesJSON) {
+          try {
+            const parsed = JSON.parse(savedTablesJSON);
+            if (Array.isArray(parsed)) initialTables = parsed;
+          } catch (e) { console.warn("Invalid activeTables in local storage"); }
+        }
+
+        if (initialTables.length === 0) {
+          initialTables = Array.from({ length: countToLoad }, (_, i) => ({
+            id: i + 1, name: `${i + 1}`, order: null
+          }));
+        }
+        setTables(initialTables);
+
+        // Load Settings
+        setTablesPerRowState(parseInt(localStorage.getItem('tablesPerRow') || '5', 10));
+        setTableSizePercentState(parseInt(localStorage.getItem('tableSizePercent') || '100', 10));
+        setTableButtonSizePercentState(parseInt(localStorage.getItem('tableButtonSizePercent') || '100', 10));
+
+        // 2. DATA SYNC
+        if (isBackendConfigured && navigator.onLine) {
+          try {
+            await fetchAndCacheData();
+            await syncOfflineData();
+          } catch (error) {
+            console.error("Startup sync failed, falling back to DB:", error);
+            await loadDataFromDb();
+          }
+        } else {
+          await loadDataFromDb();
+        }
+
+      } catch (fatalError) {
+        console.error("CRITICAL BOOTSTRAP FAILURE:", fatalError);
+        // Even if everything fails, we must allow the app to render
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     bootstrap();

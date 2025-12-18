@@ -5,6 +5,7 @@ import { usePos } from './context/PosContext';
 import LoginScreen from './pages/LoginScreen';
 import PosScreen from './pages/PosScreen';
 import AdminScreen from './pages/AdminScreen';
+import StockScreen from './pages/StockScreen'; // Add this
 import SalesScreen from './pages/SalesScreen';
 import { RestaurantIcon } from './components/common/Icons';
 
@@ -13,10 +14,10 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-primary text-text-secondary">
-            <RestaurantIcon className="w-20 h-20 text-highlight animate-pulse" />
-            <p className="mt-4 text-lg">Duke u ngarkuar sistemi...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-primary text-text-secondary">
+        <RestaurantIcon className="w-20 h-20 text-highlight animate-pulse" />
+        <p className="mt-4 text-lg">Duke u ngarkuar sistemi...</p>
+      </div>
     );
   }
 
@@ -31,6 +32,8 @@ const App: React.FC = () => {
         return <SalesScreen />;
       case 'admin':
         return <AdminScreen />;
+      case 'stock':
+        return <StockScreen />;
       case 'pos':
       default:
         return <PosScreen />;

@@ -3,19 +3,17 @@ import { usePos } from '../context/PosContext';
 import ProfileTab from '../components/admin/ProfileTab';
 import { TaxSettings, PrintingSettings, OperationalDaySettings } from '../components/admin/SettingsTab';
 import TableManager from '../components/admin/TableManager';
-import { CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, UploadIcon, RestaurantIcon, ClockIcon, GridIcon, PieChartIcon, PackageIcon } from '../components/common/Icons';
+import { CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, RestaurantIcon, ClockIcon, GridIcon, PieChartIcon, PackageIcon } from '../components/common/Icons';
 
 // Sub-components
 import UsersTab from '../components/admin/UsersTab';
 // SupplyTab import removed
 import MenuTab from '../components/admin/MenuTab';
-import StockTab from '../components/admin/StockTab';
-
-
+// StockTab removed
 
 
 // --- Main Admin Screen Component ---
-type AdminTab = 'menu' | 'stock' | 'users' | 'tax' | 'tables' | 'operationalDay' | 'printimi' | 'profile';
+type AdminTab = 'menu' | 'users' | 'tax' | 'tables' | 'operationalDay' | 'printimi' | 'profile';
 
 // Note: No props needed as it's a top-level route now
 const AdminScreen: React.FC = () => {
@@ -41,6 +39,11 @@ const AdminScreen: React.FC = () => {
             <PieChartIcon className="w-5 h-5" />
             <span className="hidden md:inline">Raporte</span>
           </button>
+          {/* Add Stock Button */}
+          <button onClick={() => setActiveScreen('stock')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+            <BoxIcon className="w-5 h-5" />
+            <span className="hidden md:inline">Stoku</span>
+          </button>
           {/* // Vertical separator added for consistency */}
           <div className="w-px h-6 bg-border mx-2"></div>
           <span className="text-tsecondary"> {loggedInUser?.username}</span>
@@ -59,11 +62,6 @@ const AdminScreen: React.FC = () => {
           <button onClick={() => setActiveTab('menu')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'menu' ? 'border-highlight text-highlight' : 'border-transparent text-tsecondary hover:text-highlight hover:border-highlight'}`}>
             <MenuIcon className="w-5 h-5" />
             <span>Menutë</span>
-          </button>
-          {/* Stock Tab */}
-          <button onClick={() => setActiveTab('stock')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'stock' ? 'border-highlight text-highlight' : 'border-transparent text-tsecondary hover:text-highlight hover:border-highlight'}`}>
-            <BoxIcon className="w-5 h-5" />
-            <span>Stoku</span>
           </button>
           {/* Users Tab */}
           <button onClick={() => setActiveTab('users')} className={`flex-shrink-0 flex items-center space-x-2 px-4 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-highlight text-highlight' : 'border-transparent text-tsecondary hover:text-highlight hover:border-highlight'}`}>
@@ -100,7 +98,6 @@ const AdminScreen: React.FC = () => {
         {/* Main Content - locked container, children must handle scrolling */}
         <main className="flex-grow overflow-hidden p-4 md:p-6 w-full relative flex flex-col">
           {activeTab === 'menu' && <MenuTab />}
-          {activeTab === 'stock' && <StockTab />}
           {activeTab === 'users' && <UsersTab />}
           {activeTab === 'tax' && <TaxSettings />}
           {activeTab === 'tables' && <TableManager />}

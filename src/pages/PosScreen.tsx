@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
-import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon, PieChartIcon, PackageIcon } from '../components/common/Icons';
+import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon, PieChartIcon, PackageIcon, BoxIcon } from '../components/common/Icons';
 import TransferModal from '../components/modals/TransferModal';
 
 const formatCurrency = (amount: number) => {
@@ -356,6 +356,11 @@ const PosScreen: React.FC = () => {
                             <PieChartIcon className="w-5 h-5" />
                             <span className="hidden md:inline">Raporte</span>
                         </button>
+                        {/* Stock Button */}
+                        <button onClick={() => setActiveScreen('stock')} className="flex items-center gap-2 px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+                            <BoxIcon className="w-5 h-5" />
+                            <span className="hidden md:inline">Stoku</span>
+                        </button>
                         {/* // Button style updated for consistency */}
                         <button onClick={() => setActiveScreen('admin')} className="flex items-center gap-2 px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
                             <PackageIcon className="w-5 h-5" />
@@ -366,7 +371,7 @@ const PosScreen: React.FC = () => {
                     </>
                 )}
                 <div className="flex items-center text-sm md:text-base">
-                    <span className="hidden md:inline text-tsecondary mr-1">Përdoruesi:</span>
+                    <span className="hidden md:inline text-tsecondary mr-1"></span>
                     <span className="text-tmain font-bold">{loggedInUser?.username}</span>
                 </div>
                 <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors">

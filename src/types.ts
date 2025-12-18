@@ -150,9 +150,3 @@ export interface StockMovement {
   username: string;
   item_name?: string;
 }
-
-// Add this to your Table interface in src/types.ts
-export interface Table {
-  // ... existing fields
-  display_order?: number | null;
-}
