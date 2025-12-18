@@ -15,10 +15,10 @@ export default {
 
         // === 2. TYPOGRAPHY ===
         // A consistent hierarchy for all text elements.
-        'text-main': '#e2e8f0',      // ~slate-200: For high-emphasis text (titles, primary data).
-        'text-secondary': '#a0aec0', // ~slate-400: For secondary text (descriptions, less important labels).
+        'tmain': '#e2e8f0',      // ~slate-200: For high-emphasis text (titles, primary data).
+        'tsecondary': '#a0aec0', // ~slate-400: For secondary text (descriptions, less important labels).
         'muted': '#6b7280',          // ~gray-500: For disabled text and inactive icons.
-        'text-subtle': '#94a3b8',   // ~slate-500: NEW: For very low-emphasis text like timestamps or placeholders.
+        'tsubtle': '#94a3b8',   // ~slate-500: NEW: For very low-emphasis text like timestamps or placeholders.
 
         // === 3. SEMANTIC & FUNCTIONAL COLORS ===
         // These colors have specific meanings and are used for interactive elements.

@@ -97,15 +97,15 @@ const LoginScreen: React.FC = () => {
   const numpadKeys = ['7', '8', '9', '4', '5', '6', '1', '2', '3'];
 
   // Updated to use bg-primary for contrast against the bg-secondary panel.
-  const buttonClasses = "p-4 text-2xl font-bold text-text-main bg-primary rounded-lg border border-transparent hover:border-highlight focus:outline-none focus:ring-2 focus:ring-highlight transition-all duration-150 ease-in-out active:bg-highlight-hover active:scale-95";
+  const buttonClasses = "p-4 text-2xl font-bold text-tmain bg-primary rounded-lg border border-transparent hover:border-highlight focus:outline-none focus:ring-2 focus:ring-highlight transition-all duration-150 ease-in-out active:bg-highlight-hover active:scale-95";
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-primary">
       <div className="w-full max-w-xs p-8 space-y-6 bg-secondary rounded-xl shadow-lg">
         <div className="flex flex-col items-center space-y-2">
           <RestaurantIcon className="w-16 h-16 text-highlight" />
-          <h1 className="text-2xl font-bold text-text-main">Mirë se vini</h1>
-          <p className="text-text-secondary">Futni PIN-in tuaj për t'u identifikuar</p>
+          <h1 className="text-2xl font-bold text-tmain">Mirë se vini</h1>
+          <p className="text-tsecondary">Futni PIN-in tuaj për t'u identifikuar</p>
         </div>
 
         <div className="space-y-6">

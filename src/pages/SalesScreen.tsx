@@ -12,7 +12,10 @@ import {
     ListIcon,
     RefreshIcon,
     CalendarIcon,
-    DownloadIcon
+    DownloadIcon,
+    PieChartIcon, // Added
+    GridIcon,     // Added
+    PackageIcon   // Added
 } from '../components/common/Icons';
 
 const formatCurrency = (amount: number | string) => {
@@ -374,33 +377,33 @@ const SalesScreen: React.FC = () => {
         <div className="bg-secondary p-4 rounded-lg mb-6 flex flex-wrap items-center gap-4 shadow-sm">
             <div className="flex items-center gap-2">
                 <CalendarIcon className="w-5 h-5 text-highlight" />
-                <span className="font-semibold text-text-main">Periudha:</span>
+                <span className="font-semibold text-tmain">Periudha:</span>
             </div>
 
             <div className="flex items-center gap-2">
-                <span className="text-sm text-text-secondary">Prej:</span>
+                <span className="text-sm text-tsecondary">Prej:</span>
                 <input
                     type="date"
                     value={dateRange.from}
                     onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-                    className="bg-primary border border-border rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
+                    className="bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight"
                 />
             </div>
 
             <div className="flex items-center gap-2">
-                <span className="text-sm text-text-secondary">Deri:</span>
+                <span className="text-sm text-tsecondary">Deri:</span>
                 <input
                     type="date"
                     value={dateRange.to}
                     onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-                    className="bg-primary border border-border rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight"
+                    className="bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight"
                 />
             </div>
 
             <div className="w-px h-8 bg-border mx-2 hidden md:block"></div>
 
-            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className="bg-primary border border-border rounded-md p-2 text-sm text-text-main focus:ring-highlight focus:border-highlight">
-                <option value="">Të gjithë Përdoruesit</option>
+            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className="bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight">
+                <option value="">Përdoruesit</option>
                 {users.map(user => (
                     <option key={user.id} value={user.id.toString()}>{user.username}</option>
                 ))}
@@ -409,14 +412,14 @@ const SalesScreen: React.FC = () => {
             <div className="ml-auto flex items-center gap-2">
                 <button
                     onClick={() => { setDateRange({ from: todayStr, to: todayStr }); setSelectedUserId(''); }}
-                    className="px-4 py-2 rounded-md bg-border text-text-main hover:bg-muted text-sm"
+                    className="px-4 py-2 rounded-md bg-transparent text-tsecondary hover:bg-border hover:text-tmain text-sm transition-colors"
                 >
                     Pastro
                 </button>
                 <button
                     onClick={() => loadData(dateRange.from, dateRange.to)}
                     disabled={isLoading}
-                    className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover text-sm flex items-center gap-2 disabled:bg-muted"
+                    className="px-4 py-2 rounded-md bg-primary text-tmain font-semibold border border-transparent hover:border-highlight hover:text-highlight text-sm flex items-center gap-2 disabled:bg-muted disabled:text-tsecondary disabled:border-transparent transition-colors"
                 >
                     <RefreshIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                     <span>{isLoading ? '...' : 'Rifresko'}</span>
@@ -428,21 +431,24 @@ const SalesScreen: React.FC = () => {
     return (
         <div className="fixed inset-0 bg-primary z-50 flex flex-col">
             <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md z-10">
-                <h1 className="hidden md:flex text-xl font-bold text-text-main items-center gap-2">
-                    <ChartBarIcon className="w-6 h-6 text-highlight" />
+                <h1 className="hidden md:flex text-xl font-bold text-tmain items-center gap-2">
+                    <PieChartIcon className="w-6 h-6 text-highlight" />
                     Raporte & Statistika
                 </h1>
                 <div className="flex items-center justify-end w-full md:w-auto space-x-2 md:space-x-4">
-                    <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-border text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors flex items-center space-x-2">
-                        <RestaurantIcon className="w-5 h-5" />
-                        <span>POS</span>
+                    {/* // This button's style is updated to have an outline hover effect instead of a background fill. */}
+                    <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+                        <GridIcon className="w-5 h-5" />
+                        <span className="hidden md:inline">POS</span>
                     </button>
-                    <button onClick={() => setActiveScreen('admin')} className="px-4 py-2 bg-border text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors">
-                        Menaxhimi
+                    {/* // This button's style is also updated for consistency. */}
+                    <button onClick={() => setActiveScreen('admin')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+                        <PackageIcon className="w-5 h-5" />
+                        <span className="hidden md:inline">Menaxhimi</span>
                     </button>
                     <div className="w-px h-6 bg-border mx-2"></div>
-                    <span className="text-text-secondary">{loggedInUser?.username}</span>
-                    <button onClick={() => setActiveScreen('pos')} className="p-2 rounded-full text-text-secondary hover:bg-border hover:text-text-main transition-colors">
+                    <span className="text-tsecondary">{loggedInUser?.username}</span>
+                    <button onClick={() => setActiveScreen('pos')} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </div>
@@ -450,17 +456,17 @@ const SalesScreen: React.FC = () => {
 
             <div className="bg-secondary px-4 border-b border-border flex gap-4">
                 {/* Incomes Tab */}
-                <button onClick={() => setActiveTab('incomes')} className={`py-4 px-2 border-b-4 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'incomes' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'}`}>
+                <button onClick={() => setActiveTab('incomes')} className={`py-4 px-2 border-b-4 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'incomes' ? 'border-highlight text-highlight' : 'border-transparent text-tsecondary hover:border-highlight hover:text-highlight'}`}>
                     <ChartBarIcon className="w-5 h-5" />
                     Të Ardhurat
                 </button>
                 {/* Transactions Tab */}
-                <button onClick={() => setActiveTab('transactions')} className={`py-4 px-2 border-b-4 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'transactions' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'}`}>
+                <button onClick={() => setActiveTab('transactions')} className={`py-4 px-2 border-b-4 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'transactions' ? 'border-highlight text-highlight' : 'border-transparent text-tsecondary hover:border-highlight hover:text-highlight'}`}>
                     <ReceiptIcon className="w-5 h-5" />
                     Transaksionet
                 </button>
                 {/* Items Tab */}
-                <button onClick={() => setActiveTab('items')} className={`py-4 px-2 border-b-4 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'items' ? 'border-highlight text-highlight' : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'}`}>
+                <button onClick={() => setActiveTab('items')} className={`py-4 px-2 border-b-4 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'items' ? 'border-highlight text-highlight' : 'border-transparent text-tsecondary hover:border-highlight hover:text-highlight'}`}>
                     <ListIcon className="w-5 h-5" />
                     Artikujt
                 </button>
@@ -469,7 +475,7 @@ const SalesScreen: React.FC = () => {
             <main className="flex-grow p-6 overflow-y-auto bg-primary">
                 <FilterBar />
                 {isLoading && (
-                    <div className="text-center py-8 text-text-secondary animate-pulse">
+                    <div className="text-center py-8 text-tsecondary animate-pulse">
                         Duke ngarkuar të dhënat...
                     </div>
                 )}
@@ -478,18 +484,18 @@ const SalesScreen: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border border-border/50 relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><RestaurantIcon className="w-24 h-24 text-highlight" /></div>
-                            <h3 className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-2">Shank</h3>
+                            <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Shank</h3>
                             <p className="text-4xl font-bold text-highlight">{formatCurrency(salesSummary.totalShankRevenue)}</p>
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border border-border/50 relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><RestaurantIcon className="w-24 h-24 text-success" /></div>
-                            <h3 className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-2">Kuzhina</h3>
+                            <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Kuzhina</h3>
                             <p className="text-4xl font-bold text-highlight">{formatCurrency(salesSummary.totalKuzhinaRevenue)}</p>
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border-l-4 border-highlight relative overflow-hidden">
-                            <h3 className="text-text-secondary text-sm font-bold uppercase tracking-wider mb-2">Totali i Përgjithshëm</h3>
+                            <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Totali i Përgjithshëm</h3>
                             <p className="text-4xl font-bold text-highlight">{formatCurrency(salesSummary.totalRevenue)}</p>
-                            <p className="text-sm text-text-secondary mt-2">{salesSummary.count} fatura të mbyllura</p>
+                            <p className="text-sm text-tsecondary mt-2">{salesSummary.count} fatura të mbyllura</p>
                         </div>
                     </div>
                 )}
@@ -498,10 +504,10 @@ const SalesScreen: React.FC = () => {
                 {!isLoading && activeTab === 'incomes' && dailyBreakdown.length > 1 && (
                     <div className="mt-8 bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
                         <div className="p-4 border-b border-border bg-secondary/50">
-                            <h3 className="font-bold text-text-secondary">Detajet Ditore</h3>
+                            <h3 className="font-bold text-tsecondary">Detajet Ditore</h3>
                         </div>
                         <table className="w-full text-left">
-                            <thead className="bg-border text-text-secondary text-xs uppercase font-semibold">
+                            <thead className="bg-border text-tsecondary text-xs uppercase font-semibold">
                                 <tr>
                                     <th className="px-2 py-3 text-left">Data</th>
                                     <th className="px-2 py-3 text-right">Shank</th>
@@ -527,7 +533,7 @@ const SalesScreen: React.FC = () => {
 
                 {!isLoading && activeTab === 'transactions' && (
                     <div className="bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
-                        <div className="p-4 border-b border-border bg-secondary/50"><h3 className="font-bold text-text-main">Historiku i Veprimeve</h3></div>
+                        <div className="p-4 border-b border-border bg-secondary/50"><h3 className="font-bold text-tmain">Historiku i Veprimeve</h3></div>
                         <div className="overflow-x-auto">
                             {filteredTransactions.length > 0 ? (
                                 <div className="divide-y divide-border">
@@ -547,19 +553,19 @@ const SalesScreen: React.FC = () => {
                                                         </button>
                                                     )}
                                                     <div>
-                                                        <p className="font-bold text-text-main">Tavolina {tx.tableName}<span className="font-normal text-text-secondary text-sm ml-2">({tx.user?.username})</span></p>
-                                                        <p className="text-xs text-text-secondary">{tx.date.toLocaleString('de-DE')}</p>
+                                                        <p className="font-bold text-tmain">Tavolina {tx.tableName}<span className="font-normal text-tsecondary text-sm ml-2">({tx.user?.username})</span></p>
+                                                        <p className="text-xs text-tsecondary">{tx.date.toLocaleString('de-DE')}</p>
                                                     </div>
                                                 </div>
                                                 <span className={`text-lg font-bold ${tx.type === 'ORDER' ? 'text-highlight' : 'text-success'}`}>{formatCurrency(tx.total)}</span>
                                             </div>
-                                            <div className="pl-11 text-sm text-text-secondary">
+                                            <div className="pl-11 text-sm text-tsecondary">
                                                 {tx.items.map((item: any, idx: number) => (<span key={idx} className="mr-3 inline-block">{item.quantity}x {item.name}</span>))}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            ) : (<div className="p-8 text-center text-text-secondary">Nuk u gjetën transaksione.</div>)}
+                            ) : (<div className="p-8 text-center text-tsecondary">Nuk u gjetën transaksione.</div>)}
                         </div>
                     </div>
                 )}
@@ -568,18 +574,18 @@ const SalesScreen: React.FC = () => {
                 {!isLoading && activeTab === 'items' && (
                     <div className="bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
                         <div className="p-4 border-b border-border bg-secondary/50 flex justify-between items-center">
-                            <h3 className="font-bold text-text-main">Artikujt e Shitur</h3>
+                            <h3 className="font-bold text-tmain">Artikujt e Shitur</h3>
                             <span className="text-xs bg-highlight text-white px-2 py-1 rounded-full">{aggregatedItems.length} grupe/artikuj</span>
                         </div>
                         <table className="w-full text-left">
-                            <thead className="bg-border text-text-secondary text-xs uppercase font-semibold">
+                            <thead className="bg-border text-tsecondary text-xs uppercase font-semibold">
                                 <tr>
                                     <th className="p-4">Emri i Artikullit / Grupit</th>
                                     <th className="p-4 text-center">Sasia e Shitur</th>
                                     <th className="p-4 text-right">Vlera Totale</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-border text-text-main">
+                            <tbody className="divide-y divide-border text-tmain">
                                 {aggregatedItems.map((group) => {
                                     const isExpanded = expandedGroups.includes(group.groupKey);
                                     return (
@@ -605,16 +611,16 @@ const SalesScreen: React.FC = () => {
                                             </tr>
                                             {isExpanded && group.items.map((item, index) => (
                                                 <tr key={`${group.groupKey}-${index}`} className="bg-primary/20">
-                                                    <td className="pl-12 py-2 pr-4 text-sm text-text-secondary">{item.name}</td>
-                                                    <td className="py-2 pr-4 text-center text-sm text-text-secondary">x{item.quantity}</td>
-                                                    <td className="py-2 pr-4 text-right text-sm text-text-secondary">{formatCurrency(item.total)}</td>
+                                                    <td className="pl-12 py-2 pr-4 text-sm text-tsecondary">{item.name}</td>
+                                                    <td className="py-2 pr-4 text-center text-sm text-tsecondary">x{item.quantity}</td>
+                                                    <td className="py-2 pr-4 text-right text-sm text-tsecondary">{formatCurrency(item.total)}</td>
                                                 </tr>
                                             ))}
                                         </React.Fragment>
                                     );
                                 })}
                                 {aggregatedItems.length === 0 && (
-                                    <tr><td colSpan={3} className="p-8 text-center text-text-secondary">Asnjë artikull i shitur në këtë periudhë.</td></tr>
+                                    <tr><td colSpan={3} className="p-8 text-center text-tsecondary">Asnjë artikull i shitur në këtë periudhë.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -628,17 +634,17 @@ const SalesScreen: React.FC = () => {
                     <div className="bg-secondary p-6 rounded-lg shadow-2xl max-w-sm w-full border border-border animate-scale-in">
                         <div className="flex items-center gap-3 mb-4 text-highlight">
                             <ReceiptIcon className="w-8 h-8" />
-                            <h3 className="text-xl font-bold text-text-main">Shkarko Faturën?</h3>
+                            <h3 className="text-xl font-bold text-tmain">Shkarko Faturën?</h3>
                         </div>
-                        <p className="text-text-secondary mb-6">
+                        <p className="text-tsecondary mb-6">
                             A dëshironi të shkarkoni faturën për
-                            <span className="font-bold text-text-main mx-1">Tavolinën {exportModalData.tableName}</span>
+                            <span className="font-bold text-tmain mx-1">Tavolinën {exportModalData.tableName}</span>
                             në formatin Excel?
                         </p>
                         <div className="flex gap-3 justify-end">
                             <button
                                 onClick={() => setExportModalData(null)}
-                                className="px-4 py-2 rounded-lg bg-primary text-text-secondary hover:bg-border transition-colors font-medium"
+                                className="px-4 py-2 rounded-lg bg-primary text-tsecondary hover:bg-border transition-colors font-medium"
                             >
                                 Jo, Anulo
                             </button>

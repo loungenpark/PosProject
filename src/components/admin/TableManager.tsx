@@ -278,7 +278,7 @@ const TableManager: React.FC = () => {
 
             {/* LEFT COLUMN: ZONES */}
             <div className="w-full md:w-1/4 bg-secondary p-4 rounded-lg flex flex-col shadow-lg border border-border">
-                <h3 className="text-lg font-bold text-text-main mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-bold text-tmain mb-4 flex items-center gap-2">
                     <BoxIcon className="w-5 h-5 text-highlight" />
                     Zonat
                 </h3>
@@ -290,7 +290,7 @@ const TableManager: React.FC = () => {
                         placeholder="Emri i Zonës..."
                         value={newSectionName}
                         onChange={(e) => setNewSectionName(e.target.value)}
-                        className="flex-grow bg-primary border-border rounded-md p-2 text-text-main text-sm focus:ring-1 focus:ring-highlight"
+                        className="flex-grow bg-primary border-border rounded-md p-2 text-tmain text-sm focus:ring-1 focus:ring-highlight"
                         onKeyDown={(e) => e.key === 'Enter' && handleAddSection()}
                     />
                     <button onClick={handleAddSection} className="p-2 bg-success rounded-md text-white hover:bg-success-hover">
@@ -309,7 +309,7 @@ const TableManager: React.FC = () => {
                                     type="text"
                                     value={editingSectionName}
                                     onChange={(e) => setEditingSectionName(e.target.value)}
-                                    className="w-full bg-primary text-text-main text-sm p-1 rounded border border-highlight"
+                                    className="w-full bg-primary text-tmain text-sm p-1 rounded border border-highlight"
                                 />
                                 <button onClick={handleSaveSection} className="text-success hover:text-success-hover"><SaveIcon className="w-5 h-5" /></button>
                                 <button onClick={() => setEditingSectionId(null)} className="text-danger hover:text-danger-hover"><CloseIcon className="w-5 h-5" /></button>
@@ -318,7 +318,7 @@ const TableManager: React.FC = () => {
                             <>
                                 <button
                                     onClick={() => setActiveSectionId('all')}
-                                    className={`flex-grow text-left font-bold px-2 py-1 truncate ${activeSectionId === 'all' ? 'text-highlight' : 'text-text-main group-hover:text-highlight'}`}
+                                    className={`flex-grow text-left font-bold px-2 py-1 truncate ${activeSectionId === 'all' ? 'text-highlight' : 'text-tmain group-hover:text-highlight'}`}
                                 >
                                     {allSectionConfig.customName || 'Të gjitha tavolinat'}
                                 </button>
@@ -326,7 +326,7 @@ const TableManager: React.FC = () => {
                                 {/* Default Button (Working for All) */}
                                 <button
                                     onClick={(e) => toggleDefault(e, 'all', allSectionConfig.isDefault)}
-                                    className={`p-1 transition-opacity ${allSectionConfig.isDefault ? 'text-warning opacity-100' : 'text-text-secondary opacity-0 group-hover:opacity-100 hover:text-warning'}`}
+                                    className={`p-1 transition-opacity ${allSectionConfig.isDefault ? 'text-warning opacity-100' : 'text-tsecondary opacity-0 group-hover:opacity-100 hover:text-warning'}`}
                                     title={allSectionConfig.isDefault ? "Zona Kryesore" : "Vendos si Kryesore"}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={allSectionConfig.isDefault ? "currentColor" : "none"} stroke="currentColor" className="w-4 h-4" strokeWidth="2">
@@ -337,7 +337,7 @@ const TableManager: React.FC = () => {
                                 {/* Hide Button (Working for All) */}
                                 <button
                                     onClick={(e) => toggleHide(e, 'all')}
-                                    className={`p-1 transition-opacity ${allSectionConfig.isHidden ? 'text-danger opacity-100' : 'text-text-secondary opacity-0 group-hover:opacity-100 hover:text-danger'}`}
+                                    className={`p-1 transition-opacity ${allSectionConfig.isHidden ? 'text-danger opacity-100' : 'text-tsecondary opacity-0 group-hover:opacity-100 hover:text-danger'}`}
                                     title={allSectionConfig.isHidden ? "Shfaq Zonën" : "Fsheh Zonën"}
                                 >
                                     {allSectionConfig.isHidden ? (
@@ -353,7 +353,7 @@ const TableManager: React.FC = () => {
                                 </button>
 
                                 {/* Edit Button */}
-                                <button onClick={() => handleStartEditSection('all', allSectionConfig.customName || 'Të gjitha tavolinat')} className="p-1 text-text-secondary hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleStartEditSection('all', allSectionConfig.customName || 'Të gjitha tavolinat')} className="p-1 text-tsecondary hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
                                     <PencilIcon className="w-4 h-4" />
                                 </button>
 
@@ -375,7 +375,7 @@ const TableManager: React.FC = () => {
                                         type="text"
                                         value={editingSectionName}
                                         onChange={(e) => setEditingSectionName(e.target.value)}
-                                        className="w-full bg-primary text-text-main text-sm p-1 rounded border border-highlight"
+                                        className="w-full bg-primary text-tmain text-sm p-1 rounded border border-highlight"
                                     />
                                     <button onClick={handleSaveSection} className="text-success hover:text-success-hover"><SaveIcon className="w-5 h-5" /></button>
                                     <button onClick={() => setEditingSectionId(null)} className="text-danger hover:text-danger-hover"><CloseIcon className="w-5 h-5" /></button>
@@ -384,7 +384,7 @@ const TableManager: React.FC = () => {
                                 <>
                                     <button
                                         onClick={() => setActiveSectionId(section.id)}
-                                        className={`flex-grow text-left font-medium truncate ${activeSectionId === section.id ? 'text-highlight' : 'text-text-main group-hover:text-highlight'}`}
+                                        className={`flex-grow text-left font-medium truncate ${activeSectionId === section.id ? 'text-highlight' : 'text-tmain group-hover:text-highlight'}`}
                                     >
                                         {section.name}
                                     </button>
@@ -392,7 +392,7 @@ const TableManager: React.FC = () => {
                                     {/* Default Button (Star) */}
                                     <button
                                         onClick={(e) => toggleDefault(e, section.id, section.isDefault)}
-                                        className={`p-1 transition-opacity ${section.isDefault ? 'text-warning opacity-100' : 'text-text-secondary opacity-0 group-hover:opacity-100 hover:text-warning'}`}
+                                        className={`p-1 transition-opacity ${section.isDefault ? 'text-warning opacity-100' : 'text-tsecondary opacity-0 group-hover:opacity-100 hover:text-warning'}`}
                                         title={section.isDefault ? "Zona Kryesore" : "Vendos si Kryesore"}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={section.isDefault ? "currentColor" : "none"} stroke="currentColor" className="w-4 h-4" strokeWidth="2">
@@ -403,7 +403,7 @@ const TableManager: React.FC = () => {
                                     {/* Hide Button (Eye) */}
                                     <button
                                         onClick={(e) => toggleHide(e, section.id)}
-                                        className={`p-1 transition-opacity ${section.isHidden ? 'text-danger opacity-100' : 'text-text-secondary opacity-0 group-hover:opacity-100 hover:text-danger'}`}
+                                        className={`p-1 transition-opacity ${section.isHidden ? 'text-danger opacity-100' : 'text-tsecondary opacity-0 group-hover:opacity-100 hover:text-danger'}`}
                                         title={section.isHidden ? "Shfaq Zonën" : "Fsheh Zonën"}
                                     >
                                         {section.isHidden ? (
@@ -419,12 +419,12 @@ const TableManager: React.FC = () => {
                                     </button>
 
                                     {/* Edit Button */}
-                                    <button onClick={() => handleStartEditSection(section.id, section.name)} className="p-1 text-text-secondary hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleStartEditSection(section.id, section.name)} className="p-1 text-tsecondary hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
                                         <PencilIcon className="w-4 h-4" />
                                     </button>
 
                                     {/* Delete Button */}
-                                    <button onClick={() => handleDeleteSection(section.id, section.name)} className="p-1 text-text-secondary hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleDeleteSection(section.id, section.name)} className="p-1 text-tsecondary hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity">
                                         <TrashIcon className="w-4 h-4" />
                                     </button>
                                 </>
@@ -440,7 +440,7 @@ const TableManager: React.FC = () => {
                 {/* --- VISUAL SETTINGS TOOLBAR (NEW) --- */}
                 <div className="bg-primary p-2 md:p-3 rounded-lg border border-border mb-6 flex flex-wrap md:flex-row gap-2 md:gap-4 items-center shadow-inner overflow-x-auto flex-shrink-0">
                     <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
+                        <span className="text-xs md:text-sm font-bold text-tsecondary whitespace-nowrap">
                             <span className="hidden md:inline">Tavolina në rresht:</span>
                             <span className="md:hidden">TR:</span>
                         </span>
@@ -449,12 +449,12 @@ const TableManager: React.FC = () => {
                             min="2" max="10"
                             value={tablesPerRow}
                             onChange={(e) => setTablesPerRow(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-tmain focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                     </div>
                     <div className="h-4 md:h-6 w-px bg-border hidden md:block"></div>
                     <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
+                        <span className="text-xs md:text-sm font-bold text-tsecondary whitespace-nowrap">
                             <span className="hidden md:inline">Madhësia (Buton):</span>
                             <span className="md:hidden">MB:</span>
                         </span>
@@ -463,13 +463,13 @@ const TableManager: React.FC = () => {
                             min="50" max="150"
                             value={tableButtonSizePercent}
                             onChange={(e) => setTableButtonSizePercent(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-tmain focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                        <span className="text-[10px] md:text-xs text-text-secondary">%</span>
+                        <span className="text-[10px] md:text-xs text-tsecondary">%</span>
                     </div>
                     <div className="h-4 md:h-6 w-px bg-border hidden md:block"></div>
                     <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-bold text-text-secondary whitespace-nowrap">
+                        <span className="text-xs md:text-sm font-bold text-tsecondary whitespace-nowrap">
                             <span className="hidden md:inline">Madhësia (Text):</span>
                             <span className="md:hidden">MT:</span>
                         </span>
@@ -478,9 +478,9 @@ const TableManager: React.FC = () => {
                             min="50" max="200"
                             value={tableSizePercent}
                             onChange={(e) => setTableSizePercent(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-text-main focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-tmain focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                        <span className="text-[10px] md:text-xs text-text-secondary">%</span>
+                        <span className="text-[10px] md:text-xs text-tsecondary">%</span>
                     </div>
 
                     <div className="flex-grow"></div>
@@ -492,7 +492,7 @@ const TableManager: React.FC = () => {
                             setTableButtonSizePercent(100);
                             setTableSizePercent(100);
                         }}
-                        className="flex items-center justify-center gap-1 text-xs font-bold text-text-secondary hover:text-highlight transition-colors bg-secondary px-2 md:px-3 py-1 md:py-1.5 rounded border border-border h-7 md:h-auto w-7 md:w-auto"
+                        className="flex items-center justify-center gap-1 text-xs font-bold text-tsecondary hover:text-highlight transition-colors bg-secondary px-2 md:px-3 py-1 md:py-1.5 rounded border border-border h-7 md:h-auto w-7 md:w-auto"
                         title="Reseto në vlerat fillestare"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -505,7 +505,7 @@ const TableManager: React.FC = () => {
                 {/* Header / Tools */}
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4 border-b border-border pb-4 flex-shrink-0">
                     <div className="flex items-center gap-4">
-                        <h3 className="text-xl font-bold text-text-main flex items-center gap-2">
+                        <h3 className="text-xl font-bold text-tmain flex items-center gap-2">
                             <TableIcon className="w-6 h-6 text-highlight" />
                             {activeSectionId === 'all'
                                 ? (allSectionConfig.customName || 'Të gjitha tavolinat')
@@ -519,7 +519,7 @@ const TableManager: React.FC = () => {
                                     onClick={handleToggleReorder}
                                     className={`px-3 py-1 rounded text-sm font-bold border transition-colors ${isReorderMode
                                         ? 'bg-success border-success text-white hover:bg-success-hover'
-                                        : 'bg-primary border-border text-text-secondary hover:text-text-main'
+                                        : 'bg-primary border-border text-tsecondary hover:text-tmain'
                                         }`}
                                 >
                                     {isReorderMode ? 'Ruaj' : 'Rendit'}
@@ -540,14 +540,14 @@ const TableManager: React.FC = () => {
                     {/* Batch Creator & Actions */}
                     {activeSectionId !== 'all' && (
                         <div className="flex items-center gap-1 md:gap-2 bg-primary p-1.5 md:p-2 rounded-lg border border-border w-full md:w-auto">
-                            <span className="text-sm text-text-secondary font-bold px-2 hidden md:inline">Shto:</span>
+                            <span className="text-sm text-tsecondary font-bold px-2 hidden md:inline">Shto:</span>
 
                             {/* Prefix */}
                             <input
                                 type="text"
                                 value={batchPrefix}
                                 onChange={(e) => setBatchPrefix(e.target.value)}
-                                className="w-10 md:w-16 bg-secondary border-border rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold"
+                                className="w-10 md:w-16 bg-secondary border-border rounded p-1 md:p-2 text-center text-tmain text-xs md:text-sm font-bold"
                                 placeholder="Pre"
                             />
 
@@ -556,16 +556,16 @@ const TableManager: React.FC = () => {
                                 type="number"
                                 value={startNum}
                                 onChange={(e) => setStartNum(e.target.value)}
-                                className="w-12 md:w-20 bg-secondary border-border rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-12 md:w-20 bg-secondary border-border rounded p-1 md:p-2 text-center text-tmain text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Nga"
                             />
-                            <span className="text-text-secondary text-xs md:text-base">-</span>
+                            <span className="text-tsecondary text-xs md:text-base">-</span>
                             {/* To */}
                             <input
                                 type="number"
                                 value={endNum}
                                 onChange={(e) => setEndNum(e.target.value)}
-                                className="w-12 md:w-20 bg-secondary border-border rounded p-1 md:p-2 text-center text-text-main text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-12 md:w-20 bg-secondary border-border rounded p-1 md:p-2 text-center text-tmain text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Deri"
                             />
 
@@ -635,7 +635,7 @@ const TableManager: React.FC = () => {
                                                         {!isReorderMode && (
                                                             <button
                                                                 onClick={() => handleDeleteTable(table.id)}
-                                                                className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-text-secondary hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-border"
+                                                                className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-tsecondary hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-border"
                                                                 title="Fshij Tavolinën"
                                                             >
                                                                 <TrashIcon className="w-3 h-3" />
@@ -658,7 +658,7 @@ const TableManager: React.FC = () => {
                                                                 type="text"
                                                                 defaultValue={table.name}
                                                                 // Use pointer-events-none to let drag pass through to the container
-                                                                className={`bg-transparent text-center font-bold text-text-main w-full focus:bg-secondary focus:outline-none rounded py-1 px-1 
+                                                                className={`bg-transparent text-center font-bold text-tmain w-full focus:bg-secondary focus:outline-none rounded py-1 px-1 
                                                                     ${isReorderMode ? 'pointer-events-none opacity-50' : ''}`}
                                                                 style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}
                                                                 onBlur={(e) => handleRenameTable(table.id, table.name, e.target.value, e)}
@@ -679,7 +679,7 @@ const TableManager: React.FC = () => {
                     </DragDropContext>
 
                     {filteredTables.length === 0 && (
-                        <div className="text-center py-20 text-text-secondary opacity-60">
+                        <div className="text-center py-20 text-tsecondary opacity-60">
                             <TableIcon className="w-16 h-16 mx-auto mb-4" />
                             <p className="text-lg">Asnjë tavolinë në {activeSectionId === 'all' ? 'total' : 'këtë zonë'}.</p>
                             {activeSectionId !== 'all' && <p className="text-sm">Përdorni panelin lart për të shtuar tavolina (psh. 101 deri 110).</p>}
@@ -692,8 +692,8 @@ const TableManager: React.FC = () => {
             {isDeleteModalOpen && sectionToDelete && (
                 <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
-                        <h3 className="text-xl font-bold text-text-main mb-4">Konfirmo Fshirjen</h3>
-                        <p className="text-text-secondary mb-6">
+                        <h3 className="text-xl font-bold text-tmain mb-4">Konfirmo Fshirjen</h3>
+                        <p className="text-tsecondary mb-6">
                             Jeni të sigurt që doni të fshini zonën <strong className="text-highlight">{sectionToDelete.name}</strong>?
                             <br />
                             <span className="text-danger mt-2 block">Të gjitha tavolinat brenda saj do të çaktivizohen.</span>
@@ -701,7 +701,7 @@ const TableManager: React.FC = () => {
                         <div className="flex justify-end gap-4">
                             <button
                                 onClick={handleCancelDelete}
-                                className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-border transition-colors"
+                                className="px-6 py-2 rounded-md bg-primary text-tmain font-semibold hover:bg-border transition-colors"
                             >
                                 Anulo
                             </button>
@@ -720,8 +720,8 @@ const TableManager: React.FC = () => {
             {isDeleteAllTablesModalOpen && activeSectionId !== 'all' && (
                 <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
-                        <h3 className="text-xl font-bold text-text-main mb-4">Konfirmo Fshirjen Masive</h3>
-                        <p className="text-text-secondary mb-6">
+                        <h3 className="text-xl font-bold text-tmain mb-4">Konfirmo Fshirjen Masive</h3>
+                        <p className="text-tsecondary mb-6">
                             Jeni të sigurt që doni të fshini <strong className="text-highlight">{filteredTables.length} tavolina</strong> në zonën <strong className="text-white">{sections.find(s => s.id === activeSectionId)?.name}</strong>?
                             <br />
                             <span className="text-danger mt-2 block">Ky veprim nuk mund të kthehet pas.</span>
@@ -729,7 +729,7 @@ const TableManager: React.FC = () => {
                         <div className="flex justify-end gap-4">
                             <button
                                 onClick={() => setIsDeleteAllTablesModalOpen(false)}
-                                className="px-6 py-2 rounded-md bg-primary text-text-main font-semibold hover:bg-border transition-colors"
+                                className="px-6 py-2 rounded-md bg-primary text-tmain font-semibold hover:bg-border transition-colors"
                             >
                                 Anulo
                             </button>
@@ -749,7 +749,7 @@ const TableManager: React.FC = () => {
                 <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
                         <h3 className="text-xl font-bold text-danger mb-4">Veprimi u Ndalua</h3>
-                        <p className="text-text-secondary mb-6 whitespace-pre-line">
+                        <p className="text-tsecondary mb-6 whitespace-pre-line">
                             {infoModal.message}
                         </p>
                         <div className="flex justify-end gap-4">

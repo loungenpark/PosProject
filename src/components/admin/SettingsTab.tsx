@@ -26,10 +26,10 @@ export const TaxSettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-4 text-text-main">Tatimi</h3>
+            <h3 className="text-xl font-semibold mb-4 text-tmain">Tatimi</h3>
             <div className="space-y-6 bg-primary p-6 rounded-lg">
                 <div>
-                    <label htmlFor="taxRate" className="block text-sm font-medium text-text-secondary">Norma e Tatimit (%)</label>
+                    <label htmlFor="taxRate" className="block text-sm font-medium text-tsecondary">Norma e Tatimit (%)</label>
                     <input
                         type="number"
                         id="taxRate"
@@ -37,9 +37,9 @@ export const TaxSettings: React.FC = () => {
                         onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
                         min="0"
                         step="0.1"
-                        className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
+                        className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight"
                     />
-                    <p className="text-xs text-text-secondary mt-1">Vendosni 0 për të çaktivizuar tatimin dhe fshehur rreshtat e nëntotalit/tatimit. Mos e përfshini simbolin %.</p>
+                    <p className="text-xs text-tsecondary mt-1">Vendosni 0 për të çaktivizuar tatimin dhe fshehur rreshtat e nëntotalit/tatimit. Mos e përfshini simbolin %.</p>
                 </div>
                 <div className="flex justify-end pt-2">
                     <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-highlight-hover transition-colors disabled:bg-muted">
@@ -80,8 +80,8 @@ export const PrintingSettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-2 text-text-main">Konfigurimi i Printimit</h3>
-            <p className="text-text-secondary mb-6">Menaxho se si dhe ku printohen porositë dhe faturat për këtë pajisje.</p>
+            <h3 className="text-xl font-semibold mb-2 text-tmain">Konfigurimi i Printimit</h3>
+            <p className="text-tsecondary mb-6">Menaxho se si dhe ku printohen porositë dhe faturat për këtë pajisje.</p>
             <div className="bg-primary rounded-lg p-6">
                 <ToggleSwitch
                     label="Stacion Printimi"
@@ -132,10 +132,10 @@ export const OperationalDaySettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-4 text-text-main">Dita Operacionale</h3>
+            <h3 className="text-xl font-semibold mb-4 text-tmain">Dita Operacionale</h3>
             <div className="space-y-6 bg-primary p-6 rounded-lg">
                 <div>
-                    <label htmlFor="startHour" className="block text-sm font-medium text-text-secondary">Ora e Fillimit të Ditës</label>
+                    <label htmlFor="startHour" className="block text-sm font-medium text-tsecondary">Ora e Fillimit të Ditës</label>
                     <input
                         type="number"
                         id="startHour"
@@ -143,9 +143,9 @@ export const OperationalDaySettings: React.FC = () => {
                         onChange={(e) => setHour(parseInt(e.target.value, 10) || 0)}
                         min="0"
                         max="23"
-                        className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight"
+                        className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight"
                     />
-                    <p className="text-xs text-text-secondary mt-1">
+                    <p className="text-xs text-tsecondary mt-1">
                         Cakto orën (0-23) kur fillon dita e punës. P.sh., vlera '5' do të thotë që dita zgjat nga ora 5:00 e mëngjesit deri në 4:59 të ditës tjetër.
                     </p>
                 </div>

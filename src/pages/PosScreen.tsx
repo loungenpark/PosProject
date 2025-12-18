@@ -4,13 +4,12 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
-import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon } from '../components/common/Icons';
+import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon, PieChartIcon, PackageIcon } from '../components/common/Icons';
 import TransferModal from '../components/modals/TransferModal';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
 };
-
 
 // --- Payment Modal Component ---
 const PaymentModal: React.FC<{
@@ -44,13 +43,13 @@ const PaymentModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-primary/70 z-[60] flex justify-center items-start pt-2 md:items-center md:pt-0 overflow-y-auto">
             <div className="bg-secondary rounded-lg shadow-xl w-full max-w-sm m-4 p-6 space-y-4 relative">
-                <h3 className="text-xl font-semibold text-text-main">Finalizo Faturën</h3>
+                <h3 className="text-xl font-semibold text-tmain">Finalizo Faturën</h3>
                 <div className="text-center">
-                    <p className="text-text-secondary">Totali</p>
+                    <p className="text-tsecondary">Totali</p>
                     <p className="text-4xl font-bold text-highlight">{formatCurrency(total)}</p>
                 </div>
                 <div>
-                    <label htmlFor="amountPaid" className="block text-sm font-medium text-text-secondary">Shuma e Paguar (€)</label>
+                    <label htmlFor="amountPaid" className="block text-sm font-medium text-tsecondary">Shuma e Paguar (€)</label>
                     <input
                         ref={inputRef}
                         type="number"
@@ -59,16 +58,16 @@ const PaymentModal: React.FC<{
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        className="mt-1 block w-full bg-primary border border-border rounded-md shadow-sm py-3 px-4 text-text-main text-2xl text-center focus:outline-none focus:ring-highlight focus:border-highlight placeholder-text-subtle"
+                        className="mt-1 block w-full bg-primary border border-border rounded-md shadow-sm py-3 px-4 text-tmain text-2xl text-center focus:outline-none focus:ring-highlight focus:border-highlight placeholder-tsubtle"
                         placeholder={total.toFixed(2)}
                     />
                 </div>
                 <div className="text-center p-3 bg-border rounded-lg">
-                    <p className="text-text-secondary">Kusuri</p>
-                    <p className="text-2xl font-bold text-text-main">{formatCurrency(change)}</p>
+                    <p className="text-tsecondary">Kusuri</p>
+                    <p className="text-2xl font-bold text-tmain">{formatCurrency(change)}</p>
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">
-                    <button onClick={onClose} className="px-4 py-2 rounded-md bg-border text-text-main hover:bg-muted">Anulo</button>
+                    <button onClick={onClose} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">Anulo</button>
                     <button onClick={handleFinalizeClick} className="px-4 py-2 rounded-md bg-success text-white hover:bg-success-hover">Finalizo</button>
                 </div>
                 {/* Spacer to allow scrolling past keyboard on very small screens */}
@@ -305,23 +304,77 @@ const PosScreen: React.FC = () => {
 
     // Removed orderedItems useMemo - using currentOrderItems directly
 
-    const Header = () => (
-        <div className="flex items-center gap-2 md:gap-4">
-            {loggedInUser?.role === UserRole.ADMIN && (
-                <>
-                    <button onClick={() => setActiveScreen('sales')} className="px-4 py-2 bg-border text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors whitespace-nowrap">Raporte</button>
-                    <button onClick={() => setActiveScreen('admin')} className="px-4 py-2 bg-border text-text-main font-semibold rounded-lg hover:bg-highlight transition-colors whitespace-nowrap">Menaxhimi</button>
-                </>
-            )}
-            <div className="flex items-center text-sm md:text-base">
-                <span className="hidden md:inline text-text-secondary mr-1">Përdoruesi:</span>
-                <span className="text-text-main font-bold">{loggedInUser?.username}</span>
+    const Header = () => {
+        // This is the new logic. If a table is open, show the order controls.
+        if (activeTableId !== null) {
+            return (
+                <div className="flex items-center gap-2 md:gap-4">
+                    <h2 className="text-lg font-bold text-tmain hidden md:block">Porosia Aktuale</h2>
+
+                    {/* The entire options menu and its logic is now here */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsOptionsMenuOpen(!isOptionsMenuOpen)}
+                            className="p-2 text-tsecondary hover:text-tmain rounded-full hover:bg-primary transition-colors"
+                        >
+                            <MenuIcon className="w-6 h-6" />
+                        </button>
+
+                        {isOptionsMenuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsOptionsMenuOpen(false)} />
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-secondary border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+                                    <button
+                                        onClick={() => {
+                                            setTransferModalOpen(true);
+                                            setIsOptionsMenuOpen(false);
+                                        }}
+                                        className="w-full text-left px-4 py-3 hover:bg-primary text-tmain font-semibold flex items-center transition-colors"
+                                    >
+                                        <span className="mr-2">↔️</span> Transfero Tavolinën
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* The close button is also moved here */}
+                    <button onClick={handleCancelOrder} className="p-2 text-tsecondary hover:text-tmain hover:bg-primary rounded-full transition-colors">
+                        <CloseIcon className="w-6 h-6" />
+                    </button>
+                </div>
+            );
+        }
+
+        // This is the original content, shown when no table is active.
+        return (
+            <div className="flex items-center gap-2 md:gap-4">
+                {loggedInUser?.role === UserRole.ADMIN && (
+                    <>
+                        {/* // Button style updated for consistency */}
+                        <button onClick={() => setActiveScreen('sales')} className="flex items-center gap-2 px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+                            <PieChartIcon className="w-5 h-5" />
+                            <span className="hidden md:inline">Raporte</span>
+                        </button>
+                        {/* // Button style updated for consistency */}
+                        <button onClick={() => setActiveScreen('admin')} className="flex items-center gap-2 px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+                            <PackageIcon className="w-5 h-5" />
+                            <span className="hidden md:inline">Menaxhimi</span>
+                        </button>
+                        {/* // Vertical separator added for consistency with other screens */}
+                        <div className="w-px h-6 bg-border mx-2"></div>
+                    </>
+                )}
+                <div className="flex items-center text-sm md:text-base">
+                    <span className="hidden md:inline text-tsecondary mr-1">Përdoruesi:</span>
+                    <span className="text-tmain font-bold">{loggedInUser?.username}</span>
+                </div>
+                <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors">
+                    <LogoutIcon className="w-6 h-6" />
+                </button>
             </div>
-            <button onClick={logout} className="p-2 rounded-full text-text-secondary hover:bg-border hover:text-text-main transition-colors">
-                <LogoutIcon className="w-6 h-6" />
-            </button>
-        </div>
-    );
+        );
+    };
 
     if (activeTableId === null) {
         const unassignedTables = tables.filter(t => !t.sectionId);
@@ -331,7 +384,7 @@ const PosScreen: React.FC = () => {
             <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}>
                 {tableList.map(table => (
                     <div key={table.id} className="aspect-square flex justify-center items-center">
-                        <button onClick={() => handleSelectTable(table.id)} className={`flex flex-col justify-center items-center rounded-lg shadow-lg transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-highlight ${table.order ? 'bg-highlight text-white' : 'bg-secondary text-text-main'}`} style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}>
+                        <button onClick={() => handleSelectTable(table.id)} className={`flex flex-col justify-center items-center rounded-lg shadow-lg transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-highlight ${table.order ? 'bg-highlight text-white' : 'bg-secondary text-tmain'}`} style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}>
                             <span className="font-bold" style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}>{table.name}</span>
                             {table.order && <span className="font-semibold" style={{ fontSize: `calc(0.75rem * ${tableSizePercent / 100})` }}>{formatCurrency(table.order.total)}</span>}
                         </button>
@@ -349,7 +402,7 @@ const PosScreen: React.FC = () => {
                         if (sectionTables.length === 0) return null;
                         return (
                             <div key={section.id}>
-                                <h3 className="text-lg font-bold text-text-secondary mb-3 border-b border-border pb-1">{section.name}</h3>
+                                <h3 className="text-lg font-bold text-tsecondary mb-3 border-b border-border pb-1">{section.name}</h3>
                                 {renderTableGrid(sectionTables)}
                             </div>
                         );
@@ -365,7 +418,7 @@ const PosScreen: React.FC = () => {
                     setActiveSectionId(id);
                     setIsSectionDropdownOpen(false);
                 }}
-                className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-bold text-lg transition-colors ${activeSectionId === id ? 'bg-highlight text-white' : 'bg-secondary text-text-main hover:bg-primary'}`}
+                className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-bold text-lg transition-colors ${activeSectionId === id ? 'bg-highlight text-white' : 'bg-secondary text-tmain hover:bg-primary'}`}
             >
                 {name}
             </button>
@@ -386,7 +439,7 @@ const PosScreen: React.FC = () => {
                                     onClick={() => setIsSectionDropdownOpen(!isSectionDropdownOpen)}
                                     className="bg-primary px-6 py-2 rounded-full border border-border active:bg-border transition-colors max-w-[200px] shadow-sm"
                                 >
-                                    <span className="font-bold text-text-main truncate text-lg">{activeSectionName}</span>
+                                    <span className="font-bold text-tmain truncate text-lg">{activeSectionName}</span>
                                 </button>
                             ) : (
                                 // DESKTOP: Horizontal Tabs
@@ -395,7 +448,7 @@ const PosScreen: React.FC = () => {
                                         <button
                                             onClick={() => setActiveSectionId('all')}
                                             // The hover state for inactive buttons now matches the active state's appearance for better feedback.
-                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === 'all' ? 'border-highlight text-highlight shadow-md' : 'text-text-secondary border-transparent hover:border-highlight hover:text-highlight'}`}
+                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === 'all' ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
                                         >
                                             {allSectionConfig.customName || 'Të gjitha'}
                                         </button>
@@ -405,7 +458,7 @@ const PosScreen: React.FC = () => {
                                             key={section.id}
                                             onClick={() => setActiveSectionId(section.id)}
                                             // Apply the same improved hover state styling here.
-                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === section.id ? 'border-highlight text-highlight shadow-md' : 'text-text-secondary border-transparent hover:border-highlight hover:text-highlight'}`}
+                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === section.id ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
                                         >
                                             {section.name}
                                         </button>
@@ -414,7 +467,7 @@ const PosScreen: React.FC = () => {
                                         <button
                                             onClick={() => setActiveSectionId(-1)}
                                             // Apply the same improved hover state styling here as well.
-                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === -1 ? 'border-highlight text-highlight shadow-md' : 'text-text-secondary border-transparent hover:border-highlight hover:text-highlight'}`}
+                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === -1 ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
                                         >
                                             Të Tjera
                                         </button>
@@ -422,7 +475,7 @@ const PosScreen: React.FC = () => {
                                 </div>
                             )
                         ) : (
-                            <h1 className="text-xl font-bold text-text-main px-2">Tavolinat</h1>
+                            <h1 className="text-xl font-bold text-tmain px-2">Tavolinat</h1>
                         )}
                     </div>
 
@@ -454,12 +507,12 @@ const PosScreen: React.FC = () => {
                             renderAllSections()
                         ) : (
                             filteredTables.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center text-text-secondary opacity-50 py-20">
+                                <div className="flex flex-col items-center justify-center text-tsecondary opacity-50 py-20">
                                     <p className="text-lg">Asnjë tavolinë në këtë zonë.</p>
                                 </div>
                             ) : (
                                 <div>
-                                    <h3 className="text-lg font-bold text-text-secondary mb-3 border-b border-border pb-1">{activeSectionName}</h3>
+                                    <h3 className="text-lg font-bold text-tsecondary mb-3 border-b border-border pb-1">{activeSectionName}</h3>
                                     {renderTableGrid(filteredTables)}
                                 </div>
                             )
@@ -474,8 +527,8 @@ const PosScreen: React.FC = () => {
         <div className="h-screen w-screen flex flex-col bg-primary">
             <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md">
                 <div className="flex items-center space-x-1 md:space-x-3">
-                    <button onClick={handleCancelOrder} className="p-1 md:p-2 rounded-full text-text-secondary hover:bg-border hover:text-text-main transition-colors"><ChevronLeftIcon className="w-6 h-6" /></button>
-                    <h1 className="text-lg md:text-xl font-bold text-text-main whitespace-nowrap">{activeTable?.name}</h1>
+                    <button onClick={handleCancelOrder} className="p-1 md:p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors"><ChevronLeftIcon className="w-6 h-6" /></button>
+                    <h1 className="text-lg md:text-xl font-bold text-tmain whitespace-nowrap">{activeTable?.name}</h1>
                 </div>
                 <Header />
             </header>
@@ -493,9 +546,9 @@ const PosScreen: React.FC = () => {
                                         onClick={() => setSelectedCategory(category.name)}
                                         className="w-full py-4 px-6 bg-secondary rounded-lg shadow-md text-left flex justify-between items-center active:scale-95 transition-transform"
                                     >
-                                        <span className="text-lg font-bold text-text-main">{category.name}</span>
+                                        <span className="text-lg font-bold text-tmain">{category.name}</span>
                                         {/* Small chevron hint */}
-                                        <span className="text-text-secondary">›</span>
+                                        <span className="text-tsecondary">›</span>
                                     </button>
                                 ))}
                             </div>
@@ -515,9 +568,9 @@ const PosScreen: React.FC = () => {
                                             const isOutOfStock = item.trackStock && isFinite(item.stock) && item.stock <= 0;
                                             return (
                                                 <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-24 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-                                                    <p className="text-sm font-semibold text-text-main leading-tight">{item.name}</p>
+                                                    <p className="text-sm font-semibold text-tmain leading-tight">{item.name}</p>
                                                     <p className="text-xs text-highlight mt-1 font-bold">{formatCurrency(item.price)}</p>
-                                                    {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-text-main font-bold text-sm">STOKU 0</span></div>}
+                                                    {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-tmain font-bold text-sm">STOKU 0</span></div>}
                                                 </button>
                                             )
                                         })}
@@ -530,7 +583,7 @@ const PosScreen: React.FC = () => {
                         <>
                             <div className="flex space-x-2 overflow-x-auto pb-2 mb-4 flex-shrink-0">
                                 {menuCategories.map(category => (
-                                    <button key={category.id} onClick={() => setSelectedCategory(category.name)} className={`px-4 py-2 rounded-md text-base font-bold whitespace-nowrap transition-colors ${selectedCategory === category.name ? 'bg-highlight text-white' : 'bg-border text-text-secondary hover:bg-highlight hover:text-white'}`}>{category.name}</button>
+                                    <button key={category.id} onClick={() => setSelectedCategory(category.name)} className={`px-4 py-2 rounded-md text-base font-bold whitespace-nowrap transition-colors ${selectedCategory === category.name ? 'bg-highlight text-white' : 'bg-border text-tsecondary hover:bg-highlight hover:text-white'}`}>{category.name}</button>
                                 ))}
                             </div>
                             <div className="flex-grow overflow-y-auto">
@@ -539,9 +592,9 @@ const PosScreen: React.FC = () => {
                                         const isOutOfStock = item.trackStock && isFinite(item.stock) && item.stock <= 0;
                                         return (
                                             <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-20 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'hover:ring-2 hover:ring-highlight hover:-translate-y-1'}`}>
-                                                <p className="text-sm font-semibold text-text-main">{item.name}</p>
+                                                <p className="text-sm font-semibold text-tmain">{item.name}</p>
                                                 <p className="text-xs text-highlight mt-1">{formatCurrency(item.price)}</p>
-                                                {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-text-main font-bold text-sm">STOKU 0</span></div>}
+                                                {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-tmain font-bold text-sm">STOKU 0</span></div>}
                                             </button>
                                         )
                                     })}
@@ -553,48 +606,15 @@ const PosScreen: React.FC = () => {
 
 
                 <aside className="w-1/2 md:w-1/3 lg:w-1/4 flex-shrink-0 bg-secondary flex flex-col p-4 shadow-inner">
-                    <div className="flex justify-between items-center mb-4 border-b border-border pb-2 relative">
-                        <h2 className="text-lg font-bold text-text-main">Porosia Aktuale</h2>
-                        <div className="flex items-center space-x-2">
-                            {/* More Options Menu */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => setIsOptionsMenuOpen(!isOptionsMenuOpen)}
-                                    className="p-1 text-text-secondary hover:text-text-main rounded-full hover:bg-primary transition-colors"
-                                >
-                                    <MenuIcon className="w-6 h-6" />
-                                </button>
-
-                                {isOptionsMenuOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-40" onClick={() => setIsOptionsMenuOpen(false)} />
-                                        <div className="absolute right-0 top-full mt-2 w-48 bg-secondary border border-border rounded-lg shadow-xl z-50 overflow-hidden">
-                                            <button
-                                                onClick={() => {
-                                                    setTransferModalOpen(true);
-                                                    setIsOptionsMenuOpen(false);
-                                                }}
-                                                className="w-full text-left px-4 py-3 hover:bg-primary text-text-main font-semibold flex items-center transition-colors"
-                                            >
-                                                <span className="mr-2">↔️</span> Transfero Tavolinën
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            <button onClick={handleCancelOrder} className="p-1 text-text-secondary hover:text-text-main"><CloseIcon className="w-5 h-5" /></button>
-                        </div>
-                    </div>
-                    <div className="flex-grow overflow-y-auto">
-                        {currentOrderItems.length === 0 ? <p className="text-text-secondary text-center mt-8">Zgjidhni artikujt për të filluar porosinë.</p> : (
+                    <div className="flex-grow overflow-y-auto pt-2">
+                        {currentOrderItems.length === 0 ? <p className="text-tsecondary text-center mt-8">Zgjidhni artikujt për të filluar porosinë.</p> : (
                             <ul className="space-y-2">
                                 {currentOrderItems.map((item) => (
                                     <li key={item.uniqueId} className={`flex items-center p-2 rounded-md ${item.status === 'ordered' ? 'bg-border' : 'bg-primary'}`}>
                                         <div className="flex-grow">
-                                            <p className="text-sm font-semibold text-text-main">{item.name}</p>
-                                            <p className="text-xs text-text-secondary">{formatCurrency(item.price)}</p>
-                                            <p className="text-xs text-text-secondary">Shtuar nga: {item.addedBy}</p>
+                                            <p className="text-sm font-semibold text-tmain">{item.name}</p>
+                                            <p className="text-xs text-tsecondary">{formatCurrency(item.price)}</p>
+                                            <p className="text-xs text-tsecondary">Shtuar nga: {item.addedBy}</p>
                                         </div>
                                         {item.status === 'new' ? (
                                             <div className="flex items-center justify-end">
@@ -619,13 +639,13 @@ const PosScreen: React.FC = () => {
                     <div className="flex-shrink-0 pt-4 border-t border-border mt-4">
                         <div className="space-y-1 text-sm">
                             {taxRate > 0 && <>
-                                <div className="flex justify-between text-text-secondary"><span>Nëntotali:</span><span>{formatCurrency(orderTotals.subtotal)}</span></div>
-                                <div className="flex justify-between text-text-secondary"><span>Tatimi ({Math.round(taxRate * 100)}%):</span><span>{formatCurrency(orderTotals.tax)}</span></div>
+                                <div className="flex justify-between text-tsecondary"><span>Nëntotali:</span><span>{formatCurrency(orderTotals.subtotal)}</span></div>
+                                <div className="flex justify-between text-tsecondary"><span>Tatimi ({Math.round(taxRate * 100)}%):</span><span>{formatCurrency(orderTotals.tax)}</span></div>
                             </>}
-                            <div className="flex justify-between text-lg font-bold text-text-main"><span>Totali:</span><span>{formatCurrency(orderTotals.total)}</span></div>
+                            <div className="flex justify-between text-lg font-bold text-tmain"><span>Totali:</span><span>{formatCurrency(orderTotals.total)}</span></div>
                         </div>
                         <div className="w-full mt-4 flex space-x-2">
-                            <button onClick={() => setPaymentModalOpen(true)} disabled={currentOrderItems.length === 0} className="w-1/2 py-3 bg-border text-text-main font-bold rounded-lg hover:bg-muted transition-colors disabled:bg-muted disabled:cursor-not-allowed">Fatura</button>
+                            <button onClick={() => setPaymentModalOpen(true)} disabled={currentOrderItems.length === 0} className="w-1/2 py-3 bg-border text-tmain font-bold rounded-lg hover:bg-muted transition-colors disabled:bg-muted disabled:cursor-not-allowed">Fatura</button>
                             <button onClick={handleSaveOrder} className="w-1/2 py-3 bg-highlight text-white font-bold rounded-lg hover:bg-highlight-hover transition-colors">Porosit</button>
                         </div>
                     </div>

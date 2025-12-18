@@ -88,15 +88,15 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                 <div className="flex justify-between items-center p-4 border-b border-border bg-secondary rounded-t-lg">
                     <div className="flex items-center gap-3">
                         {step === 2 && (
-                            <button onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-primary text-text-secondary">
+                            <button onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-primary text-tsecondary">
                                 <ChevronLeftIcon className="w-6 h-6" />
                             </button>
                         )}
-                        <h2 className="text-xl font-bold text-text-main">
+                        <h2 className="text-xl font-bold text-tmain">
                             {step === 1 ? `Zgjidh Artikujt (${sourceTableName})` : 'Zgjidh Tavolinën e Re'}
                         </h2>
                     </div>
-                    <button onClick={onClose} className="p-2 text-text-secondary hover:text-main hover:bg-danger rounded-full transition-colors">
+                    <button onClick={onClose} className="p-2 text-tsecondary hover:tmain hover:bg-danger rounded-full transition-colors">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </div>
@@ -114,7 +114,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                 >
                                     {selectedItemUniqueIds.length === sourceItems.length ? "Hiq të gjitha" : "Zgjidh të gjitha"}
                                 </button>
-                                <span className="text-text-secondary">
+                                <span className="text-tsecondary">
                                     {selectedItemUniqueIds.length} artikuj të zgjedhur
                                 </span>
                             </div>
@@ -140,9 +140,9 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                                 >
                                                     {isSelected && <span className="text-white text-xs">✓</span>}
                                                 </div>
-                                                <span className="font-semibold text-text-main">{item.name}</span>
+                                                <span className="font-semibold text-tmain">{item.name}</span>
                                             </div>
-                                            <span className="font-bold text-text-main">
+                                            <span className="font-bold text-tmain">
                                                 {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(item.price)}
                                             </span>
                                         </div>
@@ -169,7 +169,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                             <div className="flex space-x-2 overflow-x-auto pb-2 mb-4">
                                 <button
                                     onClick={() => setActiveSectionId('all')}
-                                    className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-primary text-text-secondary hover:bg-border'}`}
+                                    className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-primary text-tsecondary hover:bg-border'}`}
                                 >
                                     Të gjitha
                                 </button>
@@ -177,7 +177,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                     <button
                                         key={section.id}
                                         onClick={() => setActiveSectionId(section.id)}
-                                        className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === section.id ? 'bg-highlight text-white' : 'bg-primary text-text-secondary hover:bg-border'}`}
+                                        className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === section.id ? 'bg-highlight text-white' : 'bg-primary text-tsecondary hover:bg-border'}`}
                                     >
                                         {section.name}
                                     </button>
@@ -194,7 +194,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                             className={`aspect-square flex flex-col justify-center items-center rounded-lg shadow-md transition-transform transform hover:-translate-y-1 p-2
                                                 ${table.order ? 'bg-warning-bg border-warning border-2' : 'bg-primary border border-border hover:border-highlight'}`}
                                         >
-                                            <span className="text-xl font-bold text-text-main">{table.name}</span>
+                                            <span className="text-xl font-bold text-tmain">{table.name}</span>
                                             {table.order ? (
                                                 <span className="text-xs text-warning font-bold mt-1">
                                                     (E Hapur)

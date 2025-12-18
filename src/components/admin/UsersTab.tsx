@@ -18,8 +18,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
         <div className="fixed inset-0 bg-primary/70 z-[60] flex justify-center items-center">
             <div className="bg-secondary rounded-lg shadow-xl w-full max-w-md m-4">
                 <div className="flex justify-between items-center p-4 border-b border-border">
-                    <h3 className="text-xl font-semibold text-text-main">{title}</h3>
-                    <button onClick={onClose} className="text-text-secondary hover:text-text-main"><CloseIcon className="w-6 h-6" /></button>
+                    <h3 className="text-xl font-semibold text-tmain">{title}</h3>
+                    <button onClick={onClose} className="text-tsecondary hover:text-tmain"><CloseIcon className="w-6 h-6" /></button>
                 </div>
                 <div className="p-6">{children}</div>
             </div>
@@ -58,22 +58,22 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label htmlFor="username" className="block text-sm font-medium text-text-secondary">Emri i përdoruesit</label>
-                <input type="text" id="username" value={username} onChange={e => setUsername(e.target.value)} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
+                <label htmlFor="username" className="block text-sm font-medium text-tsecondary">Emri i përdoruesit</label>
+                <input type="text" id="username" value={username} onChange={e => setUsername(e.target.value)} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" />
             </div>
             <div>
-                <label htmlFor="pin" className="block text-sm font-medium text-text-secondary">PIN (4+ shifra)</label>
-                <input type="password" id="pin" value={pin} onChange={e => setPin(e.target.value)} required minLength={4} className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
+                <label htmlFor="pin" className="block text-sm font-medium text-tsecondary">PIN (4+ shifra)</label>
+                <input type="password" id="pin" value={pin} onChange={e => setPin(e.target.value)} required minLength={4} className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" />
             </div>
             <div>
-                <label className="block text-sm font-medium text-text-secondary">Roli</label>
-                <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight">
+                <label className="block text-sm font-medium text-tsecondary">Roli</label>
+                <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight">
                     <option value={UserRole.CASHIER}>Arkëtar</option>
                     <option value={UserRole.ADMIN}>Admin</option>
                 </select>
             </div>
             <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-text-main hover:bg-muted">Anulo</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">Anulo</button>
                 <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? 'Duke ruajtur...' : 'Ruaj Përdoruesin'}</button>
             </div>
         </form>
@@ -119,7 +119,7 @@ const UsersTab: React.FC = () => {
                 <div className="flex items-center space-x-4">
                     {/* Auto Logout Toggle Switch */}
                     <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-text-secondary">Auto-Logout pas Veprimit:</span>
+                        <span className="text-sm font-medium text-tsecondary">Auto-Logout pas Veprimit:</span>
                         <button
                             onClick={handleToggleAutoLogout}
                             className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-highlight ${autoLogoutEnabled ? 'bg-success' : 'bg-muted'
@@ -154,7 +154,7 @@ const UsersTab: React.FC = () => {
                             <tr key={user.id}>
                                 <td className="p-3">{user.username}</td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.role === UserRole.ADMIN ? 'bg-highlight text-white' : 'bg-muted text-text-main'}`}>
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.role === UserRole.ADMIN ? 'bg-highlight text-white' : 'bg-muted text-tmain'}`}>
                                         {user.role === UserRole.ADMIN ? 'Admin' : 'Arkëtar'}
                                     </span>
                                 </td>

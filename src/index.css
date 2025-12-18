@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Apply the "Void" theme globally */
+@layer base {
+  body {
+    @apply bg-primary text-tmain;
+  }
+}
+
 /* ==========================================================================
    PRINTABLE COMPONENT STYLES
    ========================================================================== */

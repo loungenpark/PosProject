@@ -48,8 +48,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
         <div className="fixed inset-0 bg-primary/75 z-[60] flex justify-center items-center">
             <div className="bg-secondary rounded-lg shadow-xl w-full max-w-lg m-4">
                 <div className="flex justify-between items-center p-4 border-b border-border">
-                    <h3 className="text-xl font-semibold text-text-main">{title}</h3>
-                    <button onClick={onClose} className="text-text-secondary hover:text-text-main"><CloseIcon className="w-6 h-6" /></button>
+                    <h3 className="text-xl font-semibold text-tmain">{title}</h3>
+                    <button onClick={onClose} className="text-tsecondary hover:text-tmain"><CloseIcon className="w-6 h-6" /></button>
                 </div>
                 <div className="p-6">{children}</div>
             </div>
@@ -116,16 +116,16 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label htmlFor="name" className="block text-sm font-medium text-text-secondary">Emri</label>
-                <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
+                <label htmlFor="name" className="block text-sm font-medium text-tsecondary">Emri</label>
+                <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" />
             </div>
             <div>
-                <label htmlFor="price" className="block text-sm font-medium text-text-secondary">Çmimi (€)</label>
-                <input type="number" name="price" id="price" value={formData.price} onChange={handleChange} required step="0.01" min="0" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
+                <label htmlFor="price" className="block text-sm font-medium text-tsecondary">Çmimi (€)</label>
+                <input type="number" name="price" id="price" value={formData.price} onChange={handleChange} required step="0.01" min="0" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" />
             </div>
             <div>
-                <label htmlFor="category" className="block text-sm font-medium text-text-secondary">Menu (Kategoria)</label>
-                <select name="category" id="category" value={formData.category} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight">
+                <label htmlFor="category" className="block text-sm font-medium text-tsecondary">Menu (Kategoria)</label>
+                <select name="category" id="category" value={formData.category} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight">
                     <option value="" disabled>Zgjidhni një menu</option>
                     {menuCategories.map(cat => (
                         <option key={cat.id} value={cat.name}>{cat.name}</option>
@@ -133,31 +133,31 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
                 </select>
             </div>
             <div>
-                <label htmlFor="printer" className="block text-sm font-medium text-text-secondary">Printeri</label>
-                <select name="printer" id="printer" value={formData.printer} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight">
+                <label htmlFor="printer" className="block text-sm font-medium text-tsecondary">Printeri</label>
+                <select name="printer" id="printer" value={formData.printer} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight">
                     <option value={Printer.KITCHEN}>Kuzhina</option>
                     <option value={Printer.BAR}>Shank</option>
                 </select>
             </div>
             <div className="flex items-center space-x-2 pt-2">
                 <input type="checkbox" name="trackStock" id="trackStock" checked={formData.trackStock} onChange={handleChange} className="h-4 w-4 rounded border-border text-highlight focus:ring-highlight" />
-                <label htmlFor="trackStock" className="text-sm font-medium text-text-secondary">Ndjek Stokun</label>
+                <label htmlFor="trackStock" className="text-sm font-medium text-tsecondary">Ndjek Stokun</label>
             </div>
 
             <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
-                <label htmlFor="stockGroupId" className="block text-sm font-medium text-text-secondary">Grupi i Stokut (ID e Përbashkët)</label>
-                <input type="text" name="stockGroupId" id="stockGroupId" value={formData.stockGroupId} onChange={handleChange} placeholder="psh. CAFFE (për të ndarë stokun)" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
-                <p className="text-xs text-text-secondary mt-1">Artikujt me të njëjtin ID grupi (psh. "CAFFE") do të kenë stok të përbashkët.</p>
+                <label htmlFor="stockGroupId" className="block text-sm font-medium text-tsecondary">Grupi i Stokut (ID e Përbashkët)</label>
+                <input type="text" name="stockGroupId" id="stockGroupId" value={formData.stockGroupId} onChange={handleChange} placeholder="psh. CAFFE (për të ndarë stokun)" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
+                <p className="text-xs text-tsecondary mt-1">Artikujt me të njëjtin ID grupi (psh. "CAFFE") do të kenë stok të përbashkët.</p>
             </div>
 
             {/* REMOVED Stoku Fillestar input field */}
 
             <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
-                <label htmlFor="stockThreshold" className="block text-sm font-medium text-text-secondary">Pragu i Stokut të Ulët</label>
-                <input type="number" name="stockThreshold" id="stockThreshold" value={formData.stockThreshold ?? ''} onChange={handleChange} min="0" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
+                <label htmlFor="stockThreshold" className="block text-sm font-medium text-tsecondary">Pragu i Stokut të Ulët</label>
+                <input type="number" name="stockThreshold" id="stockThreshold" value={formData.stockThreshold ?? ''} onChange={handleChange} min="0" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
             </div>
             <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-text-main hover:bg-muted">Anulo</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">Anulo</button>
                 <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? 'Duke ruajtur...' : 'Ruaj Artikullin'}</button>
             </div>
         </form>
@@ -189,11 +189,11 @@ const MenuForm: React.FC<MenuFormProps> = ({ menu, onSave, onCancel }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label htmlFor="menu-name" className="block text-sm font-medium text-text-secondary">Emri i Menusë</label>
-                <input type="text" id="menu-name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-text-main focus:ring-highlight focus:border-highlight" />
+                <label htmlFor="menu-name" className="block text-sm font-medium text-tsecondary">Emri i Menusë</label>
+                <input type="text" id="menu-name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" />
             </div>
             <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-text-main hover:bg-muted">Anulo</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">Anulo</button>
                 <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? 'Duke ruajtur...' : 'Ruaj Menunë'}</button>
             </div>
         </form>
@@ -327,7 +327,7 @@ const MenuTab: React.FC = () => {
                     // Apply the new "bottom border" tab style for consistency
                     className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeSubTab === 'items'
                         ? 'border-highlight text-highlight'
-                        : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'
+                        : 'border-transparent text-tsecondary hover:border-highlight hover:text-highlight'
                         }`}
                 >
                     Artikujt
@@ -337,7 +337,7 @@ const MenuTab: React.FC = () => {
                     // Apply the new "bottom border" tab style for consistency
                     className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeSubTab === 'categories'
                         ? 'border-highlight text-highlight'
-                        : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'
+                        : 'border-transparent text-tsecondary hover:border-highlight hover:text-highlight'
                         }`}
                 >
                     Kategoritë
@@ -354,7 +354,7 @@ const MenuTab: React.FC = () => {
                             {/* 1. Search Input (Sized Down) */}
                             <div className="relative w-64 md:w-80">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg className="h-5 w-5 text-text-secondary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <svg className="h-5 w-5 text-tsecondary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                         <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                                     </svg>
                                 </div>
@@ -363,7 +363,7 @@ const MenuTab: React.FC = () => {
                                     placeholder="Kërko artikuj..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-2 border border-border rounded-md leading-5 bg-primary text-text-main placeholder-text-secondary focus:outline-none focus:ring-1 focus:ring-highlight focus:border-highlight sm:text-sm"
+                                    className="block w-full pl-10 pr-3 py-2 border border-border rounded-md leading-5 bg-primary text-tmain placeholder-tsecondary focus:outline-none focus:ring-1 focus:ring-highlight focus:border-highlight sm:text-sm"
                                 />
                             </div>
 
@@ -404,12 +404,12 @@ const MenuTab: React.FC = () => {
                             <table className="w-full text-left min-w-[700px] relative">
                                 <thead className="bg-border sticky top-0 z-10 shadow-sm">
                                     <tr>
-                                        <th className="p-3 w-12 text-text-secondary">#</th>
-                                        <th className="p-3 text-text-secondary font-medium">Emri</th>
-                                        <th className="p-3 text-text-secondary font-medium">Menu</th>
-                                        <th className="p-3 text-text-secondary font-medium">Printeri</th>
-                                        <th className="p-3 text-text-secondary font-medium">Çmimi</th>
-                                        <th className="p-3 text-text-secondary font-medium">Veprimet</th>
+                                        <th className="p-3 w-12 text-tsecondary">#</th>
+                                        <th className="p-3 text-tsecondary font-medium">Emri</th>
+                                        <th className="p-3 text-tsecondary font-medium">Menu</th>
+                                        <th className="p-3 text-tsecondary font-medium">Printeri</th>
+                                        <th className="p-3 text-tsecondary font-medium">Çmimi</th>
+                                        <th className="p-3 text-tsecondary font-medium">Veprimet</th>
                                     </tr>
                                 </thead>
 
@@ -421,12 +421,12 @@ const MenuTab: React.FC = () => {
                                                     <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
                                                         {(provided, snapshot) => (
                                                             <tr ref={provided.innerRef} {...provided.draggableProps} className={`hover:bg-border/30 transition-colors ${snapshot.isDragging ? 'bg-highlight/20 shadow-lg' : ''}`}>
-                                                                <td className="p-3 text-text-secondary cursor-move" {...provided.dragHandleProps}>
+                                                                <td className="p-3 text-tsecondary cursor-move" {...provided.dragHandleProps}>
                                                                     <DragHandleIcon className="w-5 h-5" />
                                                                 </td>
-                                                                <td className="p-3 text-text-main font-medium">{item.name}</td>
-                                                                <td className="p-3 text-text-secondary text-sm">{item.category}</td>
-                                                                <td className="p-3 text-text-secondary text-sm">{item.printer}</td>
+                                                                <td className="p-3 text-tmain font-medium">{item.name}</td>
+                                                                <td className="p-3 text-tsecondary text-sm">{item.category}</td>
+                                                                <td className="p-3 text-tsecondary text-sm">{item.printer}</td>
                                                                 <td className="p-3 text-highlight font-bold">{formatCurrency(item.price)}</td>
                                                                 <td className="p-3">
                                                                     <div className="flex space-x-2">
@@ -446,12 +446,12 @@ const MenuTab: React.FC = () => {
                                     <tbody className="divide-y divide-border">
                                         {filteredItems.length > 0 ? filteredItems.map((item) => (
                                             <tr key={item.id} className="hover:bg-border/30 transition-colors">
-                                                <td className="p-3 text-text-secondary opacity-30">
+                                                <td className="p-3 text-tsecondary opacity-30">
                                                     <div className="w-5 h-5 flex items-center justify-center font-mono text-xs">•</div>
                                                 </td>
-                                                <td className="p-3 text-text-main font-medium">{item.name}</td>
-                                                <td className="p-3 text-text-secondary text-sm">{item.category}</td>
-                                                <td className="p-3 text-text-secondary text-sm">{item.printer}</td>
+                                                <td className="p-3 text-tmain font-medium">{item.name}</td>
+                                                <td className="p-3 text-tsecondary text-sm">{item.category}</td>
+                                                <td className="p-3 text-tsecondary text-sm">{item.printer}</td>
                                                 <td className="p-3 text-highlight font-bold">{formatCurrency(item.price)}</td>
                                                 <td className="p-3">
                                                     <div className="flex space-x-2">
@@ -462,7 +462,7 @@ const MenuTab: React.FC = () => {
                                             </tr>
                                         )) : (
                                             <tr>
-                                                <td colSpan={6} className="p-8 text-center text-text-secondary">
+                                                <td colSpan={6} className="p-8 text-center text-tsecondary">
                                                     Nuk u gjet asnjë artikull me emrin "{searchQuery}"
                                                 </td>
                                             </tr>
@@ -478,7 +478,7 @@ const MenuTab: React.FC = () => {
                 {activeSubTab === 'categories' && (
                     <div className="flex flex-col flex-grow overflow-hidden bg-secondary p-4 md:p-6 rounded-lg shadow-sm animate-fade-in">
                         <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                            <h3 className="text-lg font-semibold text-text-main">Kategoritë (Menutë)</h3>
+                            <h3 className="text-lg font-semibold text-tmain">Kategoritë (Menutë)</h3>
                             <button onClick={handleAddMenu} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-highlight-hover transition-colors">
                                 <PlusIcon className="w-5 h-5" /><span>Shto Kategori</span>
                             </button>
@@ -488,9 +488,9 @@ const MenuTab: React.FC = () => {
                             <table className="w-full text-left min-w-[300px] relative">
                                 <thead className="bg-border sticky top-0 z-10 shadow-sm">
                                     <tr>
-                                        <th className="p-3 w-12 text-text-secondary">#</th>
-                                        <th className="p-3 text-text-secondary font-medium">Emri</th>
-                                        <th className="p-3 text-right text-text-secondary font-medium">Veprimet</th>
+                                        <th className="p-3 w-12 text-tsecondary">#</th>
+                                        <th className="p-3 text-tsecondary font-medium">Emri</th>
+                                        <th className="p-3 text-right text-tsecondary font-medium">Veprimet</th>
                                     </tr>
                                 </thead>
                                 <StrictModeDroppable droppableId="categories-droppable" type="CATEGORIES">
@@ -500,10 +500,10 @@ const MenuTab: React.FC = () => {
                                                 <Draggable key={menu.id} draggableId={menu.id.toString()} index={index}>
                                                     {(provided, snapshot) => (
                                                         <tr ref={provided.innerRef} {...provided.draggableProps} className={`hover:bg-border/30 transition-colors ${snapshot.isDragging ? 'bg-highlight/20 shadow-lg' : ''}`}>
-                                                            <td className="p-3 text-text-secondary cursor-move w-10" {...provided.dragHandleProps}>
+                                                            <td className="p-3 text-tsecondary cursor-move w-10" {...provided.dragHandleProps}>
                                                                 <DragHandleIcon className="w-5 h-5" />
                                                             </td>
-                                                            <td className="p-3 text-text-main font-medium">{menu.name}</td>
+                                                            <td className="p-3 text-tmain font-medium">{menu.name}</td>
                                                             <td className="p-3 text-right">
                                                                 <div className="flex justify-end space-x-1">
                                                                     <button onClick={() => handleEditMenu(menu)} className="p-1.5 rounded text-highlight hover:bg-highlight/20 transition-colors"><EditIcon className="w-4 h-4" /></button>

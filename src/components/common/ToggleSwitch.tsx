@@ -15,10 +15,10 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ label, enabled, onChange, d
   return (
     <div className="flex items-center justify-between py-4 border-b border-border last:border-b-0">
       <div>
-        <label htmlFor={label} className="text-lg font-medium text-text-main">
+        <label htmlFor={label} className="text-lg font-medium text-tmain">
           {label}
         </label>
-        {description && <p className="text-sm text-text-secondary max-w-md">{description}</p>}
+        {description && <p className="text-sm text-tsecondary max-w-md">{description}</p>}
       </div>
       <div
         onClick={handleToggle}

@@ -29,7 +29,7 @@ const TabButton = ({ active, onClick, label, icon }: { active: boolean; onClick:
         // Updated to match the standard "bottom border" tab pattern used across the app.
         className={`flex items-center space-x-2 px-6 py-3 font-semibold transition-colors border-b-2 ${active
             ? 'border-highlight text-highlight'
-            : 'border-transparent text-text-secondary hover:border-highlight hover:text-highlight'
+            : 'border-transparent text-tsecondary hover:border-highlight hover:text-highlight'
             }`}
     >
         {icon}
@@ -44,8 +44,8 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; chi
         <div className="fixed inset-0 bg-primary/70 z-[60] flex justify-center items-center">
             <div className="bg-secondary rounded-lg shadow-xl w-full max-w-lg m-4 flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0">
-                    <h3 className="text-xl font-semibold text-text-main">{title}</h3>
-                    <button onClick={onClose} className="text-text-secondary hover:text-text-main text-2xl">&times;</button>
+                    <h3 className="text-xl font-semibold text-tmain">{title}</h3>
+                    <button onClick={onClose} className="text-tsecondary hover:text-tmain text-2xl">&times;</button>
                 </div>
                 <div className="p-6 overflow-y-auto">{children}</div>
             </div>
@@ -80,7 +80,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
     return (
         <Modal isOpen={true} onClose={onClose} title={`Historiku: ${item.name}`}>
             {loading ? (
-                <div className="text-center py-8 text-text-secondary">Duke ngarkuar...</div>
+                <div className="text-center py-8 text-tsecondary">Duke ngarkuar...</div>
             ) : (
                 <div className="space-y-2">
                     {[
@@ -102,7 +102,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
                             {expanded === cat.type && cat.data.details.length > 0 && (
                                 <div className="bg-primary border-t border-border p-2">
                                     <table className="w-full text-left text-sm">
-                                        <thead className="text-text-secondary">
+                                        <thead className="text-tsecondary">
                                             <tr>
                                                 <th className="p-2">Data</th>
                                                 <th className="p-2">Detaje</th>
@@ -113,14 +113,14 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
                                         <tbody className="divide-y divide-border/30">
                                             {cat.data.details.map((m: any) => (
                                                 <tr key={m.id}>
-                                                    <td className="p-2 whitespace-nowrap text-text-secondary">
+                                                    <td className="p-2 whitespace-nowrap text-tsecondary">
                                                         {new Date(m.createdAt).toLocaleString('sq-AL', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                                     </td>
-                                                    <td className="p-2 text-text-secondary truncate max-w-[150px]">{m.reason}</td>
+                                                    <td className="p-2 text-tsecondary truncate max-w-[150px]">{m.reason}</td>
                                                     <td className={`p-2 text-right font-mono font-bold ${m.quantity > 0 ? 'text-success' : 'text-danger'}`}>
                                                         {m.quantity > 0 ? '+' : ''}{m.quantity}
                                                     </td>
-                                                    <td className="p-2 text-xs text-text-secondary">{m.user || '-'}</td>
+                                                    <td className="p-2 text-xs text-tsecondary">{m.user || '-'}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -130,7 +130,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
                         </div>
                     ))}
                     {data.supply.total === 0 && data.waste.total === 0 && data.sale.total === 0 && data.correction.total === 0 && (
-                        <p className="text-center text-text-secondary py-4">S'ka të dhëna.</p>
+                        <p className="text-center text-tsecondary py-4">S'ka të dhëna.</p>
                     )}
                 </div>
             )}
@@ -208,7 +208,7 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
         <div className="h-full overflow-hidden flex flex-col">
             <div className="flex-grow overflow-y-auto rounded-lg border border-border">
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-border sticky top-0 z-10 text-text-secondary font-semibold">
+                    <thead className="bg-border sticky top-0 z-10 text-tsecondary font-semibold">
                         <tr>
                             <th className="p-3">Artikulli</th>
                             <th className="p-3 text-center">Historiku</th>
@@ -235,7 +235,7 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                                 <tr key={item.id} className={`hover:bg-primary/50 transition-colors ${isLow ? 'bg-danger-bg' : ''}`}>
                                     <td className="p-3">
                                         <div className="flex flex-col">
-                                            <span className="font-medium text-text-main">{item.name}</span>
+                                            <span className="font-medium text-tmain">{item.name}</span>
                                             {item.stockGroupId && <span className="text-xs text-highlight font-mono">🔗 {item.stockGroupId}</span>}
                                         </div>
                                     </td>
@@ -244,19 +244,19 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                                             <ClockIcon className="w-5 h-5" />
                                         </button>
                                     </td>
-                                    <td className="p-3 text-right text-text-secondary font-mono">
+                                    <td className="p-3 text-right text-tsecondary font-mono">
                                         {item.stockThreshold}
                                     </td>
                                     <td className={`p-3 text-right font-mono font-bold text-lg ${isLow ? 'text-danger' : 'text-success'}`}>
                                         {item.stock}
                                     </td>
-                                    <td className="p-3 text-right font-mono text-text-secondary">
+                                    <td className="p-3 text-right font-mono text-tsecondary">
                                         {costPrice.toFixed(2)}€
                                     </td>
-                                    <td className="p-3 text-right font-mono text-text-main">
+                                    <td className="p-3 text-right font-mono text-tmain">
                                         {stockVal.toFixed(2)}€
                                     </td>
-                                    <td className="p-3 text-right font-mono text-text-main">
+                                    <td className="p-3 text-right font-mono text-tmain">
                                         {salesVal.toFixed(2)}€
                                     </td>
                                     <td className={`p-3 text-right font-mono font-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`}>
@@ -266,13 +266,13 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                             );
                         })}
                         {trackedItems.length === 0 && (
-                            <tr><td colSpan={8} className="p-8 text-center text-text-secondary">Asnjë artikull nuk ndjek stokun.</td></tr>
+                            <tr><td colSpan={8} className="p-8 text-center text-tsecondary">Asnjë artikull nuk ndjek stokun.</td></tr>
                         )}
                     </tbody>
 
                     {/* STICKY FOOTER WITH TOTALS */}
                     <tfoot className="sticky bottom-0 bg-secondary border-t-2 border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
-                        <tr className="font-bold text-text-main">
+                        <tr className="font-bold text-tmain">
                             <td className="p-3" colSpan={3}>TOTALET (Artikuj Unik)</td>
                             <td className="p-3 text-right font-mono text-lg text-highlight">{totals.stock}</td>
                             <td className="p-3"></td>
@@ -343,12 +343,12 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
     return (
         <div className="flex flex-col h-full space-y-4">
             <div className="grid grid-cols-2 gap-4">
-                <input type="text" placeholder="Furnitori" value={supplier} onChange={e => setSupplier(e.target.value)} className="bg-primary border-border rounded p-2 text-text-main placeholder-text-subtle" />
-                <input type="text" placeholder="Nr. Faturës" value={invoiceRef} onChange={e => setInvoiceRef(e.target.value)} className="bg-primary border-border rounded p-2 text-text-main placeholder-text-subtle" />
+                <input type="text" placeholder="Furnitori" value={supplier} onChange={e => setSupplier(e.target.value)} className="bg-primary border-border rounded p-2 text-tmain placeholder-tsubtle" />
+                <input type="text" placeholder="Nr. Faturës" value={invoiceRef} onChange={e => setInvoiceRef(e.target.value)} className="bg-primary border-border rounded p-2 text-tmain placeholder-tsubtle" />
             </div>
 
             <div className="relative">
-                <input ref={searchInputRef} type="text" placeholder="Kërko artikull..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-primary border-border rounded p-3 pl-10 text-text-main focus:ring-highlight" />
+                <input ref={searchInputRef} type="text" placeholder="Kërko artikull..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-primary border-border rounded p-3 pl-10 text-tmain focus:ring-highlight" />
                 {searchTerm && (
                     <div className="absolute top-full w-full bg-secondary border border-border shadow-xl max-h-60 overflow-y-auto z-50">
                         {filtered.map(item => (
@@ -362,7 +362,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
 
             <div className="flex-grow overflow-y-auto bg-primary border border-border rounded-lg">
                 <table className="w-full text-left">
-                    <thead className="bg-border text-text-secondary sticky top-0">
+                    <thead className="bg-border text-tsecondary sticky top-0">
                         <tr>
                             <th className="p-3">Artikulli</th>
                             <th className="p-3 text-center">Shto Sasi</th>
@@ -383,7 +383,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                             type="number"
                                             value={c.quantity}
                                             onChange={e => updateQty(c.itemId, parseFloat(e.target.value) || 0)}
-                                            className="w-24 bg-secondary border-border rounded p-2 text-center font-bold text-text-main"
+                                            className="w-24 bg-secondary border-border rounded p-2 text-center font-bold text-tmain"
                                             placeholder="Sasia"
                                         />
                                     </td>
@@ -395,10 +395,10 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                                 type="number"
                                                 value={c.totalCost === 0 ? '' : c.totalCost}
                                                 onChange={e => updateTotalCost(c.itemId, parseFloat(e.target.value) || 0)}
-                                                className="w-28 bg-secondary border-border rounded p-2 text-center font-bold text-text-main pl-6"
+                                                className="w-28 bg-secondary border-border rounded p-2 text-center font-bold text-tmain pl-6"
                                                 placeholder="0.00"
                                             />
-                                            <span className="absolute left-2 top-2 text-text-secondary">€</span>
+                                            <span className="absolute left-2 top-2 text-tsecondary">€</span>
                                         </div>
                                     </td>
 
@@ -410,14 +410,14 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                 </tr>
                             ) : null;
                         })}
-                        {cart.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-text-secondary">Bosh</td></tr>}
+                        {cart.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-tsecondary">Bosh</td></tr>}
                     </tbody>
                 </table>
             </div>
 
             <div className="flex justify-end pt-2 items-center space-x-4">
-                <div className="text-text-secondary text-sm">
-                    {cart.length} artikuj | Totali: <span className="text-text-main font-bold">
+                <div className="text-tsecondary text-sm">
+                    {cart.length} artikuj | Totali: <span className="text-tmain font-bold">
                         {cart.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)}€
                     </span>
                 </div>
@@ -478,7 +478,7 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
 
     return (
         <div className="max-w-xl mx-auto mt-8 p-6 bg-primary rounded-lg border border-border shadow-lg">
-            <h3 className="text-xl font-bold text-text-main mb-6 flex items-center gap-2">
+            <h3 className="text-xl font-bold text-tmain mb-6 flex items-center gap-2">
                 {mode === 'waste' ? <MinusCircleIcon className="w-6 h-6 text-danger" /> : <CheckIcon className="w-6 h-6 text-highlight" />}
                 {mode === 'waste' ? 'Regjistro Humbje' : 'Korrigjo Stokun'}
             </h3>
@@ -486,8 +486,8 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
             <div className="space-y-4">
                 {!selectedItem ? (
                     <div className="relative">
-                        <label className="block text-sm text-text-secondary mb-1">Kërko Artikull</label>
-                        <input type="text" autoFocus value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-text-main focus:ring-highlight" placeholder="Shkruaj emrin..." />
+                        <label className="block text-sm text-tsecondary mb-1">Kërko Artikull</label>
+                        <input type="text" autoFocus value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-tmain focus:ring-highlight" placeholder="Shkruaj emrin..." />
                         {searchTerm && (
                             <div className="absolute top-full w-full bg-secondary border border-border shadow-xl max-h-48 overflow-y-auto z-10 mt-1 rounded">
                                 {filtered.map(item => (
@@ -501,8 +501,8 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                 ) : (
                     <div className="flex items-center justify-between bg-secondary p-3 rounded border border-border">
                         <div>
-                            <span className="font-bold text-lg text-text-main">{selectedItem.name}</span>
-                            <div className="text-sm text-text-secondary">Stoku Aktual: {selectedItem.stock}</div>
+                            <span className="font-bold text-lg text-tmain">{selectedItem.name}</span>
+                            <div className="text-sm text-tsecondary">Stoku Aktual: {selectedItem.stock}</div>
                         </div>
                         <button onClick={() => setSelectedItem(null)} className="text-sm text-highlight hover:underline">Ndrysho</button>
                     </div>
@@ -510,11 +510,11 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
 
                 {mode === 'correction' && selectedItem && (
                     <div className="flex gap-4">
-                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'add' ? 'bg-success-bg border-success text-success' : 'bg-secondary border-border text-text-secondary'}`}>
+                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'add' ? 'bg-success-bg border-success text-success' : 'bg-secondary border-border text-tsecondary'}`}>
                             <input type="radio" name="ctype" className="hidden" checked={correctionType === 'add'} onChange={() => setCorrectionType('add')} />
                             + Shto (Gjetur)
                         </label>
-                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'remove' ? 'bg-danger-bg border-danger text-danger' : 'bg-secondary border-border text-text-secondary'}`}>
+                        <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'remove' ? 'bg-danger-bg border-danger text-danger' : 'bg-secondary border-border text-tsecondary'}`}>
                             <input type="radio" name="ctype" className="hidden" checked={correctionType === 'remove'} onChange={() => setCorrectionType('remove')} />
                             - Zbrit (Humbur)
                         </label>
@@ -524,12 +524,12 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                 {selectedItem && (
                     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                         <div>
-                            <label className="block text-sm text-text-secondary mb-1">Sasia {mode === 'correction' ? '(Për t\'u korrigjuar)' : '(E Humbur)'}</label>
-                            <input type="number" min="1" required autoFocus value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-2xl font-bold text-center text-text-main focus:ring-highlight" placeholder="0" />
+                            <label className="block text-sm text-tsecondary mb-1">Sasia {mode === 'correction' ? '(Për t\'u korrigjuar)' : '(E Humbur)'}</label>
+                            <input type="number" min="1" required autoFocus value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-2xl font-bold text-center text-tmain focus:ring-highlight" placeholder="0" />
                         </div>
                         <div>
-                            <label className="block text-sm text-text-secondary mb-1">Arsyeja / Shënim</label>
-                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-text-main focus:ring-highlight" placeholder={mode === 'waste' ? "psh. U thye" : "psh. Numërim fizik"} />
+                            <label className="block text-sm text-tsecondary mb-1">Arsyeja / Shënim</label>
+                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-tmain focus:ring-highlight" placeholder={mode === 'waste' ? "psh. U thye" : "psh. Numërim fizik"} />
                         </div>
                         <button disabled={isSubmitting} className={`w-full py-4 rounded-lg font-bold text-white shadow-lg transition-transform active:scale-95 ${mode === 'waste' || (mode === 'correction' && correctionType === 'remove') ? 'bg-danger hover:bg-danger-hover' : 'bg-success hover:bg-success-hover'}`}>
                             {isSubmitting ? '...' : 'Konfirmo'}
@@ -591,7 +591,7 @@ const StockTab: React.FC = () => {
                     <div className={`p-4 rounded-full ${alertConfig.isError ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success'}`}>
                         {alertConfig.isError ? <ExclamationIcon className="w-10 h-10" /> : <CheckIcon className="w-10 h-10" />}
                     </div>
-                    <p className="text-lg text-center font-medium text-text-main">{alertConfig.message}</p>
+                    <p className="text-lg text-center font-medium text-tmain">{alertConfig.message}</p>
                     <button
                         onClick={() => setAlertConfig(prev => ({ ...prev, show: false }))}
                         className={`px-8 py-3 rounded-lg font-bold text-white shadow-md transition-transform active:scale-95 ${alertConfig.isError ? 'bg-danger hover:bg-danger-hover' : 'bg-success hover:bg-success-hover'
