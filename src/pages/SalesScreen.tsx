@@ -4,6 +4,7 @@ import * as api from '../utils/api';
 import { Printer, Sale } from '../types';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { BarChart4, Package, Settings } from 'lucide-react';
 import {
     ChartBarIcon,
     RestaurantIcon,
@@ -13,10 +14,7 @@ import {
     RefreshIcon,
     CalendarIcon,
     DownloadIcon,
-    PieChartIcon, // Added
-    GridIcon,     // Added
-    PackageIcon,   // Added
-    BoxIcon      // Added for Stock button
+    GridIcon
 } from '../components/common/Icons';
 
 const formatCurrency = (amount: number | string) => {
@@ -432,24 +430,24 @@ const SalesScreen: React.FC = () => {
     return (
         <div className="fixed inset-0 bg-primary z-50 flex flex-col">
             <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md z-10">
-                <h1 className="hidden md:flex text-xl font-bold text-tmain items-center gap-2">
-                    <PieChartIcon className="w-6 h-6 text-highlight" />
+                <h1 className="hidden md:flex text-xl font-semibold text-tsecondary items-center gap-2">
+                    <BarChart4 className="w-6 h-6 text-highlight" />
                     Raporte & Statistika
                 </h1>
                 <div className="flex items-center justify-end w-full md:w-auto space-x-2 md:space-x-4">
                     {/* // This button's style is updated to have an outline hover effect instead of a background fill. */}
-                    <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+                    <button onClick={() => setActiveScreen('pos')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
                         <GridIcon className="w-5 h-5" />
                         <span className="hidden md:inline">POS</span>
                     </button>
-                    {/* // New Stock Button */}
-                    <button onClick={() => setActiveScreen('stock')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
-                        <BoxIcon className="w-5 h-5" />
+                    {/* // Updated Stock Button with Package icon */}
+                    <button onClick={() => setActiveScreen('stock')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+                        <Package className="w-5 h-5" />
                         <span className="hidden md:inline">Stoku</span>
                     </button>
-                    {/* // This button's style is also updated for consistency. */}
-                    <button onClick={() => setActiveScreen('admin')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
-                        <PackageIcon className="w-5 h-5" />
+                    {/* // Updated Admin Button with Settings icon */}
+                    <button onClick={() => setActiveScreen('admin')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+                        <Settings className="w-5 h-5" />
                         <span className="hidden md:inline">Menaxhimi</span>
                     </button>
                     <div className="w-px h-6 bg-border mx-2"></div>

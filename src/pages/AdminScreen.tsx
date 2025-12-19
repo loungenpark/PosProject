@@ -3,7 +3,8 @@ import { usePos } from '../context/PosContext';
 import ProfileTab from '../components/admin/ProfileTab';
 import { TaxSettings, PrintingSettings, OperationalDaySettings } from '../components/admin/SettingsTab';
 import TableManager from '../components/admin/TableManager';
-import { CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, BoxIcon, PrinterIcon, RestaurantIcon, ClockIcon, GridIcon, PieChartIcon, PackageIcon } from '../components/common/Icons';
+import { Settings, Package, BarChart4 } from 'lucide-react';
+import { CloseIcon, MenuIcon, TableIcon, PercentIcon, UserGroupIcon, PrinterIcon, RestaurantIcon, ClockIcon, GridIcon } from '../components/common/Icons';
 
 // Sub-components
 import UsersTab from '../components/admin/UsersTab';
@@ -24,24 +25,24 @@ const AdminScreen: React.FC = () => {
     // FIXED: h-screen prevents window scrolling, allowing internal sticky headers to work
     <div className="h-screen bg-primary z-50 flex flex-col overflow-hidden">
       <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md z-40">
-        <h1 className="hidden md:flex text-xl font-bold text-tmain items-center gap-2">
-          <PackageIcon className="w-6 h-6 text-highlight" />
+        <h1 className="hidden md:flex text-xl font-semibold text-tsecondary items-center gap-2">
+          <Settings className="w-6 h-6 text-highlight" />
           Menaxhimi
         </h1>
         <div className="flex items-center justify-end w-full md:w-auto space-x-2 md:space-x-4">
           {/* // Button style updated for consistency */}
-          <button onClick={() => setActiveScreen('pos')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+          <button onClick={() => setActiveScreen('pos')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
             <GridIcon className="w-5 h-5" />
             <span className="hidden md:inline">POS</span>
           </button>
           {/* // Button style updated for consistency */}
-          <button onClick={() => setActiveScreen('sales')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
-            <PieChartIcon className="w-5 h-5" />
+          <button onClick={() => setActiveScreen('sales')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+            <BarChart4 className="w-5 h-5" />
             <span className="hidden md:inline">Raporte</span>
           </button>
           {/* Add Stock Button */}
-          <button onClick={() => setActiveScreen('stock')} className="px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
-            <BoxIcon className="w-5 h-5" />
+          <button onClick={() => setActiveScreen('stock')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+            <Package className="w-5 h-5" />
             <span className="hidden md:inline">Stoku</span>
           </button>
           {/* // Vertical separator added for consistency */}

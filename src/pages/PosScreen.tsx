@@ -4,7 +4,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
-import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon, PieChartIcon, PackageIcon, BoxIcon } from '../components/common/Icons';
+import { Settings, Package, BarChart4 } from 'lucide-react';
+import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon } from '../components/common/Icons';
 import TransferModal from '../components/modals/TransferModal';
 
 const formatCurrency = (amount: number) => {
@@ -305,77 +306,37 @@ const PosScreen: React.FC = () => {
     // Removed orderedItems useMemo - using currentOrderItems directly
 
     const Header = () => {
-        // This is the new logic. If a table is open, show the order controls.
-        if (activeTableId !== null) {
-            return (
-                <div className="flex items-center gap-2 md:gap-4">
-                    <h2 className="text-lg font-bold text-tmain hidden md:block">Porosia Aktuale</h2>
-
-                    {/* The entire options menu and its logic is now here */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setIsOptionsMenuOpen(!isOptionsMenuOpen)}
-                            className="p-2 text-tsecondary hover:text-tmain rounded-full hover:bg-primary transition-colors"
-                        >
-                            <MenuIcon className="w-6 h-6" />
-                        </button>
-
-                        {isOptionsMenuOpen && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setIsOptionsMenuOpen(false)} />
-                                <div className="absolute right-0 top-full mt-2 w-48 bg-secondary border border-border rounded-lg shadow-xl z-50 overflow-hidden">
-                                    <button
-                                        onClick={() => {
-                                            setTransferModalOpen(true);
-                                            setIsOptionsMenuOpen(false);
-                                        }}
-                                        className="w-full text-left px-4 py-3 hover:bg-primary text-tmain font-semibold flex items-center transition-colors"
-                                    >
-                                        <span className="mr-2">↔️</span> Transfero Tavolinën
-                                    </button>
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    {/* The close button is also moved here */}
-                    <button onClick={handleCancelOrder} className="p-2 text-tsecondary hover:text-tmain hover:bg-primary rounded-full transition-colors">
-                        <CloseIcon className="w-6 h-6" />
-                    </button>
-                </div>
-            );
-        }
-
-        // This is the original content, shown when no table is active.
+        // This component now ONLY handles the view when a table is active.
         return (
             <div className="flex items-center gap-2 md:gap-4">
-                {loggedInUser?.role === UserRole.ADMIN && (
-                    <>
-                        {/* // Button style updated for consistency */}
-                        <button onClick={() => setActiveScreen('sales')} className="flex items-center gap-2 px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
-                            <PieChartIcon className="w-5 h-5" />
-                            <span className="hidden md:inline">Raporte</span>
-                        </button>
-                        {/* Stock Button */}
-                        <button onClick={() => setActiveScreen('stock')} className="flex items-center gap-2 px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
-                            <BoxIcon className="w-5 h-5" />
-                            <span className="hidden md:inline">Stoku</span>
-                        </button>
-                        {/* // Button style updated for consistency */}
-                        <button onClick={() => setActiveScreen('admin')} className="flex items-center gap-2 px-4 py-2 bg-primary text-tmain font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
-                            <PackageIcon className="w-5 h-5" />
-                            <span className="hidden md:inline">Menaxhimi</span>
-                        </button>
-                        {/* // Vertical separator added for consistency with other screens */}
-                        <div className="w-px h-6 bg-border mx-2"></div>
-                    </>
-                )}
-                <div className="flex items-center text-sm md:text-base">
-                    <span className="hidden md:inline text-tsecondary mr-1"></span>
-                    <span className="text-tmain font-bold">{loggedInUser?.username}</span>
+                <h2 className="text-lg font-bold text-tmain hidden md:block">Porosia Aktuale</h2>
+
+                {/* Options Menu (Transfer, etc.) */}
+                <div className="relative">
+                    <button
+                        onClick={() => setIsOptionsMenuOpen(!isOptionsMenuOpen)}
+                        className="p-2 text-tsecondary hover:text-tmain rounded-full hover:bg-primary transition-colors"
+                    >
+                        <MenuIcon className="w-6 h-6" />
+                    </button>
+                    {isOptionsMenuOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsOptionsMenuOpen(false)} />
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-secondary border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+                                <button
+                                    onClick={() => { setTransferModalOpen(true); setIsOptionsMenuOpen(false); }}
+                                    className="w-full text-left px-4 py-3 hover:bg-primary text-tmain font-semibold flex items-center transition-colors"
+                                >
+                                    <span className="mr-2">↔️</span> Transfero Tavolinën
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
-                <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors">
-                    <LogoutIcon className="w-6 h-6" />
+
+                {/* Close button */}
+                <button onClick={handleCancelOrder} className="p-2 text-tsecondary hover:text-tmain hover:bg-primary rounded-full transition-colors">
+                    <CloseIcon className="w-6 h-6" />
                 </button>
             </div>
         );
@@ -390,8 +351,8 @@ const PosScreen: React.FC = () => {
                 {tableList.map(table => (
                     <div key={table.id} className="aspect-square flex justify-center items-center">
                         <button onClick={() => handleSelectTable(table.id)} className={`flex flex-col justify-center items-center rounded-lg shadow-lg transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-highlight ${table.order ? 'bg-highlight text-white' : 'bg-secondary text-tmain'}`} style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}>
-                            <span className="font-bold" style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}>{table.name}</span>
-                            {table.order && <span className="font-semibold" style={{ fontSize: `calc(0.75rem * ${tableSizePercent / 100})` }}>{formatCurrency(table.order.total)}</span>}
+                            <span className="font-semibold" style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}>{table.name}</span>
+                            {table.order && <span className="font-medium" style={{ fontSize: `calc(0.75rem * ${tableSizePercent / 100})` }}>{formatCurrency(table.order.total)}</span>}
                         </button>
                     </div>
                 ))}
@@ -416,19 +377,6 @@ const PosScreen: React.FC = () => {
             );
         };
 
-        // Helper: Mobile Dropdown Item
-        const SectionOption = ({ id, name }: { id: number | 'all' | -1, name: string }) => (
-            <button
-                onClick={() => {
-                    setActiveSectionId(id);
-                    setIsSectionDropdownOpen(false);
-                }}
-                className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-bold text-lg transition-colors ${activeSectionId === id ? 'bg-highlight text-white' : 'bg-secondary text-tmain hover:bg-primary'}`}
-            >
-                {name}
-            </button>
-        );
-
         return (
             <div className="h-screen w-screen flex flex-col bg-primary relative">
 
@@ -439,21 +387,20 @@ const PosScreen: React.FC = () => {
                     <div className="flex-grow flex items-center mr-4 overflow-hidden h-full">
                         {sections.length > 0 ? (
                             isMobile ? (
-                                // MOBILE: Dropdown Trigger (Clean - No Icon)
+                                // MOBILE: Dropdown Trigger (Updated to h-11)
                                 <button
                                     onClick={() => setIsSectionDropdownOpen(!isSectionDropdownOpen)}
-                                    className="bg-primary px-6 py-2 rounded-full border border-border active:bg-border transition-colors max-w-[200px] shadow-sm"
+                                    className="bg-primary px-6 h-11 flex items-center justify-center rounded-full border border-border active:bg-border transition-colors max-w-[200px] shadow-sm"
                                 >
-                                    <span className="font-bold text-tmain truncate text-lg">{activeSectionName}</span>
+                                    <span className="font-semibold text-tmain truncate text-lg">{activeSectionName}</span>
                                 </button>
                             ) : (
-                                // DESKTOP: Horizontal Tabs
+                                // DESKTOP: Horizontal Tabs (Updated to h-11)
                                 <div className="flex space-x-2 overflow-x-auto scrollbar-hide items-center h-full px-2">
                                     {!allSectionConfig.isHidden && (
                                         <button
                                             onClick={() => setActiveSectionId('all')}
-                                            // The hover state for inactive buttons now matches the active state's appearance for better feedback.
-                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === 'all' ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
+                                            className={`px-5 h-11 flex items-center rounded-full font-semibold whitespace-nowrap transition-all border bg-primary ${activeSectionId === 'all' ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
                                         >
                                             {allSectionConfig.customName || 'Të gjitha'}
                                         </button>
@@ -462,8 +409,7 @@ const PosScreen: React.FC = () => {
                                         <button
                                             key={section.id}
                                             onClick={() => setActiveSectionId(section.id)}
-                                            // Apply the same improved hover state styling here.
-                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === section.id ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
+                                            className={`px-5 h-11 flex items-center rounded-full font-semibold whitespace-nowrap transition-all border bg-primary ${activeSectionId === section.id ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
                                         >
                                             {section.name}
                                         </button>
@@ -471,8 +417,7 @@ const PosScreen: React.FC = () => {
                                     {unassignedTables.length > 0 && (
                                         <button
                                             onClick={() => setActiveSectionId(-1)}
-                                            // Apply the same improved hover state styling here as well.
-                                            className={`px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all border bg-primary ${activeSectionId === -1 ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
+                                            className={`px-5 h-11 flex items-center rounded-full font-semibold whitespace-nowrap transition-all border bg-primary ${activeSectionId === -1 ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
                                         >
                                             Të Tjera
                                         </button>
@@ -484,9 +429,42 @@ const PosScreen: React.FC = () => {
                         )}
                     </div>
 
-                    {/* RIGHT: User Actions */}
-                    <div className="flex-shrink-0">
-                        <Header />
+                    {/* RIGHT: User Actions - REBUILT FOR STRUCTURAL SYMMETRY */}
+                    <div className="flex-shrink-0 flex items-center h-full gap-2 md:gap-4">
+                        {activeTableId === null ? (
+                            // --- View when NO table is active (Buttons are now here) ---
+                            <>
+                                {loggedInUser?.role === UserRole.ADMIN && (
+                                    <>
+                                        {/* Screen Buttons - UPDATED: Forces h-11 (44px) to match sections exactly */}
+                                        <button onClick={() => setActiveScreen('sales')} className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+                                            <BarChart4 className="w-5 h-5" />
+                                            <span className="hidden md:inline">Raporte</span>
+                                        </button>
+                                        <button onClick={() => setActiveScreen('stock')} className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+                                            <Package className="w-5 h-5" />
+                                            <span className="hidden md:inline">Stoku</span>
+                                        </button>
+                                        <button onClick={() => setActiveScreen('admin')} className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+                                            <Settings className="w-5 h-5" />
+                                            <span className="hidden md:inline">Menaxhimi</span>
+                                        </button>
+
+                                        {/* Separator */}
+                                        <div className="w-px h-6 bg-border"></div>
+                                    </>
+                                )}
+
+                                {/* User Info & Logout */}
+                                <span className="text-tsecondary text-sm md:text-base">{loggedInUser?.username}</span>
+                                <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors">
+                                    <LogoutIcon className="w-6 h-6" />
+                                </button>
+                            </>
+                        ) : (
+                            // --- View when a table IS active (Calls the simplified Header) ---
+                            <Header />
+                        )}
                     </div>
                 </header>
 
@@ -498,9 +476,31 @@ const PosScreen: React.FC = () => {
 
                         {/* Menu */}
                         <div className="absolute top-[60px] left-2 w-64 bg-secondary rounded-lg shadow-2xl border border-border z-40 flex flex-col max-h-[70vh] overflow-y-auto animate-in fade-in slide-in-from-top-2">
-                            {!allSectionConfig.isHidden && <SectionOption id="all" name={allSectionConfig.customName || 'Të gjitha'} />}
-                            {visibleSections.map(s => <SectionOption key={s.id} id={s.id} name={s.name} />)}
-                            {unassignedTables.length > 0 && <SectionOption id={-1} name="Të Tjera" />}
+                            {!allSectionConfig.isHidden && (
+                                <button
+                                    onClick={() => { setActiveSectionId('all'); setIsSectionDropdownOpen(false); }}
+                                    className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-semibold text-lg transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-secondary text-tmain hover:bg-primary'}`}
+                                >
+                                    {allSectionConfig.customName || 'Të gjitha'}
+                                </button>
+                            )}
+                            {visibleSections.map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => { setActiveSectionId(s.id); setIsSectionDropdownOpen(false); }}
+                                    className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-semibold text-lg transition-colors ${activeSectionId === s.id ? 'bg-highlight text-white' : 'bg-secondary text-tmain hover:bg-primary'}`}
+                                >
+                                    {s.name}
+                                </button>
+                            ))}
+                            {unassignedTables.length > 0 && (
+                                <button
+                                    onClick={() => { setActiveSectionId(-1); setIsSectionDropdownOpen(false); }}
+                                    className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-semibold text-lg transition-colors ${activeSectionId === -1 ? 'bg-highlight text-white' : 'bg-secondary text-tmain hover:bg-primary'}`}
+                                >
+                                    Të Tjera
+                                </button>
+                            )}
                         </div>
                     </>
                 )}
