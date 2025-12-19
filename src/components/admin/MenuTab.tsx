@@ -321,23 +321,21 @@ const MenuTab: React.FC = () => {
     return (
         <div className="flex flex-col h-full w-full overflow-hidden">
             {/* Sub-Tabs Navigation */}
-            <div className="flex space-x-2 mb-4 border-b border-border flex-shrink-0">
+            <div className="flex items-center gap-2 mb-4 border-b border-border flex-shrink-0 p-1">
                 <button
                     onClick={() => setActiveSubTab('items')}
-                    // Apply the new "bottom border" tab style for consistency
-                    className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeSubTab === 'items'
-                        ? 'border-highlight text-highlight'
-                        : 'border-transparent text-tsecondary hover:border-highlight hover:text-highlight'
+                    className={`px-5 h-11 flex items-center rounded-lg font-semibold whitespace-nowrap transition-all border ${activeSubTab === 'items'
+                        ? 'border-highlight text-highlight shadow-md bg-primary'
+                        : 'border-transparent text-tsecondary bg-transparent hover:border-highlight hover:text-highlight hover:bg-primary'
                         }`}
                 >
                     Artikujt
                 </button>
                 <button
                     onClick={() => setActiveSubTab('categories')}
-                    // Apply the new "bottom border" tab style for consistency
-                    className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeSubTab === 'categories'
-                        ? 'border-highlight text-highlight'
-                        : 'border-transparent text-tsecondary hover:border-highlight hover:text-highlight'
+                    className={`px-5 h-11 flex items-center rounded-lg font-semibold whitespace-nowrap transition-all border ${activeSubTab === 'categories'
+                        ? 'border-highlight text-highlight shadow-md bg-primary'
+                        : 'border-transparent text-tsecondary bg-transparent hover:border-highlight hover:text-highlight hover:bg-primary'
                         }`}
                 >
                     Kategoritë
@@ -427,7 +425,7 @@ const MenuTab: React.FC = () => {
                                                                 <td className="p-3 text-tmain font-medium">{item.name}</td>
                                                                 <td className="p-3 text-tsecondary text-sm">{item.category}</td>
                                                                 <td className="p-3 text-tsecondary text-sm">{item.printer}</td>
-                                                                <td className="p-3 text-highlight font-bold">{formatCurrency(item.price)}</td>
+                                                                <td className="p-3 text-highlight font-semibold">{formatCurrency(item.price)}</td>
                                                                 <td className="p-3">
                                                                     <div className="flex space-x-2">
                                                                         <button onClick={() => handleEditItem(item)} className="p-1.5 rounded text-highlight hover:bg-highlight/20 transition-colors"><EditIcon className="w-4 h-4" /></button>
@@ -452,7 +450,7 @@ const MenuTab: React.FC = () => {
                                                 <td className="p-3 text-tmain font-medium">{item.name}</td>
                                                 <td className="p-3 text-tsecondary text-sm">{item.category}</td>
                                                 <td className="p-3 text-tsecondary text-sm">{item.printer}</td>
-                                                <td className="p-3 text-highlight font-bold">{formatCurrency(item.price)}</td>
+                                                <td className="p-3 text-highlight font-semibold">{formatCurrency(item.price)}</td>
                                                 <td className="p-3">
                                                     <div className="flex space-x-2">
                                                         <button onClick={() => handleEditItem(item)} className="p-1.5 rounded hover:bg-highlight-hover text-highlight hover:text-highlight-hover transition-colors"><EditIcon className="w-4 h-4" /></button>
@@ -478,7 +476,7 @@ const MenuTab: React.FC = () => {
                 {activeSubTab === 'categories' && (
                     <div className="flex flex-col flex-grow overflow-hidden bg-secondary p-4 md:p-6 rounded-lg shadow-sm animate-fade-in">
                         <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                            <h3 className="text-lg font-semibold text-tmain">Kategoritë (Menutë)</h3>
+                            <h3 className="text-lg font-semibold text-tsecondary">Kategoritë (Menutë)</h3>
                             <button onClick={handleAddMenu} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-highlight-hover transition-colors">
                                 <PlusIcon className="w-5 h-5" /><span>Shto Kategori</span>
                             </button>

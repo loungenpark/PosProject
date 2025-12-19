@@ -208,7 +208,7 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
         <div className="h-full overflow-hidden flex flex-col">
             <div className="flex-grow overflow-y-auto rounded-lg border border-border">
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-border sticky top-0 z-10 text-tsecondary font-semibold">
+                    <thead className="bg-border sticky top-0 z-10 text-tsecondary font-medium">
                         <tr>
                             <th className="p-3">Artikulli</th>
                             <th className="p-3 text-center">Historiku</th>
@@ -247,19 +247,19 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                                     <td className="p-3 text-right text-tsecondary font-mono">
                                         {item.stockThreshold}
                                     </td>
-                                    <td className={`p-3 text-right font-mono font-bold text-lg ${isLow ? 'text-danger' : 'text-success'}`}>
+                                    <td className={`p-3 text-right font-mono font-medium ${isLow ? 'text-danger' : 'text-success'}`}>
                                         {item.stock}
                                     </td>
-                                    <td className="p-3 text-right font-mono text-tsecondary">
+                                    <td className="p-3 text-right font-mono font-medium text-tsecondary">
                                         {costPrice.toFixed(2)}€
                                     </td>
-                                    <td className="p-3 text-right font-mono text-tmain">
+                                    <td className="p-3 text-right font-mono font-medium text-tmain">
                                         {stockVal.toFixed(2)}€
                                     </td>
-                                    <td className="p-3 text-right font-mono text-tmain">
+                                    <td className="p-3 text-right font-mono font-medium text-tmain">
                                         {salesVal.toFixed(2)}€
                                     </td>
-                                    <td className={`p-3 text-right font-mono font-bold ${profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                                    <td className={`p-3 text-right font-mono font-medium ${profit >= 0 ? 'text-success' : 'text-danger'}`}>
                                         {profit.toFixed(2)}€
                                     </td>
                                 </tr>
@@ -272,7 +272,7 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
 
                     {/* STICKY FOOTER WITH TOTALS */}
                     <tfoot className="sticky bottom-0 bg-secondary border-t-2 border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
-                        <tr className="font-bold text-tmain">
+                        <tr className="font-semibold text-tmain">
                             <td className="p-3" colSpan={3}>TOTALET (Artikuj Unik)</td>
                             <td className="p-3 text-right font-mono text-lg text-highlight">{totals.stock}</td>
                             <td className="p-3"></td>
@@ -478,7 +478,7 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
 
     return (
         <div className="max-w-xl mx-auto mt-8 p-6 bg-primary rounded-lg border border-border shadow-lg">
-            <h3 className="text-xl font-bold text-tmain mb-6 flex items-center gap-2">
+            <h3 className="text-xl font-semibold text-tsecondary mb-6 flex items-center gap-2">
                 {mode === 'waste' ? <MinusCircleIcon className="w-6 h-6 text-danger" /> : <CheckIcon className="w-6 h-6 text-highlight" />}
                 {mode === 'waste' ? 'Regjistro Humbje' : 'Korrigjo Stokun'}
             </h3>

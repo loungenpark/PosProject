@@ -26,7 +26,7 @@ export const TaxSettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-4 text-tmain">Tatimi</h3>
+            <h3 className="text-xl font-semibold mb-4 text-tsecondary">Tatimi</h3>
             <div className="space-y-6 bg-primary p-6 rounded-lg">
                 <div>
                     <label htmlFor="taxRate" className="block text-sm font-medium text-tsecondary">Norma e Tatimit (%)</label>
@@ -80,7 +80,7 @@ export const PrintingSettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-2 text-tmain">Konfigurimi i Printimit</h3>
+            <h3 className="text-xl font-semibold mb-2 text-tsecondary">Konfigurimi i Printimit</h3>
             <p className="text-tsecondary mb-6">Menaxho se si dhe ku printohen porositë dhe faturat për këtë pajisje.</p>
             <div className="bg-primary rounded-lg p-6">
                 <ToggleSwitch
@@ -132,7 +132,7 @@ export const OperationalDaySettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-4 text-tmain">Dita Operacionale</h3>
+            <h3 className="text-xl font-semibold mb-4 text-tsecondary">Dita Operacionale</h3>
             <div className="space-y-6 bg-primary p-6 rounded-lg">
                 <div>
                     <label htmlFor="startHour" className="block text-sm font-medium text-tsecondary">Ora e Fillimit të Ditës</label>

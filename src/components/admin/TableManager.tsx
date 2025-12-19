@@ -278,24 +278,25 @@ const TableManager: React.FC = () => {
 
             {/* LEFT COLUMN: ZONES */}
             <div className="w-full md:w-1/4 bg-secondary p-4 rounded-lg flex flex-col shadow-lg border border-border">
-                <h3 className="text-lg font-bold text-tmain mb-4 flex items-center gap-2">
-                    <BoxIcon className="w-5 h-5 text-highlight" />
-                    Zonat
-                </h3>
-
-                {/* Add Zone (Top) */}
-                <div className="flex gap-2 mb-4">
-                    <input
-                        type="text"
-                        placeholder="Emri i Zonës..."
-                        value={newSectionName}
-                        onChange={(e) => setNewSectionName(e.target.value)}
-                        className="flex-grow bg-primary border-border rounded-md p-2 text-tmain text-sm focus:ring-1 focus:ring-highlight"
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddSection()}
-                    />
-                    <button onClick={handleAddSection} className="p-2 bg-success rounded-md text-white hover:bg-success-hover">
-                        <PlusIcon className="w-5 h-5" />
-                    </button>
+                {/* MODIFIED: Header is now a single flex row */}
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-tsecondary flex items-center gap-2">
+                        <BoxIcon className="w-5 h-5 text-highlight" />
+                        Zonat
+                    </h3>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="Emri..."
+                            value={newSectionName}
+                            onChange={(e) => setNewSectionName(e.target.value)}
+                            className="w-24 md:flex-grow bg-primary border-border rounded-md p-2 text-tmain text-sm focus:ring-1 focus:ring-highlight"
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddSection()}
+                        />
+                        <button onClick={handleAddSection} className="p-2 bg-success rounded-md text-white hover:bg-success-hover">
+                            <PlusIcon className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Zone List */}
@@ -440,7 +441,7 @@ const TableManager: React.FC = () => {
                 {/* --- VISUAL SETTINGS TOOLBAR (NEW) --- */}
                 <div className="bg-primary p-2 md:p-3 rounded-lg border border-border mb-6 flex flex-wrap md:flex-row gap-2 md:gap-4 items-center shadow-inner overflow-x-auto flex-shrink-0">
                     <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-bold text-tsecondary whitespace-nowrap">
+                        <span className="text-xs md:text-sm font-semibold text-tsecondary whitespace-nowrap">
                             <span className="hidden md:inline">Tavolina në rresht:</span>
                             <span className="md:hidden">TR:</span>
                         </span>
@@ -454,7 +455,7 @@ const TableManager: React.FC = () => {
                     </div>
                     <div className="h-4 md:h-6 w-px bg-border hidden md:block"></div>
                     <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-bold text-tsecondary whitespace-nowrap">
+                        <span className="text-xs md:text-sm font-semibold text-tsecondary whitespace-nowrap">
                             <span className="hidden md:inline">Madhësia (Buton):</span>
                             <span className="md:hidden">MB:</span>
                         </span>
@@ -469,7 +470,7 @@ const TableManager: React.FC = () => {
                     </div>
                     <div className="h-4 md:h-6 w-px bg-border hidden md:block"></div>
                     <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-bold text-tsecondary whitespace-nowrap">
+                        <span className="text-xs md:text-sm font-semibold text-tsecondary whitespace-nowrap">
                             <span className="hidden md:inline">Madhësia (Text):</span>
                             <span className="md:hidden">MT:</span>
                         </span>
@@ -502,17 +503,16 @@ const TableManager: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Header / Tools */}
-                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4 border-b border-border pb-4 flex-shrink-0">
+                {/* Header / Tools - RESTRUCTURED for Mobile */}
+                <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-border pb-4 flex-shrink-0">
+                    {/* Left Side: Title on Desktop, Reorder button on Mobile */}
                     <div className="flex items-center gap-4">
-                        <h3 className="text-xl font-bold text-tmain flex items-center gap-2">
+                        <h3 className="text-xl font-semibold text-tsecondary hidden md:flex items-center gap-2">
                             <TableIcon className="w-6 h-6 text-highlight" />
                             {activeSectionId === 'all'
                                 ? (allSectionConfig.customName || 'Të gjitha tavolinat')
                                 : sections.find(s => s.id === activeSectionId)?.name || 'Zona'}
                         </h3>
-
-                        {/* Reorder Controls */}
                         {activeSectionId !== 'all' && (
                             <div className="flex items-center gap-2">
                                 <button
@@ -524,12 +524,8 @@ const TableManager: React.FC = () => {
                                 >
                                     {isReorderMode ? 'Ruaj' : 'Rendit'}
                                 </button>
-
                                 {isReorderMode && (
-                                    <button
-                                        onClick={handleResetOrder}
-                                        className="px-3 py-1 rounded text-sm font-bold bg-primary border border-danger/30 text-danger hover:text-danger-hover transition-colors"
-                                    >
+                                    <button onClick={handleResetOrder} className="px-3 py-1 rounded text-sm font-bold bg-primary border border-danger/30 text-danger hover:text-danger-hover transition-colors">
                                         Reseto
                                     </button>
                                 )}
@@ -537,60 +533,37 @@ const TableManager: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Batch Creator & Actions */}
+                    {/* Right Side: Batch Creator & Actions */}
                     {activeSectionId !== 'all' && (
-                        <div className="flex items-center gap-1 md:gap-2 bg-primary p-1.5 md:p-2 rounded-lg border border-border w-full md:w-auto">
-                            <span className="text-sm text-tsecondary font-bold px-2 hidden md:inline">Shto:</span>
-
-                            {/* Prefix */}
+                        <div className="flex items-center gap-1 bg-primary p-1.5 rounded-lg border border-border w-full md:w-auto justify-end">
                             <input
                                 type="text"
                                 value={batchPrefix}
                                 onChange={(e) => setBatchPrefix(e.target.value)}
-                                className="w-10 md:w-16 bg-secondary border-border rounded p-1 md:p-2 text-center text-tmain text-xs md:text-sm font-bold"
+                                className="w-10 bg-secondary border-border rounded p-1 text-center text-tmain text-xs font-bold"
                                 placeholder="Pre"
                             />
-
-                            {/* From */}
                             <input
                                 type="number"
                                 value={startNum}
                                 onChange={(e) => setStartNum(e.target.value)}
-                                className="w-12 md:w-20 bg-secondary border-border rounded p-1 md:p-2 text-center text-tmain text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-12 bg-secondary border-border rounded p-1 text-center text-tmain text-xs font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Nga"
                             />
-                            <span className="text-tsecondary text-xs md:text-base">-</span>
-                            {/* To */}
+                            <span className="text-tsecondary text-xs">-</span>
                             <input
                                 type="number"
                                 value={endNum}
                                 onChange={(e) => setEndNum(e.target.value)}
-                                className="w-12 md:w-20 bg-secondary border-border rounded p-1 md:p-2 text-center text-tmain text-xs md:text-sm font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-12 bg-secondary border-border rounded p-1 text-center text-tmain text-xs font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="Deri"
                             />
-
-                            {/* Add Button */}
-                            <button
-                                onClick={handleBatchAdd}
-                                className="bg-success hover:bg-success-hover text-white w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-sm font-bold transition-colors ml-1 md:ml-2 flex items-center justify-center"
-                                title="Shto Tavolina"
-                            >
-                                <span className="md:hidden text-lg">+</span>
-                                <span className="hidden md:inline">+ Shto</span>
+                            <button onClick={handleBatchAdd} className="bg-success hover:bg-success-hover text-white w-8 h-8 rounded text-sm font-bold transition-colors ml-1 flex items-center justify-center" title="Shto Tavolina">
+                                +
                             </button>
-
-                            <div className="w-px h-6 bg-border mx-1 md:mx-2"></div>
-
-                            {/* Delete All Button */}
-                            <button
-                                onClick={handleDeleteAllInZone}
-                                className="bg-danger-bg text-danger hover:bg-danger hover:text-white border border-danger/50 w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-sm font-bold transition-colors flex items-center justify-center"
-                                title="Fshij Të Gjitha"
-                            >
-                                <span className="hidden md:inline">Fshij Të Gjitha</span>
-                                <span className="md:hidden">
-                                    <TrashIcon className="w-4 h-4" />
-                                </span>
+                            <div className="w-px h-6 bg-border mx-1"></div>
+                            <button onClick={handleDeleteAllInZone} className="bg-danger-bg text-danger hover:bg-danger hover:text-white border border-danger/50 w-8 h-8 rounded text-sm font-bold transition-colors flex items-center justify-center" title="Fshij Të Gjitha">
+                                <TrashIcon className="w-4 h-4" />
                             </button>
                         </div>
                     )}
@@ -658,7 +631,7 @@ const TableManager: React.FC = () => {
                                                                 type="text"
                                                                 defaultValue={table.name}
                                                                 // Use pointer-events-none to let drag pass through to the container
-                                                                className={`bg-transparent text-center font-bold text-tmain w-full focus:bg-secondary focus:outline-none rounded py-1 px-1 
+                                                                className={`bg-transparent text-center font-medium text-tmain w-full focus:bg-secondary focus:outline-none rounded py-1 px-1 
                                                                     ${isReorderMode ? 'pointer-events-none opacity-50' : ''}`}
                                                                 style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}
                                                                 onBlur={(e) => handleRenameTable(table.id, table.name, e.target.value, e)}
@@ -692,7 +665,7 @@ const TableManager: React.FC = () => {
             {isDeleteModalOpen && sectionToDelete && (
                 <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
-                        <h3 className="text-xl font-bold text-tmain mb-4">Konfirmo Fshirjen</h3>
+                        <h3 className="text-xl font-semibold text-tsecondary mb-4">Konfirmo Fshirjen</h3>
                         <p className="text-tsecondary mb-6">
                             Jeni të sigurt që doni të fshini zonën <strong className="text-highlight">{sectionToDelete.name}</strong>?
                             <br />
@@ -720,7 +693,7 @@ const TableManager: React.FC = () => {
             {isDeleteAllTablesModalOpen && activeSectionId !== 'all' && (
                 <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
-                        <h3 className="text-xl font-bold text-tmain mb-4">Konfirmo Fshirjen Masive</h3>
+                        <h3 className="text-xl font-semibold text-tsecondary mb-4">Konfirmo Fshirjen Masive</h3>
                         <p className="text-tsecondary mb-6">
                             Jeni të sigurt që doni të fshini <strong className="text-highlight">{filteredTables.length} tavolina</strong> në zonën <strong className="text-white">{sections.find(s => s.id === activeSectionId)?.name}</strong>?
                             <br />

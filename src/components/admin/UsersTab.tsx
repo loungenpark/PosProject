@@ -18,7 +18,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
         <div className="fixed inset-0 bg-primary/70 z-[60] flex justify-center items-center">
             <div className="bg-secondary rounded-lg shadow-xl w-full max-w-md m-4">
                 <div className="flex justify-between items-center p-4 border-b border-border">
-                    <h3 className="text-xl font-semibold text-tmain">{title}</h3>
+                    <h3 className="text-xl font-semibold text-tsecondary">{title}</h3>
                     <button onClick={onClose} className="text-tsecondary hover:text-tmain"><CloseIcon className="w-6 h-6" /></button>
                 </div>
                 <div className="p-6">{children}</div>
@@ -115,7 +115,7 @@ const UsersTab: React.FC = () => {
     return (
         <div className="bg-secondary p-6 rounded-lg">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Përdoruesit</h3>
+                <h3 className="text-lg font-semibold text-tsecondary">Përdoruesit</h3>
                 <div className="flex items-center space-x-4">
                     {/* Auto Logout Toggle Switch */}
                     <div className="flex items-center space-x-2">
@@ -144,15 +144,15 @@ const UsersTab: React.FC = () => {
                 <table className="w-full text-left">
                     <thead className="bg-border">
                         <tr>
-                            <th className="p-3">Emri i përdoruesit</th>
-                            <th className="p-3">Roli</th>
-                            <th className="p-3">Veprimet</th>
+                            <th className="p-3 font-medium text-tsecondary">Emri i përdoruesit</th>
+                            <th className="p-3 font-medium text-tsecondary">Roli</th>
+                            <th className="p-3 font-medium text-tsecondary">Veprimet</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                         {users.map(user => (
                             <tr key={user.id}>
-                                <td className="p-3">{user.username}</td>
+                                <td className="p-3 font-medium text-tmain">{user.username}</td>
                                 <td className="p-3">
                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.role === UserRole.ADMIN ? 'bg-highlight text-white' : 'bg-muted text-tmain'}`}>
                                         {user.role === UserRole.ADMIN ? 'Admin' : 'Arkëtar'}

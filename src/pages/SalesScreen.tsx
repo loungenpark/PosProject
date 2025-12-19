@@ -373,56 +373,72 @@ const SalesScreen: React.FC = () => {
 
     // --- RENDER HELPERS ---
     const FilterBar = () => (
-        <div className="bg-secondary p-4 rounded-lg mb-6 flex flex-wrap items-center gap-4 shadow-sm">
-            <div className="flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-highlight" />
-                <span className="font-semibold text-tmain">Periudha:</span>
-            </div>
+        <div className="bg-secondary p-4 rounded-lg mb-6 flex flex-col md:flex-row md:items-center gap-4 shadow-sm">
 
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-tsecondary">Prej:</span>
-                <input
-                    type="date"
-                    value={dateRange.from}
-                    onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-                    className="bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight"
-                />
-            </div>
+            {/* Label & Dates Container */}
+            <div className="flex flex-col md:flex-row md:items-center gap-4 w-full md:w-auto">
+                {/* Mobile Header / Desktop Label */}
+                <div className="flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5 text-highlight" />
+                    <span className="font-semibold text-tsecondary">Periudha</span>
+                </div>
 
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-tsecondary">Deri:</span>
-                <input
-                    type="date"
-                    value={dateRange.to}
-                    onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-                    className="bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight"
-                />
+                {/* Dates - Grid on Mobile (2 cols), Flex on Desktop */}
+                <div className="grid grid-cols-2 md:flex md:items-center gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
+                        <span className="text-xs md:text-sm text-tsecondary">Prej:</span>
+                        <input
+                            type="date"
+                            value={dateRange.from}
+                            onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                            className="w-full md:w-auto bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight"
+                        />
+                    </div>
+                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
+                        <span className="text-xs md:text-sm text-tsecondary">Deri:</span>
+                        <input
+                            type="date"
+                            value={dateRange.to}
+                            onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                            className="w-full md:w-auto bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight"
+                        />
+                    </div>
+                </div>
             </div>
 
             <div className="w-px h-8 bg-border mx-2 hidden md:block"></div>
 
-            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className="bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight">
-                <option value="">Përdoruesit</option>
-                {users.map(user => (
-                    <option key={user.id} value={user.id.toString()}>{user.username}</option>
-                ))}
-            </select>
+            {/* Row 3 on Mobile: Users (Left Col) + Actions (Right Col) */}
+            <div className="grid grid-cols-2 md:flex md:items-center gap-4 w-full md:w-auto md:ml-auto">
+                {/* Left Column: Users (Aligns with Prej) */}
+                <select
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    className="w-full md:w-auto bg-primary border border-border rounded-md p-2 text-sm text-tmain focus:ring-highlight focus:border-highlight"
+                >
+                    <option value="">Përdoruesit</option>
+                    {users.map(user => (
+                        <option key={user.id} value={user.id.toString()}>{user.username}</option>
+                    ))}
+                </select>
 
-            <div className="ml-auto flex items-center gap-2">
-                <button
-                    onClick={() => { setDateRange({ from: todayStr, to: todayStr }); setSelectedUserId(''); }}
-                    className="px-4 py-2 rounded-md bg-transparent text-tsecondary hover:bg-border hover:text-tmain text-sm transition-colors"
-                >
-                    Pastro
-                </button>
-                <button
-                    onClick={() => loadData(dateRange.from, dateRange.to)}
-                    disabled={isLoading}
-                    className="px-4 py-2 rounded-md bg-primary text-tmain font-semibold border border-transparent hover:border-highlight hover:text-highlight text-sm flex items-center gap-2 disabled:bg-muted disabled:text-tsecondary disabled:border-transparent transition-colors"
-                >
-                    <RefreshIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    <span>{isLoading ? '...' : 'Rifresko'}</span>
-                </button>
+                {/* Right Column: Buttons (Aligns with Deri) */}
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <button
+                        onClick={() => { setDateRange({ from: todayStr, to: todayStr }); setSelectedUserId(''); }}
+                        className="flex-1 md:flex-none px-3 md:px-4 h-10 rounded-md bg-primary text-tsecondary border border-border hover:text-tmain text-sm transition-colors whitespace-nowrap"
+                    >
+                        Pastro
+                    </button>
+                    <button
+                        onClick={() => loadData(dateRange.from, dateRange.to)}
+                        disabled={isLoading}
+                        className="flex-1 md:flex-none px-3 md:px-4 h-10 rounded-md bg-highlight text-white font-semibold hover:bg-highlight-hover text-sm flex justify-center items-center gap-2 disabled:bg-muted disabled:text-tsecondary transition-colors shadow-md md:shadow-none whitespace-nowrap"
+                    >
+                        <RefreshIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                        <span>Rifresko</span>
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -489,16 +505,16 @@ const SalesScreen: React.FC = () => {
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border border-border/50 relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><RestaurantIcon className="w-24 h-24 text-highlight" /></div>
                             <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Shank</h3>
-                            <p className="text-4xl font-bold text-highlight">{formatCurrency(salesSummary.totalShankRevenue)}</p>
+                            <p className="text-4xl font-semibold text-highlight">{formatCurrency(salesSummary.totalShankRevenue)}</p>
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border border-border/50 relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><RestaurantIcon className="w-24 h-24 text-success" /></div>
                             <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Kuzhina</h3>
-                            <p className="text-4xl font-bold text-highlight">{formatCurrency(salesSummary.totalKuzhinaRevenue)}</p>
+                            <p className="text-4xl font-semibold text-highlight">{formatCurrency(salesSummary.totalKuzhinaRevenue)}</p>
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border-l-4 border-highlight relative overflow-hidden">
                             <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Totali i Përgjithshëm</h3>
-                            <p className="text-4xl font-bold text-highlight">{formatCurrency(salesSummary.totalRevenue)}</p>
+                            <p className="text-4xl font-semibold text-highlight">{formatCurrency(salesSummary.totalRevenue)}</p>
                             <p className="text-sm text-tsecondary mt-2">{salesSummary.count} fatura të mbyllura</p>
                         </div>
                     </div>
@@ -537,7 +553,7 @@ const SalesScreen: React.FC = () => {
 
                 {!isLoading && activeTab === 'transactions' && (
                     <div className="bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
-                        <div className="p-4 border-b border-border bg-secondary/50"><h3 className="font-bold text-tmain">Historiku i Veprimeve</h3></div>
+                        <div className="p-4 border-b border-border bg-secondary/50"><h3 className="font-bold text-tsecondary">Historiku i Veprimeve</h3></div>
                         <div className="overflow-x-auto">
                             {filteredTransactions.length > 0 ? (
                                 <div className="divide-y divide-border">
@@ -557,11 +573,11 @@ const SalesScreen: React.FC = () => {
                                                         </button>
                                                     )}
                                                     <div>
-                                                        <p className="font-bold text-tmain">Tavolina {tx.tableName}<span className="font-normal text-tsecondary text-sm ml-2">({tx.user?.username})</span></p>
+                                                        <p className="font-semibold text-tmain">Tavolina {tx.tableName}<span className="font-normal text-tsecondary text-sm ml-2">({tx.user?.username})</span></p>
                                                         <p className="text-xs text-tsecondary">{tx.date.toLocaleString('de-DE')}</p>
                                                     </div>
                                                 </div>
-                                                <span className={`text-lg font-bold ${tx.type === 'ORDER' ? 'text-highlight' : 'text-success'}`}>{formatCurrency(tx.total)}</span>
+                                                <span className={`text-lg font-semibold ${tx.type === 'ORDER' ? 'text-highlight' : 'text-success'}`}>{formatCurrency(tx.total)}</span>
                                             </div>
                                             <div className="pl-11 text-sm text-tsecondary">
                                                 {tx.items.map((item: any, idx: number) => (<span key={idx} className="mr-3 inline-block">{item.quantity}x {item.name}</span>))}
@@ -578,7 +594,7 @@ const SalesScreen: React.FC = () => {
                 {!isLoading && activeTab === 'items' && (
                     <div className="bg-secondary rounded-lg shadow-lg overflow-hidden animate-fade-in">
                         <div className="p-4 border-b border-border bg-secondary/50 flex justify-between items-center">
-                            <h3 className="font-bold text-tmain">Artikujt e Shitur</h3>
+                            <h3 className="font-bold text-tsecondary">Artikujt e Shitur</h3>
                             <span className="text-xs bg-highlight text-white px-2 py-1 rounded-full">{aggregatedItems.length} grupe/artikuj</span>
                         </div>
                         <table className="w-full text-left">
@@ -607,11 +623,11 @@ const SalesScreen: React.FC = () => {
                                                     {group.groupName}
                                                 </td>
                                                 <td className="p-4 text-center">
-                                                    <span className="bg-primary px-3 py-1 rounded-full text-sm font-bold border border-border">
+                                                    <span className="bg-primary px-3 py-1 rounded-full text-sm font-semibold border border-border">
                                                         x{group.totalQuantity}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 text-right font-bold text-highlight">{formatCurrency(group.totalValue)}</td>
+                                                <td className="p-4 text-right font-semibold text-highlight">{formatCurrency(group.totalValue)}</td>
                                             </tr>
                                             {isExpanded && group.items.map((item, index) => (
                                                 <tr key={`${group.groupKey}-${index}`} className="bg-primary/20">
