@@ -11,7 +11,7 @@ export enum Printer {
 export interface User {
   id: number;
   username: string;
-  pin: string;
+  pin?: string; // Optional: Only present when creating/editing, never returned by server
   role: UserRole;
   active: boolean;
 }

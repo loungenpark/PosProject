@@ -33,7 +33,11 @@ const app = express();
 const port = process.env.PORT || 3001;
 const host = '0.0.0.0';
 
-app.use(cors());
+// --- 1. UNIVERSAL CORS (Allow All Origins) ---
+app.use(cors({
+  origin: "*", // Allow any computer/phone to connect
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+}));
 
 app.use(express.json());
 
@@ -43,9 +47,9 @@ const httpServer = http.createServer(app);
 // --- SOCKET.IO CONFIGURATION ---
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true
+    origin: "*", // Allow any computer/phone to connect
+    methods: ["GET", "POST"]
+    // Note: We removed 'credentials: true' because it conflicts with origin: '*'
   }
 });
 
@@ -141,7 +145,8 @@ io.on('connection', (socket) => {
 // 1. LOGIN
 app.post('/api/login', asyncHandler(async (req, res) => {
   const { pin } = req.body;
-  const { rows } = await query('SELECT * FROM users WHERE pin = $1 AND active = TRUE', [pin]);
+  // SECURITY: Check PIN in WHERE clause, but DO NOT select it
+  const { rows } = await query('SELECT id, username, role, active FROM users WHERE pin = $1 AND active = TRUE', [pin]);
   if (rows.length > 0) res.json({ user: rows[0] });
   else res.json({ user: null });
 }));
@@ -149,8 +154,9 @@ app.post('/api/login', asyncHandler(async (req, res) => {
 // 2. BOOTSTRAP
 app.get('/api/bootstrap', asyncHandler(async (req, res) => {
   const [users, menuItems, menuCategories, settings, sections, tables, activeOrders] = await Promise.all([
-    query('SELECT * FROM users WHERE active = TRUE ORDER BY username ASC'),
-    query('SELECT *, category_name as category, stock_threshold as "stockThreshold", track_stock as "trackStock", stock_group_id as "stockGroupId", cost_price as "costPrice" FROM menu_items ORDER BY display_order ASC, name ASC'),
+    // SECURITY: Select specific columns to exclude 'pin'
+    query('SELECT id, username, role, active FROM users WHERE active = TRUE ORDER BY username ASC'),
+    query('SELECT *, category_name as category, stock_threshold as "stockThreshold", track_stock as "trackStock", stock_group_id as "stockGroupId", cost_price as "costPrice" FROM menu_items WHERE active = TRUE ORDER BY display_order ASC, name ASC'),
     query('SELECT * FROM menu_categories ORDER BY display_order ASC, name ASC'),
     query("SELECT key, value FROM settings"),
     query('SELECT * FROM sections WHERE active = TRUE ORDER BY display_order ASC'),
@@ -347,18 +353,19 @@ app.get('/api/sales', asyncHandler(async (req, res) => {
       SELECT
           s.sale_uuid as id, s.date, s.table_id as "tableId", s.table_name as "tableName",
           s.subtotal, s.tax, s.total,
-          json_build_object('id', u.id, 'username', u.username, 'pin', u.pin, 'role', u.role) as user,
+          -- SECURITY: Exclude PIN
+          json_build_object('id', u.id, 'username', u.username, 'role', u.role) as user,
           (
               SELECT json_agg(
                   json_build_object(
                       'id', si.item_id, 'name', si.item_name, 'price', si.price_at_sale, 'quantity', si.quantity,
-                      'category', mi.category_name, 'printer', mi.printer, 'stock', mi.stock, 'stockThreshold', mi.stock_threshold,
+                      'category', COALESCE(mi.category_name, 'Deleted'), 'printer', COALESCE(mi.printer, 'Unknown'), 'stock', mi.stock, 'stockThreshold', mi.stock_threshold,
                       'trackStock', mi.track_stock,
                       'stockGroupId', mi.stock_group_id
                   )
               )
               FROM sale_items si 
-              JOIN menu_items mi ON si.item_id = mi.id
+              LEFT JOIN menu_items mi ON si.item_id = mi.id
               WHERE si.sale_id = s.id
           ) as items
       FROM sales s
@@ -384,79 +391,96 @@ app.post('/api/sales', asyncHandler(async (req, res) => {
   const { order, tableId, tableName, user } = req.body;
   const sale_uuid = `sale-${Date.now()}`;
   const date = new Date();
-
-  // --- IDEMPOTENCY CHECK (The Bug Fix) ---
-  // If the frontend sends a sessionUuid, we check if it's already paid.
   const sessionUuid = order.sessionUuid || null;
 
-  if (sessionUuid) {
-    const duplicateCheck = await query('SELECT id FROM sales WHERE session_uuid = $1', [sessionUuid]);
-    if (duplicateCheck.rows.length > 0) {
-      console.warn(`⚠️ Blocked duplicate payment for session: ${sessionUuid}`);
-      // Return 200 OK but with a flag so frontend knows it was already done (or 409 if strict)
-      // We will throw an error to stop the process safely.
-      return res.status(409).json({ message: 'Kjo porosi është paguar tashmë!' });
+  // START TRANSACTION: Everything from here to COMMIT is "All or Nothing"
+  await query('BEGIN');
+
+  try {
+    // 1. IDEMPOTENCY CHECK
+    if (sessionUuid) {
+      const duplicateCheck = await query('SELECT id FROM sales WHERE session_uuid = $1', [sessionUuid]);
+      if (duplicateCheck.rows.length > 0) {
+        await query('ROLLBACK');
+        return res.status(409).json({ message: 'Kjo porosi është paguar tashmë!' });
+      }
     }
-  }
 
-  // 1. Create the Sale Record (Now including session_uuid)
-  const saleResult = await query(
-    'INSERT INTO sales (sale_uuid, date, user_id, table_id, table_name, subtotal, tax, total, session_uuid) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
-    [sale_uuid, date, user.id, tableId, tableName, order.subtotal, order.tax, order.total, sessionUuid]
-  );
-  const saleId = saleResult.rows[0].id;
-
-  // 2. Clear from Active Orders (It is now closed)
-  if (tableId) {
-    await query('DELETE FROM active_orders WHERE table_id = $1', [tableId]);
-  }
-
-  // 3. IMPORTANT: Broadcast the new state of active orders to all clients
-  broadcastActiveOrders();
-
-  // 4. Process Items and Update Stock
-  for (const item of order.items) {
-    // Record the sale item
-    await query(
-      'INSERT INTO sale_items (sale_id, item_id, item_name, price_at_sale, quantity) VALUES ($1, $2, $3, $4, $5)',
-      [saleId, item.id, item.name, item.price, item.quantity]
+    // 2. Create Sale Header
+    const saleResult = await query(
+      'INSERT INTO sales (sale_uuid, date, user_id, table_id, table_name, subtotal, tax, total, session_uuid) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
+      [sale_uuid, date, user.id, tableId, tableName, order.subtotal, order.tax, order.total, sessionUuid]
     );
+    const saleId = saleResult.rows[0].id;
 
-    // SMART STOCK UPDATE:
-    // Updates stock for this item OR any item sharing the same stock_group_id
-    const updateResult = await query(
-      `UPDATE menu_items 
+    // 3. Clear Active Order
+    if (tableId) {
+      await query('DELETE FROM active_orders WHERE table_id = $1', [tableId]);
+    }
+
+    // 4. Process Items
+    for (const item of order.items) {
+      // CRITICAL VALIDATION: Reject any item without a valid ID immediately
+      if (!item.id || isNaN(parseInt(item.id))) {
+        throw new Error(`Artikulli "${item.name}" ka ID të pavlefshme. Pagesa u anulua.`);
+      }
+
+      // Verify item exists in DB
+      const itemCheck = await query('SELECT id, track_stock, stock_group_id FROM menu_items WHERE id = $1 AND active = TRUE', [item.id]);
+
+      if (itemCheck.rows.length === 0) {
+        throw new Error(`Artikulli "${item.name}" nuk ekziston në meny. Pagesa u anulua.`);
+      }
+
+      const dbItem = itemCheck.rows[0];
+
+      // Insert into sale_items
+      await query(
+        'INSERT INTO sale_items (sale_id, item_id, item_name, price_at_sale, quantity) VALUES ($1, $2, $3, $4, $5)',
+        [saleId, item.id, item.name, item.price, item.quantity]
+      );
+
+      // 5. Stock Logic
+      const updateResult = await query(
+        `UPDATE menu_items 
          SET stock = COALESCE(stock, 0) - $1 
          WHERE track_stock = TRUE 
          AND (
             id = $2 
             OR (
                 stock_group_id IS NOT NULL 
-                AND stock_group_id = (SELECT stock_group_id FROM menu_items WHERE id = $2)
+                AND stock_group_id = $3
             )
          )`,
-      [item.quantity, item.id]
-    );
-
-    // If stock was updated (meaning track_stock was true), log the movement
-    if (updateResult.rowCount > 0) {
-      // We record the sale of this SPECIFIC item. 
-      // The History Viewer will handle aggregating group items later.
-      await query(
-        `INSERT INTO stock_movements (item_id, quantity, type, reason, user_id)
-            VALUES ($1, $2, 'sale', $3, $4)`,
-        [item.id, -item.quantity, `Sale`, user.id]
+        [item.quantity, item.id, dbItem.stock_group_id]
       );
+
+      if (updateResult.rowCount > 0) {
+        await query(
+          `INSERT INTO stock_movements (item_id, quantity, type, reason, user_id)
+            VALUES ($1, $2, 'sale', 'Sale', $3)`,
+          [item.id, -item.quantity, user.id]
+        );
+      }
     }
 
+    // IF WE REACHED HERE, EVERYTHING IS OK
+    await query('COMMIT');
+
+    const newSale = { id: sale_uuid, date, order, user, tableId, tableName };
+
+    // Notifications trigger only after successful database commit
+    broadcastActiveOrders();
+    io.emit('sale-finalized-from-server', newSale);
+
+    res.status(201).json(newSale);
+
+  } catch (error) {
+    // IF ANY STEP FAILED, UNDO EVERYTHING
+    await query('ROLLBACK');
+    console.error("❌ TRANSACTION FAILED - Sale Rollbacked:", error.message);
+    res.status(500).json({ message: error.message || 'Gabim gjatë procesimit të shitjes.' });
   }
-
-  const newSale = { id: sale_uuid, date, order, user, tableId, tableName };
-
-  // 5. Notify Sales/Reports screen of the new sale for real-time updates
-  io.emit('sale-finalized-from-server', newSale);
-
-  res.status(201).json(newSale);
 }));
 
 
@@ -465,7 +489,8 @@ app.post('/api/sales', asyncHandler(async (req, res) => {
 app.get('/api/history', asyncHandler(async (req, res) => {
   const { rows } = await query(`
     SELECT h.id, h.table_id AS "tableId", h.timestamp, h.details,
-           json_build_object('id', u.id, 'username', u.username, 'pin', u.pin, 'role', u.role) as user
+           -- SECURITY: Exclude PIN
+           json_build_object('id', u.id, 'username', u.username, 'role', u.role) as user
     FROM history h
     JOIN users u ON h.user_id = u.id
     ORDER BY h.timestamp DESC
@@ -499,7 +524,7 @@ app.post('/api/users', asyncHandler(async (req, res) => {
     } else {
       // User exists but was "deleted" -> Reactivate them and update PIN/Role
       const { rows } = await query(
-        'UPDATE users SET active = TRUE, pin = $1, role = $2 WHERE id = $3 RETURNING *',
+        'UPDATE users SET active = TRUE, pin = $1, role = $2 WHERE id = $3 RETURNING id, username, role, active',
         [pin, role, existingUser.id]
       );
       return res.json(rows[0]);
@@ -507,7 +532,7 @@ app.post('/api/users', asyncHandler(async (req, res) => {
   }
 
   // 2. If user doesn't exist, create new
-  const { rows } = await query('INSERT INTO users (username, pin, role) VALUES ($1, $2, $3) RETURNING *', [username, pin, role]);
+  const { rows } = await query('INSERT INTO users (username, pin, role) VALUES ($1, $2, $3) RETURNING id, username, role, active', [username, pin, role]);
   res.status(201).json(rows[0]);
 }));
 
@@ -616,7 +641,8 @@ app.delete('/api/menu-items/:id', asyncHandler(async (req, res) => {
     return res.json({ success: true }); // Just say success to clear it from the queue
   }
 
-  const result = await query('DELETE FROM menu_items WHERE id = $1', [id]);
+  // SOFT DELETE: Mark as inactive instead of removing from DB
+  const result = await query('UPDATE menu_items SET active = FALSE WHERE id = $1', [id]);
   if (result.rowCount === 0) { console.log(`Attempted to delete menu item ${id}, but it was not found.`); }
   res.json({ success: true });
 }));
@@ -1256,7 +1282,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 } else {
   app.get('/', (req, res) => {
-    res.send('Backend API is running. Use localhost:3000 for frontend.');
+    res.send('Backend API is running. Point your Frontend to this IP/Port.');
   });
 }
 
@@ -1269,7 +1295,16 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: err.message || 'Something went wrong on the server!' });
 });
 
-
+// --- AUTO-MIGRATION ---
+// This ensures the 'active' column exists on both PC1 and PC2 without manual SQL commands.
+(async () => {
+  try {
+    await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE`);
+    console.log("✅ Migration Checked: 'active' column verified on menu_items.");
+  } catch (e) {
+    console.error("⚠️ Migration Warning:", e.message);
+  }
+})();
 
 httpServer.listen(port, host, () => {
   console.log(`✅ POS server is running!`);

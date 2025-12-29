@@ -1,17 +1,32 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { User, MenuItem, Sale, Order, Table, UserRole, MenuCategory, HistoryEntry, OrderItem, CompanyInfo, StockUpdateItem, Section } from '../types';
-import * as db from '../utils/db';
 import * as api from '../utils/api';
 import { io, Socket } from 'socket.io-client';
 
-// Ensure API URL works on phones (dynamic IP)
-const SOCKET_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`;
+// Ensure API URL works dynamically based on the environment (Dev vs Prod)
+const getBackendUrl = () => {
+  // 1. Use explicit Env Var if set
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+
+  const hostname = window.location.hostname;
+  const frontendPort = window.location.port;
+
+  // 2. Dev Environment: If Frontend is 4000, Backend is 4001
+  if (frontendPort === '4000') {
+    return `http://${hostname}:4001`;
+  }
+
+  // 3. Prod Environment: If Frontend is 3000 (or anything else), Backend is 3001
+  return `http://${hostname}:3001`;
+};
+
+const SOCKET_URL = getBackendUrl();
 const isBackendConfigured = true;
 
 interface OrderToPrint { table: Table; newItems: OrderItem[]; }
 
 interface PosContextState {
-  isLoading: boolean; isOnline: boolean; isSyncing: boolean; loggedInUser: User | null;
+  isLoading: boolean; isOnline: boolean; loggedInUser: User | null;
   activeScreen: 'pos' | 'sales' | 'admin' | 'stock';
   setActiveScreen: (screen: 'pos' | 'sales' | 'admin' | 'stock') => void;
   login: (pin: string) => Promise<boolean>; logout: () => void; users: User[];
@@ -63,7 +78,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeScreen, setActiveScreen] = useState<'pos' | 'sales' | 'admin' | 'stock'>('pos');
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState(false);
+  // Removed isSyncing
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -103,9 +118,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [operationalDayStartHour, setOperationalDayStartHour] = useState<number>(5); // Default to 5 AM
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({ name: '', nui: '', address: '', phone: '' });
-  const syncInProgress = useRef(false);
   const startupEffectRan = useRef(false);
-
   const socketRef = useRef<Socket | null>(null);
 
   // --- 1. AUTO-SAVE ACTIVE TABLES ---
@@ -145,26 +158,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  const loadDataFromDb = useCallback(async () => {
-    // Added db.getAll<Section>('sections')
-    const [dbUsers, dbMenuItems, dbMenuCategories, dbSales, dbHistory, dbSections] = await Promise.all([
-      db.getAll<User>('users'), db.getAll<MenuItem>('menuItems'), db.getAll<MenuCategory>('menuCategories'),
-      db.getAll<Sale>('sales'), db.getAll<HistoryEntry>('history'), db.getAll<Section>('sections'),
-    ]);
-    setUsers(dbUsers);
-    setServerSections(dbSections || []); // Restore sections from local DB
-    const sortedDbMenuItems = [...dbMenuItems].sort((a, b) => {
-      if (a.display_order === null && b.display_order === null) return 0;
-      if (a.display_order === null) return 1;
-      if (b.display_order === null) return -1;
-      return a.display_order - b.display_order;
-    });
-    setMenuItems(sortedDbMenuItems);
-    setMenuCategories(dbMenuCategories);
-    setSales(dbSales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    setHistory(dbHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
-  }, []);
-
+  // --- ONLINE ONLY: NO DB FALLBACK ---
   const fetchAndCacheData = useCallback(async () => {
     if (!isBackendConfigured) return;
     try {
@@ -242,69 +236,24 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       else if (typeof tableCount === 'number' && tableCount > 0) {
         const currentLocal = parseInt(localStorage.getItem('tableCount') || '0', 10);
-        if (tableCount !== currentLocal || tables.length === 0 || activeOrders.length > 0) {
-          console.log(`📥 Syncing Table Count from DB: ${tableCount}`);
-          localStorage.setItem('tableCount', tableCount.toString());
-          setTables(prevTables => {
-            return Array.from({ length: tableCount }, (_, i) => {
-              const tableId = i + 1;
-              return {
-                id: tableId,
-                name: `${tableId}`,
-                order: resolveTableOrder(tableId) // <--- Load from DB
-              };
-            });
+        // Sync Table Count from DB
+        localStorage.setItem('tableCount', tableCount.toString());
+        setTables(prevTables => {
+          return Array.from({ length: tableCount }, (_, i) => {
+            const tableId = i + 1;
+            return {
+              id: tableId,
+              name: `${tableId}`,
+              order: resolveTableOrder(tableId) // <--- Load from DB
+            };
           });
-        }
-      }
-      else if (typeof tableCount === 'number' && tableCount > 0) {
-        // Fallback: Legacy Numeric Mode
-        const currentLocal = parseInt(localStorage.getItem('tableCount') || '0', 10);
-        // Update if count changed OR if we need to hydrate orders
-        if (tableCount !== currentLocal || tables.length === 0 || activeOrders.length > 0) {
-          console.log(`📥 Syncing Table Count from DB: ${tableCount}`);
-          localStorage.setItem('tableCount', tableCount.toString());
-          setTables(prevTables => {
-            return Array.from({ length: tableCount }, (_, i) => {
-              const tableId = i + 1;
-              return {
-                id: tableId,
-                name: `${tableId}`,
-                order: resolveTableOrder(tableId) // <--- Use Server Truth
-              };
-            });
-          });
-        }
+        });
       }
 
       const salesData = await api.getSales();
       const historyData = await api.getHistory();
-      const queue = await db.getSyncQueue();
 
-      if (queue.length > 0) {
-        queue.forEach(action => {
-          const tempId = Date.now() + Math.floor(Math.random() * 1000);
-          switch (action.type) {
-            case 'DELETE_USER': serverUsers = serverUsers.filter(u => u.id !== action.payload.userId); break;
-            case 'DELETE_MENU_ITEM': serverItems = serverItems.filter(i => i.id !== action.payload.id); break;
-            case 'DELETE_MENU_CATEGORY': serverCats = serverCats.filter(c => c.id !== action.payload.id); break;
-            case 'ADD_USER': if (!serverUsers.some(u => u.pin === action.payload.pin)) serverUsers.push({ ...action.payload, id: tempId }); break;
-            case 'ADD_MENU_ITEM': serverItems.push({ ...action.payload, id: tempId }); break;
-            case 'ADD_MENU_CATEGORY': serverCats.push({ ...action.payload, id: tempId }); break;
-            case 'UPDATE_MENU_ITEM': serverItems = serverItems.map(i => i.id === action.payload.id ? { ...i, ...action.payload } : i); break;
-            case 'SET_TAX_RATE': taxRate = action.payload.rate; break;
-          }
-        });
-      }
-
-      await db.clearStaticData();
-      await Promise.all([
-        db.bulkPut(serverUsers, 'users'),
-        db.bulkPut(serverItems, 'menuItems'),
-        db.bulkPut(serverCats, 'menuCategories'),
-        db.bulkPut(serverSections || [], 'sections') // Save sections to DB
-      ]);
-
+      // --- UPDATE STATE DIRECTLY (No DB Queue Logic) ---
       setUsers(serverUsers);
       const sortedServerItems = [...serverItems].sort((a, b) => {
         if (a.display_order === null && b.display_order === null) return 0;
@@ -322,52 +271,28 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (error) {
       console.error("--- SERVER FETCH FAILED ---", error);
       setIsOnline(false);
-      await loadDataFromDb();
+      // NO FALLBACK: We deliberately show that we are offline/error state.
     }
-  }, [loadDataFromDb]);
-
-  const syncOfflineData = useCallback(async () => {
-    if (syncInProgress.current || !isBackendConfigured) return;
-    syncInProgress.current = true; setIsSyncing(true);
-    const queue = await db.getSyncQueue();
-    if (queue.length > 0) {
-      for (const item of queue) {
-        try {
-          switch (item.type) {
-            case 'ADD_SALE': await api.addSale(item.payload.order, item.payload.tableId, item.payload.tableName, item.payload.user); break;
-            case 'ADD_USER': await api.addUser(item.payload); break;
-            case 'DELETE_USER': await api.deleteUser(item.payload.userId); break;
-            case 'ADD_MENU_ITEM': await api.addMenuItem(item.payload); break;
-            case 'UPDATE_MENU_ITEM': await api.updateMenuItem(item.payload); break;
-            case 'DELETE_MENU_ITEM': await api.deleteMenuItem(item.payload.id); break;
-            case 'ADD_MENU_CATEGORY': await api.addMenuCategory(item.payload.name); break;
-            case 'UPDATE_MENU_CATEGORY': await api.updateMenuCategory(item.payload); break;
-            case 'DELETE_MENU_CATEGORY': await api.deleteMenuCategory(item.payload.id); break;
-            case 'ADD_HISTORY_ENTRY': await api.addHistoryEntry(item.payload.tableId, item.payload.details, item.payload.user); break;
-            case 'SET_TAX_RATE': await api.updateTaxRate(item.payload.rate); break;
-          }
-          await db.removeFromSyncQueue(item.id!);
-        } catch (error) { console.error(`Sync failed for ${item.type}:`, error); setIsSyncing(false); syncInProgress.current = false; return; }
-      }
-    }
-    setIsSyncing(false);
-    syncInProgress.current = false;
   }, []);
 
   const addHistoryEntry = useCallback(async (tableId: number, details: string) => {
     if (!loggedInUser) return;
+    // We optimistically update state, but don't save to DB. 
+    // Usually this is triggered by an API action that saves history on server.
     const newEntry: HistoryEntry = { id: `hist-${Date.now()}`, tableId, timestamp: new Date(), user: loggedInUser, details };
     setHistory(prev => [newEntry, ...prev]);
-    await db.put(newEntry, 'history');
   }, [loggedInUser]);
 
   const setTaxRate = useCallback(async (ratePercent: number) => {
     const newRate = Math.max(0, ratePercent) / 100;
-    setTaxRateState(newRate);
-    await db.addToSyncQueue({ type: 'SET_TAX_RATE', payload: { rate: newRate } });
-    await addHistoryEntry(0, `Tax rate updated to ${ratePercent}%`);
-    if (isOnline) { setTimeout(() => { syncOfflineData(); }, 0); }
-  }, [isOnline, addHistoryEntry, syncOfflineData]);
+    try {
+      await api.updateTaxRate(newRate); // Direct API Call
+      setTaxRateState(newRate);
+      await addHistoryEntry(0, `Tax rate updated to ${ratePercent}%`);
+    } catch (e) {
+      console.error("Failed to update tax rate", e);
+    }
+  }, [addHistoryEntry]);
 
   const updateCompanySettings = useCallback(async (info: CompanyInfo) => {
     setCompanyInfo(info);
@@ -572,17 +497,24 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const login = useCallback(async (pin: string): Promise<boolean> => {
-    let user = users.find((u) => u.pin === pin);
-    if (user) { setLoggedInUser(user); return true; }
-    if (isOnline && isBackendConfigured) {
-      try {
-        const response = await api.login(pin);
-        user = response.user || undefined;
-        if (user) { setLoggedInUser(user); return true; }
-      } catch (e) { setIsOnline(false); }
+    // SECURITY UPDATE: We no longer store PINs in the browser.
+    // We must ask the server to verify the PIN every time.
+    try {
+      if (!navigator.onLine) {
+        alert("Nuk jeni të lidhur me rrjetin. Identifikimi kërkon serverin.");
+        return false;
+      }
+
+      const response = await api.login(pin);
+      if (response && response.user) {
+        setLoggedInUser(response.user);
+        return true;
+      }
+    } catch (e) {
+      console.error("Login failed:", e);
     }
     return false;
-  }, [isOnline, users]);
+  }, []);
 
   const logout = useCallback(() => {
     setLoggedInUser(null);
@@ -602,149 +534,85 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addUser = useCallback(async (userData: Omit<User, 'id'>) => {
     try {
-      const tempId = Date.now();
-      const newUser: User = { ...userData, id: tempId };
-      setUsers((prev) => [...prev, newUser]);
-      await db.put(newUser, 'users');
-      await db.addToSyncQueue({ type: 'ADD_USER', payload: userData });
-      if (isOnline && isBackendConfigured) await syncOfflineData();
+      await api.addUser(userData); // Direct API
+      // We rely on socket/refresh, or we can manually refetch. 
+      // For simplicity in this online-model, we refetch to get the real ID.
+      await fetchAndCacheData();
     } catch (e) { console.error("Add user failed", e); }
-  }, [isOnline, syncOfflineData]);
+  }, [fetchAndCacheData]);
 
   const deleteUser = useCallback(async (userId: number): Promise<boolean> => {
     try {
+      await api.deleteUser(userId); // Direct API
       setUsers(prev => prev.filter(u => u.id !== userId));
-      await db.deleteItem(userId, 'users');
-      await db.addToSyncQueue({ type: 'DELETE_USER', payload: { userId } });
-      if (isOnline && isBackendConfigured) await syncOfflineData();
       return true;
     } catch (e) { console.error("Delete user failed", e); return false; }
-  }, [isOnline, syncOfflineData]);
+  }, []);
 
+  // --- MENU MANAGEMENT (Direct API) ---
   const addMenuItem = useCallback(async (itemData: Omit<MenuItem, 'id'>) => {
     try {
-      if (isOnline && isBackendConfigured) {
-        // 1. ONLINE MODE:
-        // Call the server directly so we get the "Real" item back immediately.
-        // This allows us to capture the inherited Stock/Threshold from the group logic we just wrote.
-        const serverItem = await api.addMenuItem(itemData);
-
-        setMenuItems((prev) => [...prev, serverItem]);
-        await db.put(serverItem, 'menuItems');
-        // Note: We do NOT add to syncQueue here because we just executed it successfully.
-      } else {
-        // 2. OFFLINE MODE:
-        // Use optimistic updates. The user won't see inherited stock until they go online and refresh,
-        // but at least they can keep working.
-        const tempId = Date.now();
-        const newItem: MenuItem = { ...itemData, id: tempId };
-
-        setMenuItems((prev) => [...prev, newItem]);
-        await db.put(newItem, 'menuItems');
-        await db.addToSyncQueue({ type: 'ADD_MENU_ITEM', payload: itemData });
-      }
+      const serverItem = await api.addMenuItem(itemData);
+      setMenuItems((prev) => [...prev, serverItem]);
     } catch (e) { console.error("Add menu item failed", e); }
-  }, [isOnline]);
+  }, []);
 
   const updateMenuItem = useCallback(async (updatedItem: MenuItem) => {
     try {
-      // 1. SMART STATE UPDATE: Update this item AND any siblings in the same Stock Group
+      await api.updateMenuItem(updatedItem);
+      // Smart State Update (Siblings)
       setMenuItems((prev) => prev.map((item) => {
-        // Case A: It is the exact item being updated
         if (item.id === updatedItem.id) return updatedItem;
-
-        // Case B: It is a "sibling" sharing the same Stock Group ID
         if (updatedItem.stockGroupId &&
           item.stockGroupId === updatedItem.stockGroupId &&
           updatedItem.trackStock) {
-          // Sync the stock value
           return { ...item, stock: updatedItem.stock };
         }
-
         return item;
       }));
-
-      // 2. Persist Main Item to Local DB
-      await db.put(updatedItem, 'menuItems');
-
-      // 3. Persist Siblings to Local DB (for offline consistency)
-      if (updatedItem.stockGroupId) {
-        // We fetch all items to find siblings because 'menuItems' state might be stale in this async block
-        const allItems = await db.getAll<MenuItem>('menuItems');
-        const siblings = allItems.filter(i =>
-          i.stockGroupId === updatedItem.stockGroupId && i.id !== updatedItem.id
-        );
-        for (const sibling of siblings) {
-          const updatedSibling = { ...sibling, stock: updatedItem.stock };
-          await db.put(updatedSibling, 'menuItems');
-        }
-      }
-
-      // 4. Queue Sync (Server handles the group update logic automatically, so we just send the main item)
-      await db.addToSyncQueue({ type: 'UPDATE_MENU_ITEM', payload: updatedItem });
-
-      if (isOnline && isBackendConfigured) await syncOfflineData();
     } catch (e) { console.error("Update menu item failed", e); }
-  }, [isOnline, syncOfflineData]);
+  }, []);
 
   const deleteMenuItem = useCallback(async (id: number) => {
     try {
+      await api.deleteMenuItem(id);
       setMenuItems(prev => prev.filter(item => item.id !== id));
-      await db.deleteItem(id, 'menuItems');
-      await db.addToSyncQueue({ type: 'DELETE_MENU_ITEM', payload: { id } });
-      if (isOnline && isBackendConfigured) await syncOfflineData();
     } catch (e) { console.error("Delete menu item failed", e); }
-  }, [isOnline, syncOfflineData]);
+  }, []);
 
   const addMenuCategory = useCallback(async (name: string) => {
     try {
-      const tempId = Date.now();
-      const newCat: MenuCategory = { id: tempId, name, display_order: null };
-      setMenuCategories(prev => [...prev, newCat]);
-      await db.put(newCat, 'menuCategories');
-      await db.addToSyncQueue({ type: 'ADD_MENU_CATEGORY', payload: { name } });
-      if (isOnline && isBackendConfigured) await syncOfflineData();
+      await api.addMenuCategory(name);
+      fetchAndCacheData(); // Refetch to get ID
     } catch (e) { console.error("Add category failed", e); }
-  }, [isOnline, syncOfflineData]);
+  }, [fetchAndCacheData]);
 
   const updateMenuCategory = useCallback(async (updatedCategory: MenuCategory) => {
     try {
+      await api.updateMenuCategory(updatedCategory);
       setMenuCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
-      await db.put(updatedCategory, 'menuCategories');
-      await db.addToSyncQueue({ type: 'UPDATE_MENU_CATEGORY', payload: updatedCategory });
-      if (isOnline && isBackendConfigured) await syncOfflineData();
     } catch (e) { console.error("Update category failed", e); }
-  }, [isOnline, syncOfflineData]);
+  }, []);
 
   const deleteMenuCategory = useCallback(async (id: number) => {
     try {
+      await api.deleteMenuCategory(id);
       setMenuCategories(prev => prev.filter(c => c.id !== id));
-      await db.deleteItem(id, 'menuCategories');
-      await db.addToSyncQueue({ type: 'DELETE_MENU_CATEGORY', payload: { id } });
-      if (isOnline && isBackendConfigured) await syncOfflineData();
     } catch (e) { console.error("Delete category failed", e); }
-  }, [isOnline, syncOfflineData]);
+  }, []);
 
   const reorderMenuCategories = useCallback(async (categories: MenuCategory[]) => {
     setMenuCategories(categories);
-    await db.bulkPut(categories, 'menuCategories');
+    // Note: We need a backend endpoint for category reordering if we want this to persist
   }, []);
 
   const reorderMenuItems = useCallback(async (items: MenuItem[]) => {
-    // 1. Assign new display_order based on their current array index
     const updatedItems = items.map((item, index) => ({
       ...item,
       display_order: index + 1
     }));
-
-    // 2. Update State Immediately
     setMenuItems(updatedItems);
-
-    // 3. Update Local DB
-    await db.bulkPut(updatedItems, 'menuItems');
-
-    // 4. Sync with Server
-    if (isOnline && isBackendConfigured) {
+    if (isBackendConfigured) {
       const orderedIds = updatedItems.map(item => item.id);
       try {
         await fetch(`${SOCKET_URL}/api/menu-items/reorder`, {
@@ -754,7 +622,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       } catch (error) { console.error('Failed to sync reorder:', error); }
     }
-  }, [isOnline]);
+  }, []);
 
   const refreshSalesFromServer = useCallback(async () => {
     try {
@@ -853,112 +721,62 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 
 
+  // --- SALE LOGIC (Direct API) ---
   const addSale = useCallback(async (order: Order, tableId: number) => {
     if (!loggedInUser) return;
     const table = tables.find(t => t.id === tableId);
     if (!table) return;
 
-    // 1. Create Sale Object
-    const newSale: Sale = { id: `sale-${Date.now()}`, date: new Date(), order, user: loggedInUser, tableId: table.id, tableName: table.name };
+    try {
+      // 1. Send to Server (Authoritative)
+      await api.addSale(order, table.id, table.name, loggedInUser);
 
-    // 2. Optimistic UI Update for Sales list
-    setSales((prev) => [newSale, ...prev]);
-    await db.put(newSale, 'sales');
+      // 2. Clear Local Table State (Socket will likely do this too, but for UI responsiveness we do it here)
+      updateOrderForTable(tableId, null, false); // false = don't emit 'update', the server knows we sold it
+      await addHistoryEntry(tableId, `Fatura u finalizua...`);
 
-    // 3. Queue Sync
-    await db.addToSyncQueue({
-      type: 'ADD_SALE',
-      payload: { order, tableId: table.id, tableName: table.name, user: loggedInUser }
-    });
-    if (isOnline) { setTimeout(() => { syncOfflineData(); }, 0); }
-
-    // 4. Clear Table Order
-    updateOrderForTable(tableId, null);
-    await addHistoryEntry(tableId, `Fatura u finalizua...`);
-
-    // --- 5. SMART STOCK DEDUCTION (Shared Groups) ---
-
-    // Step A: Calculate total deductions per "Stock Identity" (Group ID or Item ID)
-    const deductions = new Map<string | number, number>();
-
-    for (const saleItem of order.items) {
-      // Find the real item in our current state (to check for group ID)
-      const realItem = menuItems.find(i => i.id === saleItem.id);
-      if (!realItem || !realItem.trackStock) continue;
-
-      // Key is GroupID (string) if it exists, otherwise ItemID (number)
-      const key = realItem.stockGroupId ? realItem.stockGroupId : realItem.id;
-      const currentDeduction = deductions.get(key) || 0;
-      deductions.set(key, currentDeduction + saleItem.quantity);
-    }
-
-    // Step B: Apply updates to React State (Bulk Update)
-    setMenuItems(prev => {
-      const nextState = prev.map(item => ({ ...item })); // Shallow copy
-
-      deductions.forEach((qtyToRemove, key) => {
-        if (typeof key === 'string') {
-          // It's a Group ID -> Update ALL items in this group
-          // 1. Find current stock from any item in this group
-          const sampleItem = nextState.find(i => i.stockGroupId === key);
-          if (sampleItem && isFinite(sampleItem.stock)) {
-            const newStock = Math.max(0, sampleItem.stock - qtyToRemove);
-            // 2. Apply to all siblings
-            nextState.forEach(i => {
-              if (i.stockGroupId === key) i.stock = newStock;
-            });
-          }
-        } else {
-          // It's a specific Item ID
-          const target = nextState.find(i => i.id === key);
-          if (target && isFinite(target.stock)) {
-            target.stock = Math.max(0, target.stock - qtyToRemove);
-          }
-        }
-      });
-      return nextState;
-    });
-
-    // Step C: Apply updates to Local DB (IndexedDB)
-    // We re-iterate deductions to ensure DB is consistent
-    const allDbItems = await db.getAll<MenuItem>('menuItems');
-
-    deductions.forEach((qtyToRemove, key) => {
-      if (typeof key === 'string') {
-        const sample = allDbItems.find(i => i.stockGroupId === key);
-        if (sample && isFinite(sample.stock)) {
-          const newStock = Math.max(0, sample.stock - qtyToRemove);
-          // Update all siblings in DB
-          allDbItems.forEach(i => {
-            if (i.stockGroupId === key) {
-              i.stock = newStock;
-              db.put(i, 'menuItems');
+      // 3. UI Stock Updates (Visual Only - Refresh cleans it up)
+      const deductions = new Map<string | number, number>();
+      for (const saleItem of order.items) {
+        const realItem = menuItems.find(i => i.id === saleItem.id);
+        if (!realItem || !realItem.trackStock) continue;
+        const key = realItem.stockGroupId ? realItem.stockGroupId : realItem.id;
+        deductions.set(key, (deductions.get(key) || 0) + saleItem.quantity);
+      }
+      setMenuItems(prev => {
+        const nextState = prev.map(item => ({ ...item }));
+        deductions.forEach((qtyToRemove, key) => {
+          if (typeof key === 'string') {
+            const sampleItem = nextState.find(i => i.stockGroupId === key);
+            if (sampleItem && isFinite(sampleItem.stock)) {
+              const newStock = Math.max(0, sampleItem.stock - qtyToRemove);
+              nextState.forEach(i => { if (i.stockGroupId === key) i.stock = newStock; });
             }
-          });
-        }
-      } else {
-        const target = allDbItems.find(i => i.id === key);
-        if (target && isFinite(target.stock)) {
-          target.stock = Math.max(0, target.stock - qtyToRemove);
-          db.put(target, 'menuItems');
+          } else {
+            const target = nextState.find(i => i.id === key);
+            if (target && isFinite(target.stock)) target.stock = Math.max(0, target.stock - qtyToRemove);
+          }
+        });
+        return nextState;
+      });
+
+      // 4. Print Logic (Via Socket)
+      if (socketRef.current?.connected) {
+        const isReceiptPrintingEnabled = localStorage.getItem('isReceiptPrintingEnabled') !== 'false';
+        if (isReceiptPrintingEnabled) {
+          // Construct a temporary sale object just for the printer
+          const tempSale: Sale = { id: `sale-${Date.now()}`, date: new Date(), order, user: loggedInUser, tableId: table.id, tableName: table.name };
+          socketRef.current.emit('print-sale-receipt', tempSale);
         }
       }
-    });
 
-    // 6. Socket Emission for Printing (The API now handles table state and sales screen updates)
-    if (socketRef.current?.connected) {
-      const isReceiptPrintingEnabled = localStorage.getItem('isReceiptPrintingEnabled') !== 'false'; // Default to true
+      handleAutoLogout();
 
-      if (isReceiptPrintingEnabled) {
-        console.log("Requesting print for Sale ID:", newSale.id);
-        socketRef.current.emit('print-sale-receipt', newSale);
-      }
+    } catch (e) {
+      console.error("Sale failed:", e);
+      alert("Gabim gjatë finalizimit të faturës! Kontrolloni serverin.");
     }
-    // ADD these lines in its place. We are adding the handleAutoLogout() call and updating the dependency array.
-    // --- AUTO-LOGOUT ---
-    handleAutoLogout();
-
-  }, [loggedInUser, tables, menuItems, isOnline, updateOrderForTable, addHistoryEntry, syncOfflineData, handleAutoLogout]);
+  }, [loggedInUser, tables, menuItems, updateOrderForTable, addHistoryEntry, handleAutoLogout]);
 
 
 
@@ -1135,40 +953,41 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (startupEffectRan.current === true) { return; }
 
-    // ... inside bootstrap function of main useEffect
     const bootstrap = async () => {
       try {
         setIsLoading(true);
-        await db.initDB();
+
+        // --- CLEANUP: Force Delete Old IndexedDB (Security Fix) ---
+        // This ensures old PINs are removed from client browsers
+        try {
+          const dbs = await window.indexedDB.databases();
+          const dbExists = dbs.some(db => db.name === 'pos_db');
+          if (dbExists) {
+            console.warn("⚠️ Old Database detected. Deleting for security...");
+            window.indexedDB.deleteDatabase('pos_db');
+            console.log("✅ Old Database deleted.");
+          }
+        } catch (e) {
+          // Fallback for older browsers
+          window.indexedDB.deleteDatabase('pos_db');
+        }
+        // ---------------------------------------------------------
 
         // Safe JSON Parse for Preferences
         try {
           const savedPrefs = localStorage.getItem('sectionPreferences');
           setSectionPrefs(savedPrefs ? JSON.parse(savedPrefs) : {});
         } catch (e) {
-          console.error("Error parsing sectionPreferences, resetting.", e);
           setSectionPrefs({});
         }
 
-        // 1. LOAD TABLES INIT (Visual Placeholder)
+        // 1. LOAD TABLES INIT (Visual Placeholder only)
         let countToLoad = parseInt(localStorage.getItem('tableCount') || '50', 10);
         if (!countToLoad || countToLoad < 1) countToLoad = 50;
 
-        // Try to recover last known state from localStorage purely for visual consistency before sync
-        const savedTablesJSON = localStorage.getItem('activeTables');
-        let initialTables: Table[] = [];
-        if (savedTablesJSON) {
-          try {
-            const parsed = JSON.parse(savedTablesJSON);
-            if (Array.isArray(parsed)) initialTables = parsed;
-          } catch (e) { console.warn("Invalid activeTables in local storage"); }
-        }
-
-        if (initialTables.length === 0) {
-          initialTables = Array.from({ length: countToLoad }, (_, i) => ({
-            id: i + 1, name: `${i + 1}`, order: null
-          }));
-        }
+        let initialTables: Table[] = Array.from({ length: countToLoad }, (_, i) => ({
+          id: i + 1, name: `${i + 1}`, order: null
+        }));
         setTables(initialTables);
 
         // Load Settings
@@ -1176,22 +995,13 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTableSizePercentState(parseInt(localStorage.getItem('tableSizePercent') || '100', 10));
         setTableButtonSizePercentState(parseInt(localStorage.getItem('tableButtonSizePercent') || '100', 10));
 
-        // 2. DATA SYNC
+        // 2. FETCH DATA (Strict Online)
         if (isBackendConfigured && navigator.onLine) {
-          try {
-            await fetchAndCacheData();
-            await syncOfflineData();
-          } catch (error) {
-            console.error("Startup sync failed, falling back to DB:", error);
-            await loadDataFromDb();
-          }
-        } else {
-          await loadDataFromDb();
+          await fetchAndCacheData();
         }
 
       } catch (fatalError) {
         console.error("CRITICAL BOOTSTRAP FAILURE:", fatalError);
-        // Even if everything fails, we must allow the app to render
       } finally {
         setIsLoading(false);
       }
@@ -1200,7 +1010,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     bootstrap();
     startupEffectRan.current = true;
 
-    const handleOnline = () => { setIsOnline(true); syncOfflineData(); };
+    const handleOnline = () => { setIsOnline(true); fetchAndCacheData(); }; // Re-fetch on reconnect
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -1208,7 +1018,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [syncOfflineData, loadDataFromDb, fetchAndCacheData]);
+  }, [fetchAndCacheData]);
 
   const addBulkStock = useCallback(async (movements: StockUpdateItem[], reason: string, type: 'supply' | 'correction' = 'supply') => {
     if (!loggedInUser) return;
@@ -1252,22 +1062,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return nextState;
       });
 
-      // 3. Update IndexedDB
-      const allDbItems = await db.getAll<MenuItem>('menuItems');
-      const targetItem = allDbItems.find(i => i.id === itemId);
-
-      if (targetItem) {
-        if (targetItem.stockGroupId) {
-          const siblings = allDbItems.filter(i => i.stockGroupId === targetItem.stockGroupId);
-          for (const sibling of siblings) {
-            sibling.stock = Math.max(0, (sibling.stock || 0) - quantity);
-            await db.put(sibling, 'menuItems');
-          }
-        } else {
-          targetItem.stock = Math.max(0, (targetItem.stock || 0) - quantity);
-          await db.put(targetItem, 'menuItems');
-        }
-      }
+      // No Local DB Update for Waste
 
     } catch (e) {
       console.error("Add waste failed", e);
@@ -1276,7 +1071,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [loggedInUser]);
 
   const value = useMemo(() => ({
-    isLoading, isOnline, isSyncing, loggedInUser, activeScreen, setActiveScreen,
+    isLoading, isOnline, isSyncing: false, loggedInUser, activeScreen, setActiveScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
     setSaleToPrint, orderToPrint, setOrderToPrint, tables, tablesPerRow, tableSizePercent,
     tableButtonSizePercent, taxRate, history, login, logout, addUser, deleteUser, addMenuItem, updateMenuItem,
@@ -1288,7 +1083,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
     addTable, updateTable, deleteTable, transferTable
   }), [
-    isLoading, isOnline, isSyncing, loggedInUser, activeScreen,
+    isLoading, isOnline, loggedInUser, activeScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
     orderToPrint, tables, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate, history,
     login, logout, addUser, deleteUser, addMenuItem, updateMenuItem, deleteMenuItem, importMenuItemsFromCSV,
