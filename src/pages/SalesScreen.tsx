@@ -19,8 +19,9 @@ import {
 
 const formatCurrency = (amount: number | string) => {
     const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(numericAmount)) return '0,00 €';
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(numericAmount);
+    if (isNaN(numericAmount)) return '0.00 €';
+    // Use 'en-US' to ensure Dot (.) separator for decimals (e.g. 10.50 €)
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(numericAmount).replace('€', '').trim() + ' €';
 };
 
 type SalesTab = 'incomes' | 'transactions' | 'items';
@@ -505,16 +506,16 @@ const SalesScreen: React.FC = () => {
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border border-border/50 relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><RestaurantIcon className="w-24 h-24 text-highlight" /></div>
                             <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Shank</h3>
-                            <p className="text-4xl font-semibold text-highlight">{formatCurrency(salesSummary.totalShankRevenue)}</p>
+                            <p className="text-4xl font-semibold font-data text-highlight">{formatCurrency(salesSummary.totalShankRevenue)}</p>
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border border-border/50 relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><RestaurantIcon className="w-24 h-24 text-success" /></div>
                             <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Kuzhina</h3>
-                            <p className="text-4xl font-semibold text-highlight">{formatCurrency(salesSummary.totalKuzhinaRevenue)}</p>
+                            <p className="text-4xl font-semibold font-data text-highlight">{formatCurrency(salesSummary.totalKuzhinaRevenue)}</p>
                         </div>
                         <div className="bg-secondary p-6 rounded-lg shadow-lg border-l-4 border-highlight relative overflow-hidden">
                             <h3 className="text-tsecondary text-sm font-bold uppercase tracking-wider mb-2">Totali i Përgjithshëm</h3>
-                            <p className="text-4xl font-semibold text-highlight">{formatCurrency(salesSummary.totalRevenue)}</p>
+                            <p className="text-4xl font-semibold font-data text-highlight">{formatCurrency(salesSummary.totalRevenue)}</p>
                             <p className="text-sm text-tsecondary mt-2">{salesSummary.count} fatura të mbyllura</p>
                         </div>
                     </div>
@@ -541,9 +542,9 @@ const SalesScreen: React.FC = () => {
                                         <td className="px-2 py-3 font-medium text-sm">
                                             {day.date.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                                         </td>
-                                        <td className="px-2 py-3 text-right text-sm">{formatCurrency(day.shank)}</td>
-                                        <td className="px-2 py-3 text-right text-sm">{formatCurrency(day.kuzhina)}</td>
-                                        <td className="px-2 py-3 text-right font-bold text-sm">{formatCurrency(day.total)}</td>
+                                        <td className="px-2 py-3 text-right text-sm font-data">{formatCurrency(day.shank)}</td>
+                                        <td className="px-2 py-3 text-right text-sm font-data">{formatCurrency(day.kuzhina)}</td>
+                                        <td className="px-2 py-3 text-right font-bold text-sm font-data">{formatCurrency(day.total)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -577,10 +578,10 @@ const SalesScreen: React.FC = () => {
                                                         <p className="text-xs text-tsecondary">{tx.date.toLocaleString('de-DE')}</p>
                                                     </div>
                                                 </div>
-                                                <span className={`text-lg font-semibold ${tx.type === 'ORDER' ? 'text-highlight' : 'text-success'}`}>{formatCurrency(tx.total)}</span>
+                                                <span className={`text-lg font-semibold font-data ${tx.type === 'ORDER' ? 'text-highlight' : 'text-success'}`}>{formatCurrency(tx.total)}</span>
                                             </div>
                                             <div className="pl-11 text-sm text-tsecondary">
-                                                {tx.items.map((item: any, idx: number) => (<span key={idx} className="mr-3 inline-block">{item.quantity}x {item.name}</span>))}
+                                                {tx.items.map((item: any, idx: number) => (<span key={idx} className="mr-3 inline-block font-data">{item.quantity}x <span className="font-sans">{item.name}</span></span>))}
                                             </div>
                                         </div>
                                     ))}
@@ -623,17 +624,17 @@ const SalesScreen: React.FC = () => {
                                                     {group.groupName}
                                                 </td>
                                                 <td className="p-4 text-center">
-                                                    <span className="bg-primary px-3 py-1 rounded-full text-sm font-semibold border border-border">
+                                                    <span className="bg-primary px-3 py-1 rounded-full text-sm font-semibold border border-border font-data">
                                                         x{group.totalQuantity}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 text-right font-semibold text-highlight">{formatCurrency(group.totalValue)}</td>
+                                                <td className="p-4 text-right font-semibold text-highlight font-data">{formatCurrency(group.totalValue)}</td>
                                             </tr>
                                             {isExpanded && group.items.map((item, index) => (
                                                 <tr key={`${group.groupKey}-${index}`} className="bg-primary/20">
                                                     <td className="pl-12 py-2 pr-4 text-sm text-tsecondary">{item.name}</td>
-                                                    <td className="py-2 pr-4 text-center text-sm text-tsecondary">x{item.quantity}</td>
-                                                    <td className="py-2 pr-4 text-right text-sm text-tsecondary">{formatCurrency(item.total)}</td>
+                                                    <td className="py-2 pr-4 text-center text-sm text-tsecondary font-data">x{item.quantity}</td>
+                                                    <td className="py-2 pr-4 text-right text-sm text-tsecondary font-data">{formatCurrency(item.total)}</td>
                                                 </tr>
                                             ))}
                                         </React.Fragment>

@@ -7,44 +7,47 @@ export default {
   theme: {
     extend: {
       colors: {
-        // === 1. FOUNDATION & LAYOUT ===
-        // Used for the main backgrounds, panels, and dividers.
-        'primary': '#1a202c',      // ~slate-900: The main, darkest background for the page.
-        'secondary': '#2d3748',    // ~slate-800: For cards, panels, headers, and modal backgrounds.
-        'border': '#4a5568',       // ~slate-600: NOTE: Renamed from 'accent'. Used for subtle borders and dividers.
+        // === 1. FOUNDATION (Slate) ===
+        'primary': '#0f172a',      // Slate-900: "The Void" - Main background.
+        'secondary': '#1e293b',    // Slate-800: "The Surface" - Cards, Headers, Panels.
+        'border': '#334155',       // Slate-700: "The Structure" - Borders and Dividers.
+        'input-bg': '#1e293b',     // Slate-800: Inputs fields background.
 
-        // === 2. TYPOGRAPHY ===
-        // A consistent hierarchy for all text elements.
-        'tmain': '#e2e8f0',      // ~slate-200: For high-emphasis text (titles, primary data).
-        'tsecondary': '#a0aec0', // ~slate-400: For secondary text (descriptions, less important labels).
-        'muted': '#6b7280',          // ~gray-500: For disabled text and inactive icons.
-        'tsubtle': '#94a3b8',   // ~slate-500: NEW: For very low-emphasis text like timestamps or placeholders.
+        // === 2. TYPOGRAPHY (Slate) ===
+        'tmain': '#f1f5f9',      // Slate-100: High emphasis (Titles, Values).
+        'tsecondary': '#e2e8f0', // Slate-200: Secondary text (Table rows, Subtitles).
+        'muted': '#94a3b8',          // Slate-400: Labels, Inactive Icons.
+        'tsubtle': '#64748b',    // Slate-500: Timestamps, Placeholders.
 
-        // === 3. SEMANTIC & FUNCTIONAL COLORS ===
-        // These colors have specific meanings and are used for interactive elements.
+        // === 3. SEMANTIC COLORS ===
 
         // --- Primary Action (Blue) ---
-        'highlight': '#4299e1',       // ~blue-400: The main color for primary buttons (e.g., "Pay", "Login").
-        'highlight-hover': '#2563eb', // ~blue-600: A darker shade for hover states.
+        'highlight': '#3b82f6',       // Blue-500: Main Buttons, Active Tabs.
+        'highlight-hover': '#2563eb', // Blue-600: Hover state.
 
-        // --- Success (Green) ---
-        'success': '#16a34a',         // ~green-600: For success states, financial totals, "Paid" status.
-        'success-hover': '#15803d',   // ~green-700: Darker green for hover.
-        'success-bg': 'rgba(22, 163, 74, 0.1)', // NEW: Low-opacity background for highlighting rows/badges.
+        // --- Money / Finance (Emerald) ---
+        // NEW: Distinct from Success. Use for Prices, Cash, Totals.
+        'money': '#34d399',           // Emerald-400: Text color for money.
+        'money-icon': '#10b981',      // Emerald-500: Icon color for money.
 
-        // --- Danger (Red) ---
-        'danger': '#f87171',          // ~red-400: For errors, voiding items, and critical alerts.
-        'danger-hover': '#ef4444',    // CORRECTED: Was '#fca5a5' (a lighter red). Now a darker red (~red-500) for better UI feedback.
-        'danger-bg': 'rgba(239, 68, 68, 0.1)',  // NEW: Low-opacity background.
+        // --- Success / Good Status (Green) ---
+        'success': '#22c55e',         // Green-500: Good status (e.g. "Saved").
+        'success-hover': '#16a34a',   // Green-600.
+        'success-bg': 'rgba(34, 197, 94, 0.1)', // Low opacity Green.
 
-        // --- Warning (Yellow) ---
-        'warning': '#eab308',         // ~yellow-500: For warnings or states that need attention (e.g., "Bill Printed").
-        'warning-hover': '#ca8a04',   // ~yellow-600: Darker yellow for hover.
-        'warning-bg': 'rgba(234, 179, 8, 0.1)', // NEW: Low-opacity background.
+        // --- Danger / Critical (Red) ---
+        'danger': '#ef4444',          // Red-500: Errors, Void, Delete.
+        'danger-hover': '#dc2626',    // Red-600.
+        'danger-bg': 'rgba(239, 68, 68, 0.1)',
+
+        // --- Warning / Attention (Amber) ---
+        'warning': '#f59e0b',         // Amber-500: Warnings (e.g. "Low Stock", "Bill Printed").
+        'warning-hover': '#d97706',   // Amber-600.
+        'warning-bg': 'rgba(245, 158, 11, 0.1)',
 
         // --- Accent / Special Actions (Purple) ---
-        'accent': '#a855f7',          // NEW: A distinct purple (~purple-500) for special UI elements like 'Upload Menu'.
-        'accent-hover': '#9333ea',    // NEW: Darker purple for hover.
+        'accent': '#c084fc',          // Purple-400: Special actions (e.g. Upload, Transfer).
+        'accent-hover': '#a855f7',    // Purple-500.
       },
     },
   },

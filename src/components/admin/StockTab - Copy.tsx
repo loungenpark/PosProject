@@ -95,7 +95,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
                                 className={`flex justify-between items-center p-4 cursor-pointer transition-colors ${expanded === cat.type ? 'bg-border' : 'bg-primary hover:bg-border/50'}`}
                             >
                                 <span className={`font-bold ${cat.color}`}>{cat.label}</span>
-                                <span className={`font-mono slashed-zero text-lg font-bold ${cat.data.total >= 0 ? 'text-success' : 'text-danger'}`}>
+                                <span className={`font-mono text-lg font-bold ${cat.data.total >= 0 ? 'text-success' : 'text-danger'}`}>
                                     {cat.data.total > 0 ? '+' : ''}{cat.data.total}
                                 </span>
                             </div>
@@ -117,7 +117,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
                                                         {new Date(m.createdAt).toLocaleString('sq-AL', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                                     </td>
                                                     <td className="p-2 text-tsecondary truncate max-w-[150px]">{m.reason}</td>
-                                                    <td className={`p-2 text-right font-mono slashed-zero font-bold ${m.quantity > 0 ? 'text-success' : 'text-danger'}`}>
+                                                    <td className={`p-2 text-right font-mono font-bold ${m.quantity > 0 ? 'text-success' : 'text-danger'}`}>
                                                         {m.quantity > 0 ? '+' : ''}{m.quantity}
                                                     </td>
                                                     <td className="p-2 text-xs text-tsecondary">{m.user || '-'}</td>
@@ -244,22 +244,22 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                                             <ClockIcon className="w-5 h-5" />
                                         </button>
                                     </td>
-                                    <td className="p-3 text-right text-tsecondary font-mono slashed-zero">
+                                    <td className="p-3 text-right text-tsecondary font-mono">
                                         {item.stockThreshold}
                                     </td>
-                                    <td className={`p-3 text-right font-mono slashed-zero font-medium ${isLow ? 'text-danger' : 'text-success'}`}>
+                                    <td className={`p-3 text-right font-mono font-medium ${isLow ? 'text-danger' : 'text-success'}`}>
                                         {item.stock}
                                     </td>
-                                    <td className="p-3 text-right font-mono slashed-zero font-medium text-tsecondary">
+                                    <td className="p-3 text-right font-mono font-medium text-tsecondary">
                                         {costPrice.toFixed(2)}€
                                     </td>
-                                    <td className="p-3 text-right font-mono slashed-zero font-medium text-tmain">
+                                    <td className="p-3 text-right font-mono font-medium text-tmain">
                                         {stockVal.toFixed(2)}€
                                     </td>
-                                    <td className="p-3 text-right font-mono slashed-zero font-medium text-tmain">
+                                    <td className="p-3 text-right font-mono font-medium text-tmain">
                                         {salesVal.toFixed(2)}€
                                     </td>
-                                    <td className={`p-3 text-right font-mono slashed-zero font-medium ${profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                                    <td className={`p-3 text-right font-mono font-medium ${profit >= 0 ? 'text-success' : 'text-danger'}`}>
                                         {profit.toFixed(2)}€
                                     </td>
                                 </tr>
@@ -274,11 +274,11 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                     <tfoot className="sticky bottom-0 bg-secondary border-t-2 border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
                         <tr className="font-semibold text-tmain">
                             <td className="p-3" colSpan={3}>TOTALET (Artikuj Unik)</td>
-                            <td className="p-3 text-right font-mono slashed-zero text-lg text-highlight">{totals.stock}</td>
+                            <td className="p-3 text-right font-mono text-lg text-highlight">{totals.stock}</td>
                             <td className="p-3"></td>
-                            <td className="p-3 text-right font-mono slashed-zero text-lg">{totals.costVal.toFixed(2)}€</td>
-                            <td className="p-3 text-right font-mono slashed-zero text-lg">{totals.salesVal.toFixed(2)}€</td>
-                            <td className={`p-3 text-right font-mono slashed-zero text-lg ${totals.profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                            <td className="p-3 text-right font-mono text-lg">{totals.costVal.toFixed(2)}€</td>
+                            <td className="p-3 text-right font-mono text-lg">{totals.salesVal.toFixed(2)}€</td>
+                            <td className={`p-3 text-right font-mono text-lg ${totals.profit >= 0 ? 'text-success' : 'text-danger'}`}>
                                 {totals.profit.toFixed(2)}€
                             </td>
                         </tr>
@@ -383,7 +383,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                             type="number"
                                             value={c.quantity}
                                             onChange={e => updateQty(c.itemId, parseFloat(e.target.value) || 0)}
-                                            className="w-24 bg-secondary border-border rounded p-2 text-center font-mono slashed-zero font-bold text-tmain"
+                                            className="w-24 bg-secondary border-border rounded p-2 text-center font-bold text-tmain"
                                             placeholder="Sasia"
                                         />
                                     </td>
@@ -395,7 +395,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                                 type="number"
                                                 value={c.totalCost === 0 ? '' : c.totalCost}
                                                 onChange={e => updateTotalCost(c.itemId, parseFloat(e.target.value) || 0)}
-                                                className="w-28 bg-secondary border-border rounded p-2 text-center font-mono slashed-zero font-bold text-tmain pl-6"
+                                                className="w-28 bg-secondary border-border rounded p-2 text-center font-bold text-tmain pl-6"
                                                 placeholder="0.00"
                                             />
                                             <span className="absolute left-2 top-2 text-tsecondary">€</span>
@@ -417,7 +417,7 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
 
             <div className="flex justify-end pt-2 items-center space-x-4">
                 <div className="text-tsecondary text-sm">
-                    {cart.length} artikuj | Totali: <span className="text-tmain font-mono slashed-zero font-bold">
+                    {cart.length} artikuj | Totali: <span className="text-tmain font-bold">
                         {cart.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)}€
                     </span>
                 </div>
@@ -525,7 +525,7 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                         <div>
                             <label className="block text-sm text-tsecondary mb-1">Sasia {mode === 'correction' ? '(Për t\'u korrigjuar)' : '(E Humbur)'}</label>
-                            <input type="number" min="1" required autoFocus value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-2xl font-mono slashed-zero font-bold text-center text-tmain focus:ring-highlight" placeholder="0" />
+                            <input type="number" min="1" required autoFocus value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-2xl font-bold text-center text-tmain focus:ring-highlight" placeholder="0" />
                         </div>
                         <div>
                             <label className="block text-sm text-tsecondary mb-1">Arsyeja / Shënim</label>

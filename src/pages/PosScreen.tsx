@@ -9,7 +9,8 @@ import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon } from '../
 import TransferModal from '../components/modals/TransferModal';
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
+    // Use 'en-US' to ensure Dot (.) separator for decimals (e.g. 10.50 €)
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount).replace('€', '').trim() + ' €';
 };
 
 // --- Payment Modal Component ---
@@ -47,7 +48,7 @@ const PaymentModal: React.FC<{
                 <h3 className="text-xl font-semibold text-tmain">Finalizo Faturën</h3>
                 <div className="text-center">
                     <p className="text-tsecondary">Totali</p>
-                    <p className="text-4xl font-bold text-highlight">{formatCurrency(total)}</p>
+                    <p className="text-4xl font-bold font-data text-highlight">{formatCurrency(total)}</p>
                 </div>
                 <div>
                     <label htmlFor="amountPaid" className="block text-sm font-medium text-tsecondary">Shuma e Paguar (€)</label>
@@ -59,13 +60,13 @@ const PaymentModal: React.FC<{
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        className="mt-1 block w-full bg-primary border border-border rounded-md shadow-sm py-3 px-4 text-tmain text-2xl text-center focus:outline-none focus:ring-highlight focus:border-highlight placeholder-tsubtle"
+                        className="mt-1 block w-full bg-primary border border-border rounded-md shadow-sm py-3 px-4 text-tmain font-data text-2xl text-center focus:outline-none focus:ring-highlight focus:border-highlight placeholder-tsubtle"
                         placeholder={total.toFixed(2)}
                     />
                 </div>
                 <div className="text-center p-3 bg-border rounded-lg">
                     <p className="text-tsecondary">Kusuri</p>
-                    <p className="text-2xl font-bold text-tmain">{formatCurrency(change)}</p>
+                    <p className="text-2xl font-bold font-data text-tmain">{formatCurrency(change)}</p>
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">
                     <button onClick={onClose} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">Anulo</button>
@@ -403,7 +404,7 @@ const PosScreen: React.FC = () => {
                     <div key={table.id} className="aspect-square flex justify-center items-center">
                         <button onClick={() => handleSelectTable(table.id)} className={`w-full h-full flex flex-col justify-center items-center rounded-lg shadow-lg transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-highlight ${table.order ? 'bg-highlight text-white' : 'bg-secondary text-tmain'}`}>
                             <span className="font-semibold text-2xl">{table.name}</span>
-                            {table.order && <span className="font-medium text-sm mt-1">{formatCurrency(table.order.total)}</span>}
+                            {table.order && <span className="font-medium font-data text-sm mt-1">{formatCurrency(table.order.total)}</span>}
                         </button>
                     </div>
                 ))}
@@ -625,7 +626,7 @@ const PosScreen: React.FC = () => {
                                             return (
                                                 <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-24 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
                                                     <p className="text-sm font-semibold text-tmain leading-tight">{item.name}</p>
-                                                    <p className="text-xs text-highlight mt-1 font-bold">{formatCurrency(item.price)}</p>
+                                                    <p className="text-xs text-highlight mt-1 font-bold font-data">{formatCurrency(item.price)}</p>
                                                     {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-tmain font-bold text-sm">STOKU 0</span></div>}
                                                 </button>
                                             )
@@ -649,7 +650,7 @@ const PosScreen: React.FC = () => {
                                         return (
                                             <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-20 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'hover:ring-2 hover:ring-highlight hover:-translate-y-1'}`}>
                                                 <p className="text-sm font-semibold text-tmain">{item.name}</p>
-                                                <p className="text-xs text-highlight mt-1">{formatCurrency(item.price)}</p>
+                                                <p className="text-xs text-highlight mt-1 font-data">{formatCurrency(item.price)}</p>
                                                 {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-tmain font-bold text-sm">STOKU 0</span></div>}
                                             </button>
                                         )
@@ -661,6 +662,7 @@ const PosScreen: React.FC = () => {
                 </main>
 
 
+                {/* USE STANDARD: Apply .font-data to the entire order panel for consistent number styling. */}
                 <aside className="w-1/2 md:w-1/3 lg:w-1/4 flex-shrink-0 bg-secondary flex flex-col p-4 shadow-inner">
                     <div className="flex-grow overflow-y-auto pt-2">
                         {currentOrderItems.length === 0 ? <p className="text-tsecondary text-center mt-8">Zgjidhni artikujt për të filluar porosinë.</p> : (
@@ -669,7 +671,7 @@ const PosScreen: React.FC = () => {
                                     <li key={item.uniqueId} className={`flex items-center p-2 rounded-md ${item.status === 'ordered' ? 'bg-border' : 'bg-primary'}`}>
                                         <div className="flex-grow">
                                             <p className="text-sm font-semibold text-tmain">{item.name}</p>
-                                            <p className="text-xs text-tsecondary">{formatCurrency(item.price)}</p>
+                                            <p className="text-xs font-data text-tsecondary">{formatCurrency(item.price)}</p>
                                             <p className="text-xs text-tsecondary">Shtuar nga: {item.addedBy}</p>
                                         </div>
                                         {item.status === 'new' ? (
@@ -695,10 +697,10 @@ const PosScreen: React.FC = () => {
                     <div className="flex-shrink-0 pt-4 border-t border-border mt-4">
                         <div className="space-y-1 text-sm">
                             {taxRate > 0 && <>
-                                <div className="flex justify-between text-tsecondary"><span>Nëntotali:</span><span>{formatCurrency(orderTotals.subtotal)}</span></div>
-                                <div className="flex justify-between text-tsecondary"><span>Tatimi ({Math.round(taxRate * 100)}%):</span><span>{formatCurrency(orderTotals.tax)}</span></div>
+                                <div className="flex justify-between text-tsecondary"><span>Nëntotali:</span><span className="font-data">{formatCurrency(orderTotals.subtotal)}</span></div>
+                                <div className="flex justify-between text-tsecondary"><span>Tatimi ({Math.round(taxRate * 100)}%):</span><span className="font-data">{formatCurrency(orderTotals.tax)}</span></div>
                             </>}
-                            <div className="flex justify-between text-lg font-bold text-tmain"><span>Totali:</span><span>{formatCurrency(orderTotals.total)}</span></div>
+                            <div className="flex justify-between text-lg font-bold text-tmain"><span>Totali:</span><span className="font-data">{formatCurrency(orderTotals.total)}</span></div>
                         </div>
                         <div className="w-full mt-4 flex space-x-2">
                             <button onClick={() => setPaymentModalOpen(true)} disabled={currentOrderItems.length === 0} className="w-1/2 py-3 bg-border text-tmain font-bold rounded-lg hover:bg-muted transition-colors disabled:bg-muted disabled:cursor-not-allowed">Fatura</button>

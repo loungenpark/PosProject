@@ -5,7 +5,40 @@
 /* Apply the "Void" theme globally */
 @layer base {
   body {
-    @apply bg-primary text-tmain;
+    /* 
+      Set global font family and features:
+      - font-sans: Use a modern, high-quality system font.
+      - slashed-zero: Puts a line through '0' to distinguish it from 'O'.
+      - tabular-nums: Ensures all numbers have the same width for perfect alignment.
+    */
+    @apply bg-primary text-tmain font-sans slashed-zero tabular-nums;
+  }
+}
+
+/* ==========================================================================
+   CUSTOM COMPONENT CLASSES (OUR STANDARDS)
+   ========================================================================== */
+@layer components {
+
+  /* 
+    STANDARD 1: Typography for Data/Numbers
+    - This class applies the special font style for clear, aligned numbers.
+    - We can apply this to any element (div, span, table) that shows numerical data.
+  */
+  .font-data {
+    @apply font-mono tabular-nums;
+    /* Force slashed zero for broader browser/font support */
+    font-feature-settings: "zero" 1;
+    font-variant-numeric: slashed-zero;
+  }
+
+  /* 
+    STANDARD 2: Data Table Component
+    - This is the complete style for any data table in our app.
+    - It combines basic layout (w-full, text-left) with our data typography standard.
+  */
+  .data-table {
+    @apply w-full text-left font-data;
   }
 }
 
@@ -22,12 +55,13 @@
 .order-ticket-container {
   width: 58mm;
   padding: 5px;
-  font-family: 'Courier New', Courier, monospace;
   font-size: 10pt;
   font-weight: bold;
   color: black;
   background: white;
   text-shadow: 0 0 0.5px black;
+  /* Use a modern monospaced font that supports slashed-zero and tabular-nums */
+  @apply font-mono;
 }
 
 /*

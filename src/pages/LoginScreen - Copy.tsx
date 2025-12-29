@@ -97,8 +97,8 @@ const LoginScreen: React.FC = () => {
   const numpadKeys = ['7', '8', '9', '4', '5', '6', '1', '2', '3'];
 
   // Updated to use bg-primary for contrast against the bg-secondary panel.
-  // USE STANDARD: Apply .font-data (which now contains font-feature-settings) for the slashed zero.
-  const buttonClasses = "p-4 text-2xl font-bold font-data text-tmain bg-primary rounded-lg border border-transparent hover:border-highlight focus:outline-none focus:ring-2 focus:ring-highlight transition-all duration-150 ease-in-out active:bg-highlight-hover active:scale-95";
+  // USE STANDARD: Apply .font-data to ensure the numpad uses our consistent, clear number styling.
+  const buttonClasses = "p-4 text-2xl font-bold text-tmain bg-primary rounded-lg border border-transparent hover:border-highlight focus:outline-none focus:ring-2 focus:ring-highlight transition-all duration-150 ease-in-out active:bg-highlight-hover active:scale-95 font-data";
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-primary">
