@@ -20,13 +20,12 @@ const pool = new Pool({
   port: parseInt(process.env.DB_PORT || '5432', 10),
 });
 
-pool.on('connect', () => {
-  console.log('✅ PostgreSQL database connected successfully!');
-});
+// Success logs removed to reduce terminal noise.
+// pool.on('connect', ...);
 
 pool.on('error', (err) => {
-    console.error('❌ Unexpected database error on idle client', err);
-    process.exit(-1);
+  console.error('❌ Unexpected database error on idle client', err);
+  process.exit(-1);
 });
 
 export const query = (text, params) => pool.query(text, params);

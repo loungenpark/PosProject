@@ -146,7 +146,7 @@ io.on('connection', (socket) => {
 app.post('/api/login', asyncHandler(async (req, res) => {
   const { pin } = req.body;
   // SECURITY: Check PIN in WHERE clause, but DO NOT select it
-  const { rows } = await query('SELECT id, username, role, active FROM users WHERE pin = $1 AND active = TRUE', [pin]);
+  const { rows } = await query('SELECT id, username, role, active, allowed_section_ids FROM users WHERE pin = $1 AND active = TRUE', [pin]);
   if (rows.length > 0) res.json({ user: rows[0] });
   else res.json({ user: null });
 }));
@@ -155,7 +155,7 @@ app.post('/api/login', asyncHandler(async (req, res) => {
 app.get('/api/bootstrap', asyncHandler(async (req, res) => {
   const [users, menuItems, menuCategories, settings, sections, tables, activeOrders] = await Promise.all([
     // SECURITY: Select specific columns to exclude 'pin'
-    query('SELECT id, username, role, active FROM users WHERE active = TRUE ORDER BY username ASC'),
+    query('SELECT id, username, role, active, allowed_section_ids FROM users WHERE active = TRUE ORDER BY username ASC'),
     query('SELECT *, category_name as category, stock_threshold as "stockThreshold", track_stock as "trackStock", stock_group_id as "stockGroupId", cost_price as "costPrice" FROM menu_items WHERE active = TRUE ORDER BY display_order ASC, name ASC'),
     query('SELECT * FROM menu_categories ORDER BY display_order ASC, name ASC'),
     query("SELECT key, value FROM settings"),
@@ -532,10 +532,30 @@ app.post('/api/users', asyncHandler(async (req, res) => {
   }
 
   // 2. If user doesn't exist, create new
-  const { rows } = await query('INSERT INTO users (username, pin, role) VALUES ($1, $2, $3) RETURNING id, username, role, active', [username, pin, role]);
+  const { rows } = await query('INSERT INTO users (username, pin, role, allowed_section_ids) VALUES ($1, $2, $3, $4) RETURNING id, username, role, active, allowed_section_ids', [username, pin, role, []]);
   res.status(201).json(rows[0]);
 }));
 
+// NEW: Edit User
+app.put('/api/users/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { username, pin, role, allowed_section_ids } = req.body;
+
+  let queryText = 'UPDATE users SET username = $1, role = $2, allowed_section_ids = $3';
+  const params = [username, role, allowed_section_ids];
+
+  // Only update PIN if provided (not empty)
+  if (pin && pin.trim() !== '') {
+    queryText += ', pin = $4';
+    params.push(pin);
+  }
+
+  queryText += ` WHERE id = $${params.length + 1} RETURNING id, username, role, active, allowed_section_ids`;
+  params.push(id);
+
+  const { rows } = await query(queryText, params);
+  res.json(rows[0]);
+}));
 
 app.delete('/api/users/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -1296,11 +1316,16 @@ app.use((err, req, res, next) => {
 });
 
 // --- AUTO-MIGRATION ---
-// This ensures the 'active' column exists on both PC1 and PC2 without manual SQL commands.
+// This ensures the DB structure is correct on all devices (PC1, PC2, New Clients)
 (async () => {
   try {
+    // 1. Menu Items 'active'
     await query(`ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE`);
-    console.log("✅ Migration Checked: 'active' column verified on menu_items.");
+
+    // 2. Users 'allowed_section_ids' (New Feature)
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_section_ids INTEGER[]`);
+
+    console.log("✅ Database Migrations Checked: Structure is up to date.");
   } catch (e) {
     console.error("⚠️ Migration Warning:", e.message);
   }

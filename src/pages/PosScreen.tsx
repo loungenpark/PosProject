@@ -81,7 +81,29 @@ const PaymentModal: React.FC<{
 // --- Main POS Screen Component ---
 const PosScreen: React.FC = () => {
     // --- ADDED: sections from context ---
-    const { loggedInUser, logout, setActiveScreen, menuItems, menuCategories, addSale, tables, sections, allSectionConfig, saveOrderForTable, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate } = usePos();
+    // --- State & Context ---
+    const { loggedInUser, logout, setActiveScreen, menuItems, menuCategories, addSale, tables, sections, allSectionConfig, saveOrderForTable, tablesPerRow, taxRate } = usePos();
+
+    // --- SMART DEFAULTS: Grid Columns ---
+    const [effectiveGridCols, setEffectiveGridCols] = useState(tablesPerRow);
+
+    useEffect(() => {
+        const calculateColumns = () => {
+            const stored = localStorage.getItem('tablesPerRow');
+            if (stored) {
+                // If user has manually saved a preference, respect the Context value (which allows slider adjustments)
+                setEffectiveGridCols(tablesPerRow);
+            } else {
+                // Otherwise, use Smart Defaults: 10 for PC, 5 for Mobile
+                setEffectiveGridCols(window.innerWidth < 768 ? 5 : 10);
+            }
+        };
+
+        calculateColumns(); // Initial check
+        window.addEventListener('resize', calculateColumns); // Responsive check
+        return () => window.removeEventListener('resize', calculateColumns);
+    }, [tablesPerRow]);
+
     const [activeTableId, setActiveTableId] = useState<number | null>(null);
     const [activeSectionId, setActiveSectionId] = useState<number | 'all'>('all'); // --- ADDED: Section State
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -95,51 +117,80 @@ const PosScreen: React.FC = () => {
     const [isSectionDropdownOpen, setIsSectionDropdownOpen] = useState(false);
 
     // 1. FILTER VISIBLE SECTIONS
-    const visibleSections = useMemo(() => sections.filter(s => !s.isHidden), [sections]);
+    const visibleSections = useMemo(() => {
+        // First, filter by what exists and isn't hidden globally
+        let available = sections.filter(s => !s.isHidden);
+
+        // Second, if user has specific restrictions, apply them
+        // If allowed_section_ids is empty or null, they see everything (Admin/Default behavior)
+        if (loggedInUser?.allowed_section_ids && loggedInUser.allowed_section_ids.length > 0) {
+            available = available.filter(s => loggedInUser.allowed_section_ids!.includes(s.id));
+        }
+
+        return available;
+    }, [sections, loggedInUser]);
     const hasSetDefaultRef = useRef(false);
 
-    // 2. APPLY DEFAULT OR FIRST VISIBLE SECTION
+    // --- PERMISSION LOGIC: Determine if "All Tables" tab should be visible ---
+    const isAllTabVisible = useMemo(() => {
+        // Condition 1: Must not be globally hidden
+        if (allSectionConfig.isHidden) {
+            return false;
+        }
+        // Condition 2: User permissions
+        const permissions = loggedInUser?.allowed_section_ids;
+        // Case A: User is unrestricted (Admin-like behavior, permissions are null/undefined/empty)
+        if (!permissions || permissions.length === 0) {
+            return true;
+        }
+        // Case B: User is restricted, must have explicit permission for 'All' (ID 0)
+        return permissions.includes(0);
+    }, [allSectionConfig.isHidden, loggedInUser?.allowed_section_ids]);
+
+
+    // --- Robust Section Selection Logic ---
     useEffect(() => {
-        // STARTUP LOGIC: If we haven't selected a default yet, FORCE selection based on config,
-        // ignoring the initial state of 'all' if it's not the configured default.
-        if (!hasSetDefaultRef.current) {
-            if (allSectionConfig.isDefault && !allSectionConfig.isHidden) {
+        const sectionsAreLoaded = visibleSections.length > 0 || isAllTabVisible;
+
+        // STARTUP LOGIC: Set default section only once, and only when sections are actually loaded.
+        if (!hasSetDefaultRef.current && sectionsAreLoaded) {
+            if (allSectionConfig.isDefault && isAllTabVisible) {
                 setActiveSectionId('all');
             } else {
                 const defaultSection = visibleSections.find(s => s.isDefault);
                 if (defaultSection) {
                     setActiveSectionId(defaultSection.id);
-                } else if (!allSectionConfig.isHidden) {
-                    // Fallback to All if available
+                } else if (isAllTabVisible) {
                     setActiveSectionId('all');
                 } else if (visibleSections.length > 0) {
-                    // Fallback to first visible
                     setActiveSectionId(visibleSections[0].id);
                 }
             }
-            hasSetDefaultRef.current = true;
+            hasSetDefaultRef.current = true; // Mark as "setup complete"
             return;
         }
 
-        // RUNTIME LOGIC: Ensure current selection remains valid (e.g., if a section is hidden dynamically)
-        let isCurrentValid = false;
+        // Guard: Don't run validation logic until the initial setup is done.
+        if (!hasSetDefaultRef.current) return;
 
+        // RUNTIME LOGIC: Ensure the currently selected section is still valid (e.g., not hidden by an admin).
+        let isCurrentValid = false;
         if (activeSectionId === 'all') {
-            isCurrentValid = !allSectionConfig.isHidden;
+            isCurrentValid = isAllTabVisible;
         } else if (activeSectionId === -1) {
-            isCurrentValid = true;
+            isCurrentValid = true; // "Të Tjera" is always valid
         } else {
             isCurrentValid = visibleSections.some(s => s.id === activeSectionId);
         }
 
         if (!isCurrentValid) {
-            // If current became invalid, fallback logic
+            // If current selection becomes invalid, fallback to the default or first available.
             const defaultSection = visibleSections.find(s => s.isDefault);
             if (defaultSection) setActiveSectionId(defaultSection.id);
-            else if (!allSectionConfig.isHidden) setActiveSectionId('all');
+            else if (isAllTabVisible) setActiveSectionId('all');
             else if (visibleSections.length > 0) setActiveSectionId(visibleSections[0].id);
         }
-    }, [visibleSections, activeSectionId, allSectionConfig]);
+    }, [visibleSections, activeSectionId, allSectionConfig, isAllTabVisible]);
 
     // Helper to get current section name for the header title
     const activeSectionName = useMemo(() => {
@@ -347,12 +398,12 @@ const PosScreen: React.FC = () => {
 
         // Helper: Render Grid to avoid duplication
         const renderTableGrid = (tableList: typeof tables) => (
-            <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${tablesPerRow}, minmax(0, 1fr))` }}>
+            <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${effectiveGridCols}, minmax(0, 1fr))` }}>
                 {tableList.map(table => (
                     <div key={table.id} className="aspect-square flex justify-center items-center">
-                        <button onClick={() => handleSelectTable(table.id)} className={`flex flex-col justify-center items-center rounded-lg shadow-lg transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-highlight ${table.order ? 'bg-highlight text-white' : 'bg-secondary text-tmain'}`} style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}>
-                            <span className="font-semibold" style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}>{table.name}</span>
-                            {table.order && <span className="font-medium" style={{ fontSize: `calc(0.75rem * ${tableSizePercent / 100})` }}>{formatCurrency(table.order.total)}</span>}
+                        <button onClick={() => handleSelectTable(table.id)} className={`w-full h-full flex flex-col justify-center items-center rounded-lg shadow-lg transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-highlight ${table.order ? 'bg-highlight text-white' : 'bg-secondary text-tmain'}`}>
+                            <span className="font-semibold text-2xl">{table.name}</span>
+                            {table.order && <span className="font-medium text-sm mt-1">{formatCurrency(table.order.total)}</span>}
                         </button>
                     </div>
                 ))}
@@ -397,7 +448,7 @@ const PosScreen: React.FC = () => {
                             ) : (
                                 // DESKTOP: Horizontal Tabs (Updated to h-11)
                                 <div className="flex space-x-2 overflow-x-auto scrollbar-hide items-center h-full px-2">
-                                    {!allSectionConfig.isHidden && (
+                                    {isAllTabVisible && (
                                         <button
                                             onClick={() => setActiveSectionId('all')}
                                             className={`px-5 h-11 flex items-center rounded-full font-semibold whitespace-nowrap transition-all border bg-primary ${activeSectionId === 'all' ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
@@ -476,7 +527,7 @@ const PosScreen: React.FC = () => {
 
                         {/* Menu */}
                         <div className="absolute top-[60px] left-2 w-64 bg-secondary rounded-lg shadow-2xl border border-border z-40 flex flex-col max-h-[70vh] overflow-y-auto animate-in fade-in slide-in-from-top-2">
-                            {!allSectionConfig.isHidden && (
+                            {isAllTabVisible && (
                                 <button
                                     onClick={() => { setActiveSectionId('all'); setIsSectionDropdownOpen(false); }}
                                     className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-semibold text-lg transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-secondary text-tmain hover:bg-primary'}`}

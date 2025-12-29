@@ -10,7 +10,7 @@ const TableManager: React.FC = () => {
     const {
         sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
         tables, addTable, updateTable, deleteTable,
-        tablesPerRow, setTablesPerRow, tableSizePercent, setTableSizePercent, tableButtonSizePercent, setTableButtonSizePercent
+        tablesPerRow, setTablesPerRow
     } = usePos();
 
     // UI State
@@ -287,7 +287,7 @@ const TableManager: React.FC = () => {
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="Emri..."
+                            placeholder="Shto"
                             value={newSectionName}
                             onChange={(e) => setNewSectionName(e.target.value)}
                             className="w-24 md:flex-grow bg-primary border-border rounded-md p-2 text-tmain text-sm focus:ring-1 focus:ring-highlight"
@@ -433,80 +433,32 @@ const TableManager: React.FC = () => {
                         </div>
                     ))}
                 </div>
+                {/* Tables Per Row Slider - MOVED HERE */}
+                <div className="mt-auto pt-4 border-t border-border">
+                    <div className="flex items-center justify-between gap-2">
+                        <label htmlFor="tablesPerRowInput" className="text-sm font-semibold text-tsecondary whitespace-nowrap">
+                            Tavolina në rresht:
+                        </label>
+                        <input
+                            id="tablesPerRowInput"
+                            type="number"
+                            min="2"
+                            max="15"
+                            value={tablesPerRow}
+                            onChange={(e) => setTablesPerRow(Number(e.target.value))}
+                            className="w-20 bg-primary border border-border rounded p-1 text-center font-bold text-tmain focus:ring-1 focus:ring-highlight [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* RIGHT COLUMN: TABLES GRID */}
             <div className="w-full md:w-3/4 bg-secondary p-4 md:p-6 rounded-lg flex flex-col shadow-lg border border-border flex-1 min-h-0 overflow-hidden">
 
-                {/* --- VISUAL SETTINGS TOOLBAR (NEW) --- */}
-                <div className="bg-primary p-2 md:p-3 rounded-lg border border-border mb-6 flex flex-wrap md:flex-row gap-2 md:gap-4 items-center shadow-inner overflow-x-auto flex-shrink-0">
-                    <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-semibold text-tsecondary whitespace-nowrap">
-                            <span className="hidden md:inline">Tavolina në rresht:</span>
-                            <span className="md:hidden">TR:</span>
-                        </span>
-                        <input
-                            type="number"
-                            min="2" max="10"
-                            value={tablesPerRow}
-                            onChange={(e) => setTablesPerRow(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-tmain focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                    </div>
-                    <div className="h-4 md:h-6 w-px bg-border hidden md:block"></div>
-                    <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-semibold text-tsecondary whitespace-nowrap">
-                            <span className="hidden md:inline">Madhësia (Buton):</span>
-                            <span className="md:hidden">MB:</span>
-                        </span>
-                        <input
-                            type="number"
-                            min="50" max="150"
-                            value={tableButtonSizePercent}
-                            onChange={(e) => setTableButtonSizePercent(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-tmain focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <span className="text-[10px] md:text-xs text-tsecondary">%</span>
-                    </div>
-                    <div className="h-4 md:h-6 w-px bg-border hidden md:block"></div>
-                    <div className="flex items-center gap-1 md:gap-2">
-                        <span className="text-xs md:text-sm font-semibold text-tsecondary whitespace-nowrap">
-                            <span className="hidden md:inline">Madhësia (Text):</span>
-                            <span className="md:hidden">MT:</span>
-                        </span>
-                        <input
-                            type="number"
-                            min="50" max="200"
-                            value={tableSizePercent}
-                            onChange={(e) => setTableSizePercent(Number(e.target.value))}
-                            className="w-10 md:w-16 bg-secondary border border-border rounded p-1 text-center font-bold text-tmain focus:ring-1 focus:ring-highlight text-xs md:text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <span className="text-[10px] md:text-xs text-tsecondary">%</span>
-                    </div>
-
-                    <div className="flex-grow"></div>
-
-                    {/* Reset Button */}
-                    <button
-                        onClick={() => {
-                            setTablesPerRow(5);
-                            setTableButtonSizePercent(100);
-                            setTableSizePercent(100);
-                        }}
-                        className="flex items-center justify-center gap-1 text-xs font-bold text-tsecondary hover:text-highlight transition-colors bg-secondary px-2 md:px-3 py-1 md:py-1.5 rounded border border-border h-7 md:h-auto w-7 md:w-auto"
-                        title="Reseto në vlerat fillestare"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                        </svg>
-                        <span className="hidden md:inline">Reseto</span>
-                    </button>
-                </div>
-
                 {/* Header / Tools - RESTRUCTURED for Mobile */}
-                <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-border pb-4 flex-shrink-0">
-                    {/* Left Side: Title on Desktop, Reorder button on Mobile */}
-                    <div className="flex items-center gap-4">
+                <div className="flex flex-row justify-between items-center mb-6 gap-4 border-b border-border pb-4 flex-shrink-0">
+                    {/* Left Side: Title & Reorder Button */}
+                    <div className="flex justify-between md:justify-start items-center gap-4">
                         <h3 className="text-xl font-semibold text-tsecondary hidden md:flex items-center gap-2">
                             <TableIcon className="w-6 h-6 text-highlight" />
                             {activeSectionId === 'all'
@@ -535,7 +487,7 @@ const TableManager: React.FC = () => {
 
                     {/* Right Side: Batch Creator & Actions */}
                     {activeSectionId !== 'all' && (
-                        <div className="flex items-center gap-1 bg-primary p-1.5 rounded-lg border border-border w-full md:w-auto justify-end">
+                        <div className="flex items-center gap-1 bg-primary p-1.5 rounded-lg border border-border justify-end">
                             <input
                                 type="text"
                                 value={batchPrefix}
@@ -598,11 +550,10 @@ const TableManager: React.FC = () => {
                                                     }}
                                                 >
                                                     <div
-                                                        className={`bg-primary rounded-lg shadow-sm flex flex-col relative group border transition-all overflow-hidden
+                                                        className={`bg-primary rounded-lg shadow-sm flex flex-col relative group border transition-all overflow-hidden w-full h-full
                                                             ${isReorderMode ? 'cursor-grab active:cursor-grabbing border-highlight border-dashed' : 'border-transparent hover:border-highlight'}
                                                             ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-highlight z-50' : ''}
                                                         `}
-                                                        style={{ width: `${tableButtonSizePercent}%`, height: `${tableButtonSizePercent}%` }}
                                                     >
                                                         {/* Delete Button (Hidden in Reorder Mode) */}
                                                         {!isReorderMode && (
@@ -631,9 +582,8 @@ const TableManager: React.FC = () => {
                                                                 type="text"
                                                                 defaultValue={table.name}
                                                                 // Use pointer-events-none to let drag pass through to the container
-                                                                className={`bg-transparent text-center font-medium text-tmain w-full focus:bg-secondary focus:outline-none rounded py-1 px-1 
+                                                                className={`bg-transparent text-center font-medium text-tmain w-full focus:bg-secondary focus:outline-none rounded py-1 px-1 text-2xl
                                                                     ${isReorderMode ? 'pointer-events-none opacity-50' : ''}`}
-                                                                style={{ fontSize: `calc(1.5rem * ${tableSizePercent / 100})` }}
                                                                 onBlur={(e) => handleRenameTable(table.id, table.name, e.target.value, e)}
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === 'Enter') e.currentTarget.blur();

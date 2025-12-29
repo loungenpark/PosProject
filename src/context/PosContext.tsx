@@ -42,9 +42,7 @@ interface PosContextState {
   setSaleToPrint: React.Dispatch<React.SetStateAction<Sale | null>>; orderToPrint: OrderToPrint | null;
   setOrderToPrint: React.Dispatch<React.SetStateAction<OrderToPrint | null>>; tables: Table[];
   setTableCount: (count: number) => void; updateOrderForTable: (tableId: number, order: Order | null) => void;
-  tablesPerRow: number; setTablesPerRow: (count: number) => void; tableSizePercent: number;
-  setTableSizePercent: (size: number) => void; tableButtonSizePercent: number;
-  setTableButtonSizePercent: (size: number) => void; taxRate: number;
+  tablesPerRow: number; setTablesPerRow: (count: number) => void; taxRate: number;
   setTaxRate: (rate: number) => Promise<void>; history: HistoryEntry[];
   saveOrderForTable: (tableId: number, updatedOrder: Order | null, newItems: OrderItem[]) => Promise<void>;
   refreshSalesFromServer: () => Promise<void>;
@@ -111,9 +109,12 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Initialize tables immediately if possible, but it will be overwritten by useEffect
   const [tables, setTables] = useState<Table[]>([]);
 
-  const [tablesPerRow, setTablesPerRowState] = useState<number>(5);
-  const [tableSizePercent, setTableSizePercentState] = useState<number>(100);
-  const [tableButtonSizePercent, setTableButtonSizePercentState] = useState<number>(100);
+  // --- Smart Default for Tables Per Row ---
+  const isMobile = useMemo(() => window.innerWidth <= 768, []);
+  const defaultTablesPerRow = isMobile ? 5 : 10;
+  // ---
+
+  const [tablesPerRow, setTablesPerRowState] = useState<number>(defaultTablesPerRow);
   const [taxRate, setTaxRateState] = useState<number>(0);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [operationalDayStartHour, setOperationalDayStartHour] = useState<number>(5); // Default to 5 AM
@@ -783,8 +784,6 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 
   const setTablesPerRow = useCallback((count: number) => { localStorage.setItem('tablesPerRow', count.toString()); setTablesPerRowState(count); }, []);
-  const setTableSizePercent = useCallback((size: number) => { localStorage.setItem('tableSizePercent', size.toString()); setTableSizePercentState(size); }, []);
-  const setTableButtonSizePercent = useCallback((size: number) => { localStorage.setItem('tableButtonSizePercent', size.toString()); setTableButtonSizePercentState(size); }, []);
 
 
 
@@ -991,9 +990,8 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTables(initialTables);
 
         // Load Settings
-        setTablesPerRowState(parseInt(localStorage.getItem('tablesPerRow') || '5', 10));
-        setTableSizePercentState(parseInt(localStorage.getItem('tableSizePercent') || '100', 10));
-        setTableButtonSizePercentState(parseInt(localStorage.getItem('tableButtonSizePercent') || '100', 10));
+        const savedTablesPerRow = localStorage.getItem('tablesPerRow');
+        setTablesPerRowState(savedTablesPerRow ? parseInt(savedTablesPerRow, 10) : defaultTablesPerRow);
 
         // 2. FETCH DATA (Strict Online)
         if (isBackendConfigured && navigator.onLine) {
@@ -1073,11 +1071,10 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const value = useMemo(() => ({
     isLoading, isOnline, isSyncing: false, loggedInUser, activeScreen, setActiveScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
-    setSaleToPrint, orderToPrint, setOrderToPrint, tables, tablesPerRow, tableSizePercent,
-    tableButtonSizePercent, taxRate, history, login, logout, addUser, deleteUser, addMenuItem, updateMenuItem,
+    setSaleToPrint, orderToPrint, setOrderToPrint, tables, tablesPerRow, taxRate, history, login, logout, addUser, deleteUser, addMenuItem, updateMenuItem,
     deleteMenuItem, importMenuItemsFromCSV, reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory,
     updateMenuCategory, deleteMenuCategory, reorderMenuCategories, addSale, setTableCount, updateOrderForTable,
-    setTablesPerRow, setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
+    setTablesPerRow, setTaxRate, saveOrderForTable,
     refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
     operationalDayStartHour, updateOperationalDayStartHour,
     sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,
@@ -1085,11 +1082,11 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }), [
     isLoading, isOnline, loggedInUser, activeScreen,
     users, menuItems, menuCategories, sales, saleToPrint,
-    orderToPrint, tables, tablesPerRow, tableSizePercent, tableButtonSizePercent, taxRate, history,
+    orderToPrint, tables, tablesPerRow, taxRate, history,
     login, logout, addUser, deleteUser, addMenuItem, updateMenuItem, deleteMenuItem, importMenuItemsFromCSV,
     reorderMenuItemsFromCSV, reorderMenuItems, addMenuCategory, updateMenuCategory, deleteMenuCategory,
     reorderMenuCategories, addSale, setTableCount, updateOrderForTable, setTablesPerRow,
-    setTableSizePercent, setTableButtonSizePercent, setTaxRate, saveOrderForTable,
+    setTaxRate, saveOrderForTable,
     refreshSalesFromServer, companyInfo, updateCompanySettings, addBulkStock, addWaste,
     operationalDayStartHour, updateOperationalDayStartHour,
     sections, allSectionConfig, addSection, updateSectionName, toggleSectionVisibility, setSectionDefault, deleteSection,

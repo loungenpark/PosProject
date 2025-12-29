@@ -14,6 +14,7 @@ export interface User {
   pin?: string; // Optional: Only present when creating/editing, never returned by server
   role: UserRole;
   active: boolean;
+  allowed_section_ids?: number[]; // --- ADDED: Access Control
 }
 
 export interface MenuItem {
