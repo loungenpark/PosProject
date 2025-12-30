@@ -5,12 +5,11 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
 import { Settings, Package, BarChart4 } from 'lucide-react';
-import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon } from '../components/common/Icons';
+import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon, GridIcon } from '../components/common/Icons';
 import TransferModal from '../components/modals/TransferModal';
 
 const formatCurrency = (amount: number) => {
-    // Use 'en-US' to ensure Dot (.) separator for decimals (e.g. 10.50 €)
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount).replace('€', '').trim() + ' €';
+    return `${Number(amount).toFixed(2)}€`;
 };
 
 // --- Payment Modal Component ---
@@ -482,34 +481,55 @@ const PosScreen: React.FC = () => {
                     </div>
 
                     {/* RIGHT: User Actions - REBUILT FOR STRUCTURAL SYMMETRY */}
-                    <div className="flex-shrink-0 flex items-center h-full gap-2 md:gap-4">
+                    <div className="flex-shrink-0 flex items-center justify-end h-full space-x-2 md:space-x-4">
                         {activeTableId === null ? (
                             // --- View when NO table is active (Buttons are now here) ---
                             <>
                                 {loggedInUser?.role === UserRole.ADMIN && (
                                     <>
-                                        {/* Screen Buttons - UPDATED: Forces h-11 (44px) to match sections exactly */}
-                                        <button onClick={() => setActiveScreen('sales')} className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+                                        {/* POS Button (Active) */}
+                                        <button
+                                            onClick={() => setActiveScreen('pos')}
+                                            className="flex items-center gap-2 px-4 h-11 bg-primary text-highlight font-semibold rounded-lg border-2 border-highlight transition-colors whitespace-nowrap shadow-sm"
+                                        >
+                                            <GridIcon className="w-5 h-5" />
+                                            <span className="hidden md:inline">POS</span>
+                                        </button>
+
+                                        {/* Raporte Button */}
+                                        <button
+                                            onClick={() => setActiveScreen('sales')}
+                                            className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap"
+                                        >
                                             <BarChart4 className="w-5 h-5" />
                                             <span className="hidden md:inline">Raporte</span>
                                         </button>
-                                        <button onClick={() => setActiveScreen('stock')} className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+
+                                        {/* Stoku Button */}
+                                        <button
+                                            onClick={() => setActiveScreen('stock')}
+                                            className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap"
+                                        >
                                             <Package className="w-5 h-5" />
                                             <span className="hidden md:inline">Stoku</span>
                                         </button>
-                                        <button onClick={() => setActiveScreen('admin')} className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap">
+
+                                        {/* Menaxhimi Button */}
+                                        <button
+                                            onClick={() => setActiveScreen('admin')}
+                                            className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap"
+                                        >
                                             <Settings className="w-5 h-5" />
                                             <span className="hidden md:inline">Menaxhimi</span>
                                         </button>
 
-                                        {/* Separator */}
-                                        <div className="w-px h-6 bg-border"></div>
                                     </>
                                 )}
 
                                 {/* User Info & Logout */}
-                                <span className="text-tsecondary text-sm md:text-base">{loggedInUser?.username}</span>
-                                <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors">
+                                <div className="w-px h-6 bg-border mx-2"></div>
+                                <span className="hidden md:inline text-tsecondary"> {loggedInUser?.username}</span>
+                                <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors" title="Dil">
                                     <LogoutIcon className="w-6 h-6" />
                                 </button>
                             </>

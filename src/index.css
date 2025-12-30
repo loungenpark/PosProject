@@ -26,7 +26,10 @@
     - We can apply this to any element (div, span, table) that shows numerical data.
   */
   .font-data {
-    @apply font-mono tabular-nums;
+    /* CHANGED: font-mono -> font-bold (or just inherit sans). 
+       tabular-nums keeps the numbers aligned vertically without the wide dot spacing. */
+    @apply font-bold tabular-nums;
+
     /* Force slashed zero for broader browser/font support */
     font-feature-settings: "zero" 1;
     font-variant-numeric: slashed-zero;

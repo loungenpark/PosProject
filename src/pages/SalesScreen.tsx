@@ -14,7 +14,8 @@ import {
     RefreshIcon,
     CalendarIcon,
     DownloadIcon,
-    GridIcon
+    GridIcon,
+    LogoutIcon
 } from '../components/common/Icons';
 
 const formatCurrency = (amount: number | string) => {
@@ -27,7 +28,7 @@ const formatCurrency = (amount: number | string) => {
 type SalesTab = 'incomes' | 'transactions' | 'items';
 
 const SalesScreen: React.FC = () => {
-    const { loggedInUser, setActiveScreen, users, companyInfo, taxRate, operationalDayStartHour } = usePos();
+    const { loggedInUser, setActiveScreen, logout, users, companyInfo, taxRate, operationalDayStartHour } = usePos();
     const [activeTab, setActiveTab] = useState<SalesTab>('incomes');
     const [localSales, setLocalSales] = useState<Sale[]>([]);
     const [orderTickets, setOrderTickets] = useState<any[]>([]);
@@ -447,30 +448,53 @@ const SalesScreen: React.FC = () => {
     return (
         <div className="fixed inset-0 bg-primary z-50 flex flex-col">
             <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md z-10">
-                <h1 className="hidden md:flex text-xl font-semibold text-tsecondary items-center gap-2">
+                <h1 className="hidden md:flex text-xl font-semibold text-highlight items-center gap-2">
                     <BarChart4 className="w-6 h-6 text-highlight" />
                     Raporte & Statistika
                 </h1>
                 <div className="flex items-center justify-end w-full md:w-auto space-x-2 md:space-x-4">
-                    {/* // This button's style is updated to have an outline hover effect instead of a background fill. */}
-                    <button onClick={() => setActiveScreen('pos')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+                    {/* POS Button */}
+                    <button
+                        onClick={() => setActiveScreen('pos')}
+                        className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2"
+                    >
                         <GridIcon className="w-5 h-5" />
                         <span className="hidden md:inline">POS</span>
                     </button>
-                    {/* // Updated Stock Button with Package icon */}
-                    <button onClick={() => setActiveScreen('stock')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+
+                    {/* Raporte Button (Active) */}
+                    <button
+                        onClick={() => setActiveScreen('sales')}
+                        className="px-4 h-11 bg-primary text-highlight font-semibold rounded-lg border-2 border-highlight transition-colors flex items-center gap-2 shadow-sm"
+                    >
+                        <BarChart4 className="w-5 h-5" />
+                        <span className="hidden md:inline">Raporte</span>
+                    </button>
+
+                    {/* Stoku Button */}
+                    <button
+                        onClick={() => setActiveScreen('stock')}
+                        className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2"
+                    >
                         <Package className="w-5 h-5" />
                         <span className="hidden md:inline">Stoku</span>
                     </button>
-                    {/* // Updated Admin Button with Settings icon */}
-                    <button onClick={() => setActiveScreen('admin')} className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2">
+
+                    {/* Menaxhimi Button */}
+                    <button
+                        onClick={() => setActiveScreen('admin')}
+                        className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2"
+                    >
                         <Settings className="w-5 h-5" />
                         <span className="hidden md:inline">Menaxhimi</span>
                     </button>
+
                     <div className="w-px h-6 bg-border mx-2"></div>
-                    <span className="text-tsecondary">{loggedInUser?.username}</span>
-                    <button onClick={() => setActiveScreen('pos')} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors">
-                        <CloseIcon className="w-6 h-6" />
+                    <span className="hidden md:inline text-tsecondary">{loggedInUser?.username}</span>
+
+                    {/* Logout Button */}
+                    <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors" title="Dil">
+                        <LogoutIcon className="w-6 h-6" />
                     </button>
                 </div>
             </header>
