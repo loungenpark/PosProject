@@ -60,7 +60,8 @@
         "amount_paid": "Shuma e Paguar",
         "change": "Kusuri",
         "insufficient_amount": "Shuma e paguar është e pamjaftueshme.",
-        "zone_selector": "Zona"
+        "zone_selector": "Zona",
+        "btn_pay": "Paguaj"
     },
     "sales": {
         "title": "Raporte & Statistika",

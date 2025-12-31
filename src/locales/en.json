@@ -60,7 +60,8 @@
         "amount_paid": "Amount Paid",
         "change": "Change",
         "insufficient_amount": "Amount paid is insufficient.",
-        "zone_selector": "Zone"
+        "zone_selector": "Zone",
+        "btn_pay": "Pay"
     },
     "sales": {
         "title": "Reports & Statistics",

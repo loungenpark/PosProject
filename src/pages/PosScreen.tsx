@@ -71,7 +71,7 @@ const PaymentModal: React.FC<{
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">
                     <button onClick={onClose} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">{t('common.cancel')}</button>
-                    <button onClick={handleFinalizeClick} className="px-4 py-2 rounded-md bg-success text-white hover:bg-success-hover">{t('common.save')}</button>
+                    <button onClick={handleFinalizeClick} className="px-4 py-2 rounded-md bg-success text-white hover:bg-success-hover">{t('pos.btn_pay')}</button>
                 </div>
                 {/* Spacer to allow scrolling past keyboard on very small screens */}
                 <div className="h-4 sm:h-0"></div>
