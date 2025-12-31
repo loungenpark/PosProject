@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from "@sentry/react";
 import App from './App';
 import { PosProvider } from './context/PosContext';
+import './i18n'; // LEFT: Initialize i18n configuration
 import './index.css'; // This line loads all your styles, including the print fixes.
 
 // Initialize Sentry

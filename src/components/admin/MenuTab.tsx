@@ -1,6 +1,7 @@
 // src/components/admin/MenuTab.tsx
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { usePos } from '../../context/PosContext';
 import { MenuItem, MenuCategory, Printer } from '../../types';
 import { EditIcon, TrashIcon, PlusIcon, UploadIcon, DragHandleIcon, SortIcon, CloseIcon } from '../common/Icons';
@@ -64,6 +65,7 @@ interface MenuItemFormProps {
     onCancel: () => void;
 }
 const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const { menuCategories } = usePos();
     const [formData, setFormData] = useState({
         name: item?.name || '',
@@ -107,7 +109,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
             await onSave({ ...item, ...dataToSave });
         } catch (error) {
             console.error("Failed to save menu item:", error);
-            alert("Ruajtja e artikullit dështoi.");
+            alert(t('admin.menu.alerts.save_fail'));
         } finally {
             setIsSaving(false);
         }
@@ -116,49 +118,47 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({ item, onSave, onCancel }) =
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label htmlFor="name" className="block text-sm font-medium text-tsecondary">Emri</label>
+                <label htmlFor="name" className="block text-sm font-medium text-tsecondary">{t('common.name')}</label>
                 <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" />
             </div>
             <div>
-                <label htmlFor="price" className="block text-sm font-medium text-tsecondary">Çmimi (€)</label>
+                <label htmlFor="price" className="block text-sm font-medium text-tsecondary">{t('admin.menu.form_price')}</label>
                 <input type="number" name="price" id="price" value={formData.price} onChange={handleChange} required step="0.01" min="0" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" />
             </div>
             <div>
-                <label htmlFor="category" className="block text-sm font-medium text-tsecondary">Menu (Kategoria)</label>
+                <label htmlFor="category" className="block text-sm font-medium text-tsecondary">{t('admin.menu.form_category')}</label>
                 <select name="category" id="category" value={formData.category} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight">
-                    <option value="" disabled>Zgjidhni një menu</option>
+                    <option value="" disabled>{t('admin.menu.select_category')}</option>
                     {menuCategories.map(cat => (
                         <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
                 </select>
             </div>
             <div>
-                <label htmlFor="printer" className="block text-sm font-medium text-tsecondary">Printeri</label>
+                <label htmlFor="printer" className="block text-sm font-medium text-tsecondary">{t('admin.menu.form_printer')}</label>
                 <select name="printer" id="printer" value={formData.printer} onChange={handleChange} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight">
-                    <option value={Printer.KITCHEN}>Kuzhina</option>
-                    <option value={Printer.BAR}>Shank</option>
+                    <option value={Printer.KITCHEN}>{t('admin.menu.kitchen')}</option>
+                    <option value={Printer.BAR}>{t('admin.menu.bar')}</option>
                 </select>
             </div>
             <div className="flex items-center space-x-2 pt-2">
                 <input type="checkbox" name="trackStock" id="trackStock" checked={formData.trackStock} onChange={handleChange} className="h-4 w-4 rounded border-border text-highlight focus:ring-highlight" />
-                <label htmlFor="trackStock" className="text-sm font-medium text-tsecondary">Ndjek Stokun</label>
+                <label htmlFor="trackStock" className="text-sm font-medium text-tsecondary">{t('admin.menu.track_stock')}</label>
             </div>
 
             <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
-                <label htmlFor="stockGroupId" className="block text-sm font-medium text-tsecondary">Grupi i Stokut (ID e Përbashkët)</label>
+                <label htmlFor="stockGroupId" className="block text-sm font-medium text-tsecondary">{t('admin.menu.stock_group')}</label>
                 <input type="text" name="stockGroupId" id="stockGroupId" value={formData.stockGroupId} onChange={handleChange} placeholder="psh. CAFFE (për të ndarë stokun)" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
-                <p className="text-xs text-tsecondary mt-1">Artikujt me të njëjtin ID grupi (psh. "CAFFE") do të kenë stok të përbashkët.</p>
+                <p className="text-xs text-tsecondary mt-1">{t('admin.menu.stock_group_hint')}</p>
             </div>
 
-            {/* REMOVED Stoku Fillestar input field */}
-
             <div className={`transition-opacity duration-300 ${formData.trackStock ? 'opacity-100' : 'opacity-50'}`}>
-                <label htmlFor="stockThreshold" className="block text-sm font-medium text-tsecondary">Pragu i Stokut të Ulët</label>
+                <label htmlFor="stockThreshold" className="block text-sm font-medium text-tsecondary">{t('admin.menu.stock_threshold')}</label>
                 <input type="number" name="stockThreshold" id="stockThreshold" value={formData.stockThreshold ?? ''} onChange={handleChange} min="0" className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" disabled={!formData.trackStock} />
             </div>
             <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">Anulo</button>
-                <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? 'Duke ruajtur...' : 'Ruaj Artikullin'}</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">{t('common.cancel')}</button>
+                <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? t('common.saving') : t('admin.menu.save_item')}</button>
             </div>
         </form>
     )
@@ -170,6 +170,7 @@ interface MenuFormProps {
     onCancel: () => void;
 }
 const MenuForm: React.FC<MenuFormProps> = ({ menu, onSave, onCancel }) => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const [name, setName] = useState(menu?.name || '');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -180,7 +181,7 @@ const MenuForm: React.FC<MenuFormProps> = ({ menu, onSave, onCancel }) => {
             await onSave({ id: menu?.id || 0, name, display_order: menu?.display_order || 0 });
         } catch (error) {
             console.error("Failed to save menu:", error);
-            alert("Ruajtja e menusë dështoi.");
+            alert(t('admin.menu.alerts.save_fail'));
         } finally {
             setIsSaving(false);
         }
@@ -189,12 +190,12 @@ const MenuForm: React.FC<MenuFormProps> = ({ menu, onSave, onCancel }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label htmlFor="menu-name" className="block text-sm font-medium text-tsecondary">Emri i Menusë</label>
+                <label htmlFor="menu-name" className="block text-sm font-medium text-tsecondary">{t('common.name')}</label>
                 <input type="text" id="menu-name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 block w-full bg-primary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight" />
             </div>
             <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">Anulo</button>
-                <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? 'Duke ruajtur...' : 'Ruaj Menunë'}</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">{t('common.cancel')}</button>
+                <button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-highlight text-white hover:bg-highlight-hover disabled:bg-muted">{isSaving ? t('common.saving') : t('admin.menu.save_menu')}</button>
             </div>
         </form>
     );
@@ -202,6 +203,7 @@ const MenuForm: React.FC<MenuFormProps> = ({ menu, onSave, onCancel }) => {
 
 // --- Main Tab Component ---
 const MenuTab: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const {
         menuItems, addMenuItem, updateMenuItem, deleteMenuItem, reorderMenuItems,
         menuCategories, addMenuCategory, updateMenuCategory, deleteMenuCategory, reorderMenuCategories,
@@ -227,7 +229,7 @@ const MenuTab: React.FC = () => {
         setIsImporting(true);
         try {
             const result = await importMenuItemsFromCSV(file);
-            alert(`Importi përfundoi!\n- ${result.itemsAdded} artikuj u shtuan.\n- ${result.categoriesAdded} kategori të reja u krijuan.\n- ${result.itemsSkipped} artikuj u anashkaluan.`);
+            alert(t('admin.menu.alerts.import_success', { added: result.itemsAdded, cats: result.categoriesAdded, skipped: result.itemsSkipped }));
         } catch (error) {
             alert(`Gabim: ${error instanceof Error ? error.message : 'Gabim i panjohur'}`);
         } finally {
@@ -242,7 +244,7 @@ const MenuTab: React.FC = () => {
         setIsReordering(true);
         try {
             const result = await reorderMenuItemsFromCSV(file);
-            alert(`Renditja përfundoi!\n- ${result.reorderedCount} artikuj u renditën.`);
+            alert(t('admin.menu.alerts.reorder_success', { count: result.reorderedCount }));
         } catch (error) {
             alert(`Gabim: ${error instanceof Error ? error.message : 'Gabim i panjohur'}`);
         } finally {
@@ -257,7 +259,7 @@ const MenuTab: React.FC = () => {
 
     const handleAddItem = () => {
         if (menuCategories.length === 0) {
-            alert("Ju lutemi shtoni një menu (kategori) fillimisht para se të shtoni një artikull.");
+            alert(t('admin.menu.alerts.no_category'));
             return;
         }
         setEditingItem(null);
@@ -329,7 +331,7 @@ const MenuTab: React.FC = () => {
                         : 'border-transparent text-tsecondary bg-transparent hover:border-highlight hover:text-highlight hover:bg-primary'
                         }`}
                 >
-                    Artikujt
+                    {t('admin.menu.items_tab')}
                 </button>
                 <button
                     onClick={() => setActiveSubTab('categories')}
@@ -338,7 +340,7 @@ const MenuTab: React.FC = () => {
                         : 'border-transparent text-tsecondary bg-transparent hover:border-highlight hover:text-highlight hover:bg-primary'
                         }`}
                 >
-                    Kategoritë
+                    {t('admin.menu.categories_tab')}
                 </button>
             </div>
 
@@ -358,7 +360,7 @@ const MenuTab: React.FC = () => {
                                 </div>
                                 <input
                                     type="text"
-                                    placeholder="Kërko artikuj..."
+                                    placeholder={t('admin.menu.search_placeholder')}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="block w-full pl-10 pr-3 py-2 border border-border rounded-md leading-5 bg-primary text-tmain placeholder-tsecondary focus:outline-none focus:ring-1 focus:ring-highlight focus:border-highlight sm:text-sm"
@@ -375,7 +377,7 @@ const MenuTab: React.FC = () => {
                                     title="Kolonat: Name, Price, Category, Printer"
                                 >
                                     <UploadIcon className="w-4 h-4" />
-                                    <span className="hidden md:inline">{isImporting ? '...' : 'Importo'}</span>
+                                    <span className="hidden md:inline">{isImporting ? '...' : t('admin.menu.import')}</span>
                                 </label>
 
                                 {/* Reorder Button */}
@@ -386,13 +388,13 @@ const MenuTab: React.FC = () => {
                                     title="Kolonat: Name"
                                 >
                                     <SortIcon className="w-4 h-4" />
-                                    <span className="hidden md:inline">{isReordering ? '...' : 'Rendit'}</span>
+                                    <span className="hidden md:inline">{isReordering ? '...' : t('admin.menu.reorder')}</span>
                                 </label>
 
                                 {/* Add Button */}
                                 <button onClick={handleAddItem} className="flex items-center space-x-1 px-3 py-2 bg-highlight text-white text-sm rounded-md hover:bg-highlight-hover transition-colors">
                                     <PlusIcon className="w-4 h-4" />
-                                    <span className="hidden md:inline">Shto</span>
+                                    <span className="hidden md:inline">{t('common.add')}</span>
                                 </button>
                             </div>
                         </div>
@@ -403,11 +405,11 @@ const MenuTab: React.FC = () => {
                                 <thead className="bg-border sticky top-0 z-10 shadow-sm">
                                     <tr>
                                         <th className="p-3 w-12 text-tsecondary">#</th>
-                                        <th className="p-3 text-tsecondary font-medium">Emri</th>
-                                        <th className="p-3 text-tsecondary font-medium">Menu</th>
-                                        <th className="p-3 text-tsecondary font-medium">Printeri</th>
-                                        <th className="p-3 text-tsecondary font-medium">Çmimi</th>
-                                        <th className="p-3 text-tsecondary font-medium">Veprimet</th>
+                                        <th className="p-3 text-tsecondary font-medium">{t('common.name')}</th>
+                                        <th className="p-3 text-tsecondary font-medium">{t('admin.menu.table_category')}</th>
+                                        <th className="p-3 text-tsecondary font-medium">{t('admin.menu.table_printer')}</th>
+                                        <th className="p-3 text-tsecondary font-medium">{t('common.price')}</th>
+                                        <th className="p-3 text-tsecondary font-medium">{t('common.actions')}</th>
                                     </tr>
                                 </thead>
 
@@ -476,9 +478,9 @@ const MenuTab: React.FC = () => {
                 {activeSubTab === 'categories' && (
                     <div className="flex flex-col flex-grow overflow-hidden bg-secondary p-4 md:p-6 rounded-lg shadow-sm animate-fade-in">
                         <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                            <h3 className="text-lg font-semibold text-tsecondary">Kategoritë (Menutë)</h3>
+                            <h3 className="text-lg font-semibold text-tsecondary">{t('admin.menu.categories_tab')}</h3>
                             <button onClick={handleAddMenu} className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-md hover:bg-highlight-hover transition-colors">
-                                <PlusIcon className="w-5 h-5" /><span>Shto Kategori</span>
+                                <PlusIcon className="w-5 h-5" /><span>{t('admin.menu.add_category')}</span>
                             </button>
                         </div>
 
@@ -487,8 +489,8 @@ const MenuTab: React.FC = () => {
                                 <thead className="bg-border sticky top-0 z-10 shadow-sm">
                                     <tr>
                                         <th className="p-3 w-12 text-tsecondary">#</th>
-                                        <th className="p-3 text-tsecondary font-medium">Emri</th>
-                                        <th className="p-3 text-right text-tsecondary font-medium">Veprimet</th>
+                                        <th className="p-3 text-tsecondary font-medium">{t('common.name')}</th>
+                                        <th className="p-3 text-right text-tsecondary font-medium">{t('common.actions')}</th>
                                     </tr>
                                 </thead>
                                 <StrictModeDroppable droppableId="categories-droppable" type="CATEGORIES">
@@ -522,11 +524,11 @@ const MenuTab: React.FC = () => {
                 )}
 
                 {/* MODALS */}
-                <Modal isOpen={isItemModalOpen} onClose={() => setItemModalOpen(false)} title={editingItem ? "Ndrysho Artikullin" : "Shto Artikull të Ri"}>
+                <Modal isOpen={isItemModalOpen} onClose={() => setItemModalOpen(false)} title={editingItem ? t('admin.menu.titles.edit_item') : t('admin.menu.titles.add_item')}>
                     <MenuItemForm item={editingItem} onSave={handleSaveItem} onCancel={() => setItemModalOpen(false)} />
                 </Modal>
 
-                <Modal isOpen={isMenuModalOpen} onClose={() => setMenuModalOpen(false)} title={editingMenu ? "Ndrysho Menunë" : "Shto Menu të Re"}>
+                <Modal isOpen={isMenuModalOpen} onClose={() => setMenuModalOpen(false)} title={editingMenu ? t('admin.menu.titles.edit_menu') : t('admin.menu.titles.add_menu')}>
                     <MenuForm menu={editingMenu} onSave={handleSaveMenu} onCancel={() => setMenuModalOpen(false)} />
                 </Modal>
             </DragDropContext>

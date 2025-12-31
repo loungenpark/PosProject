@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { usePos } from '../context/PosContext';
 import { MenuItem, OrderItem, Order, UserRole } from '../types';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { Settings, Package, BarChart4 } from 'lucide-react';
 import { LogoutIcon, TrashIcon, CloseIcon, ChevronLeftIcon, MenuIcon, GridIcon } from '../components/common/Icons';
 import TransferModal from '../components/modals/TransferModal';
@@ -16,6 +17,7 @@ const formatCurrency = (amount: number) => {
 const PaymentModal: React.FC<{
     isOpen: boolean; onClose: () => void; onFinalize: (amountPaid: number) => void; total: number;
 }> = ({ isOpen, onClose, onFinalize, total }) => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const [amount, setAmount] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -30,7 +32,7 @@ const PaymentModal: React.FC<{
 
     const handleFinalizeClick = () => {
         const finalAmount = amount.trim() === '' ? total : parseFloat(amount);
-        if (isNaN(finalAmount) || finalAmount < total) { alert("Shuma e paguar është e pamjaftueshme."); return; }
+        if (isNaN(finalAmount) || finalAmount < total) { alert(t('pos.insufficient_amount')); return; }
         onFinalize(finalAmount);
     };
 
@@ -44,13 +46,13 @@ const PaymentModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-primary/70 z-[60] flex justify-center items-start pt-2 md:items-center md:pt-0 overflow-y-auto">
             <div className="bg-secondary rounded-lg shadow-xl w-full max-w-sm m-4 p-6 space-y-4 relative">
-                <h3 className="text-xl font-semibold text-tmain">Finalizo Faturën</h3>
+                <h3 className="text-xl font-semibold text-tmain">{t('pos.finalize_title')}</h3>
                 <div className="text-center">
-                    <p className="text-tsecondary">Totali</p>
+                    <p className="text-tsecondary">{t('common.total')}</p>
                     <p className="text-4xl font-bold font-data text-highlight">{formatCurrency(total)}</p>
                 </div>
                 <div>
-                    <label htmlFor="amountPaid" className="block text-sm font-medium text-tsecondary">Shuma e Paguar (€)</label>
+                    <label htmlFor="amountPaid" className="block text-sm font-medium text-tsecondary">{t('pos.amount_paid')} (€)</label>
                     <input
                         ref={inputRef}
                         type="number"
@@ -64,12 +66,12 @@ const PaymentModal: React.FC<{
                     />
                 </div>
                 <div className="text-center p-3 bg-border rounded-lg">
-                    <p className="text-tsecondary">Kusuri</p>
+                    <p className="text-tsecondary">{t('pos.change')}</p>
                     <p className="text-2xl font-bold font-data text-tmain">{formatCurrency(change)}</p>
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">
-                    <button onClick={onClose} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">Anulo</button>
-                    <button onClick={handleFinalizeClick} className="px-4 py-2 rounded-md bg-success text-white hover:bg-success-hover">Finalizo</button>
+                    <button onClick={onClose} className="px-4 py-2 rounded-md bg-border text-tmain hover:bg-muted">{t('common.cancel')}</button>
+                    <button onClick={handleFinalizeClick} className="px-4 py-2 rounded-md bg-success text-white hover:bg-success-hover">{t('common.save')}</button>
                 </div>
                 {/* Spacer to allow scrolling past keyboard on very small screens */}
                 <div className="h-4 sm:h-0"></div>
@@ -80,6 +82,7 @@ const PaymentModal: React.FC<{
 
 // --- Main POS Screen Component ---
 const PosScreen: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     // --- ADDED: sections from context ---
     // --- State & Context ---
     const { loggedInUser, logout, setActiveScreen, menuItems, menuCategories, addSale, tables, sections, allSectionConfig, saveOrderForTable, tablesPerRow, taxRate } = usePos();
@@ -194,10 +197,10 @@ const PosScreen: React.FC = () => {
 
     // Helper to get current section name for the header title
     const activeSectionName = useMemo(() => {
-        if (activeSectionId === 'all') return allSectionConfig.customName || 'Të gjitha';
-        if (activeSectionId === -1) return 'Të Tjera';
-        return sections.find(s => s.id === activeSectionId)?.name || 'Zona';
-    }, [activeSectionId, sections, allSectionConfig]);
+        if (activeSectionId === 'all') return allSectionConfig.customName || t('pos.all_tables');
+        if (activeSectionId === -1) return t('pos.others');
+        return sections.find(s => s.id === activeSectionId)?.name || t('pos.zone_selector');
+    }, [activeSectionId, sections, allSectionConfig, t]);
 
     const filteredTables = useMemo(() => {
         if (sections.length === 0) return tables;
@@ -280,7 +283,7 @@ const PosScreen: React.FC = () => {
         const totalCurrentQuantity = currentOrderItems.filter(i => i.id === item.id).reduce((sum, i) => sum + i.quantity, 0);
 
         if (item.trackStock && isFinite(item.stock) && totalCurrentQuantity >= item.stock) {
-            alert(`Stoku i pamjaftueshëm për ${item.name}. Në stok: ${item.stock}`);
+            alert(t('pos.stock_low', { item: item.name, stock: item.stock }));
             return;
         }
 
@@ -344,7 +347,7 @@ const PosScreen: React.FC = () => {
         if (!finalOrder) return;
 
         if (isNaN(amountPaid) || amountPaid < finalOrder.total) {
-            alert("Shuma e paguar është e pamjaftueshme.");
+            alert(t('pos.insufficient_amount'));
             return;
         }
 
@@ -360,7 +363,7 @@ const PosScreen: React.FC = () => {
         // This component now ONLY handles the view when a table is active.
         return (
             <div className="flex items-center gap-2 md:gap-4">
-                <h2 className="text-lg font-bold text-tmain hidden md:block">Porosia Aktuale</h2>
+                <h2 className="text-lg font-bold text-tmain hidden md:block">{t('pos.current_order')}</h2>
 
                 {/* Options Menu (Transfer, etc.) */}
                 <div className="relative">
@@ -378,7 +381,7 @@ const PosScreen: React.FC = () => {
                                     onClick={() => { setTransferModalOpen(true); setIsOptionsMenuOpen(false); }}
                                     className="w-full text-left px-4 py-3 hover:bg-primary text-tmain font-semibold flex items-center transition-colors"
                                 >
-                                    <span className="mr-2">↔️</span> Transfero Tavolinën
+                                    <span className="mr-2">↔️</span> {t('pos.transfer_table')}
                                 </button>
                             </div>
                         </>
@@ -453,7 +456,7 @@ const PosScreen: React.FC = () => {
                                             onClick={() => setActiveSectionId('all')}
                                             className={`px-5 h-11 flex items-center rounded-full font-semibold whitespace-nowrap transition-all border bg-primary ${activeSectionId === 'all' ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
                                         >
-                                            {allSectionConfig.customName || 'Të gjitha'}
+                                            {allSectionConfig.customName || t('pos.all_tables')}
                                         </button>
                                     )}
                                     {visibleSections.map(section => (
@@ -470,13 +473,13 @@ const PosScreen: React.FC = () => {
                                             onClick={() => setActiveSectionId(-1)}
                                             className={`px-5 h-11 flex items-center rounded-full font-semibold whitespace-nowrap transition-all border bg-primary ${activeSectionId === -1 ? 'border-highlight text-highlight shadow-md' : 'text-tsecondary border-transparent hover:border-highlight hover:text-highlight'}`}
                                         >
-                                            Të Tjera
+                                            {t('pos.others')}
                                         </button>
                                     )}
                                 </div>
                             )
                         ) : (
-                            <h1 className="text-xl font-bold text-tmain px-2">Tavolinat</h1>
+                            <h1 className="text-xl font-bold text-tmain px-2">{t('pos.tables')}</h1>
                         )}
                     </div>
 
@@ -493,7 +496,7 @@ const PosScreen: React.FC = () => {
                                             className="flex items-center gap-2 px-4 h-11 bg-primary text-highlight font-semibold rounded-lg border-2 border-highlight transition-colors whitespace-nowrap shadow-sm"
                                         >
                                             <GridIcon className="w-5 h-5" />
-                                            <span className="hidden md:inline">POS</span>
+                                            <span className="hidden md:inline">{t('nav.pos')}</span>
                                         </button>
 
                                         {/* Raporte Button */}
@@ -502,7 +505,7 @@ const PosScreen: React.FC = () => {
                                             className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap"
                                         >
                                             <BarChart4 className="w-5 h-5" />
-                                            <span className="hidden md:inline">Raporte</span>
+                                            <span className="hidden md:inline">{t('nav.reports')}</span>
                                         </button>
 
                                         {/* Stoku Button */}
@@ -511,7 +514,7 @@ const PosScreen: React.FC = () => {
                                             className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap"
                                         >
                                             <Package className="w-5 h-5" />
-                                            <span className="hidden md:inline">Stoku</span>
+                                            <span className="hidden md:inline">{t('nav.stock')}</span>
                                         </button>
 
                                         {/* Menaxhimi Button */}
@@ -520,7 +523,7 @@ const PosScreen: React.FC = () => {
                                             className="flex items-center gap-2 px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors whitespace-nowrap"
                                         >
                                             <Settings className="w-5 h-5" />
-                                            <span className="hidden md:inline">Menaxhimi</span>
+                                            <span className="hidden md:inline">{t('nav.admin')}</span>
                                         </button>
 
                                     </>
@@ -529,7 +532,7 @@ const PosScreen: React.FC = () => {
                                 {/* User Info & Logout */}
                                 <div className="w-px h-6 bg-border mx-2"></div>
                                 <span className="hidden md:inline text-tsecondary"> {loggedInUser?.username}</span>
-                                <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors" title="Dil">
+                                <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors" title={t('nav.logout')}>
                                     <LogoutIcon className="w-6 h-6" />
                                 </button>
                             </>
@@ -553,7 +556,7 @@ const PosScreen: React.FC = () => {
                                     onClick={() => { setActiveSectionId('all'); setIsSectionDropdownOpen(false); }}
                                     className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-semibold text-lg transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-secondary text-tmain hover:bg-primary'}`}
                                 >
-                                    {allSectionConfig.customName || 'Të gjitha'}
+                                    {allSectionConfig.customName || t('pos.all_tables')}
                                 </button>
                             )}
                             {visibleSections.map(s => (
@@ -570,7 +573,7 @@ const PosScreen: React.FC = () => {
                                     onClick={() => { setActiveSectionId(-1); setIsSectionDropdownOpen(false); }}
                                     className={`w-full text-left px-6 py-4 border-b border-border last:border-0 font-semibold text-lg transition-colors ${activeSectionId === -1 ? 'bg-highlight text-white' : 'bg-secondary text-tmain hover:bg-primary'}`}
                                 >
-                                    Të Tjera
+                                    {t('pos.others')}
                                 </button>
                             )}
                         </div>
@@ -585,7 +588,7 @@ const PosScreen: React.FC = () => {
                         ) : (
                             filteredTables.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center text-tsecondary opacity-50 py-20">
-                                    <p className="text-lg">Asnjë tavolinë në këtë zonë.</p>
+                                    <p className="text-lg">{t('pos.no_tables_zone')}</p>
                                 </div>
                             ) : (
                                 <div>
@@ -647,7 +650,7 @@ const PosScreen: React.FC = () => {
                                                 <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-24 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
                                                     <p className="text-sm font-semibold text-tmain leading-tight">{item.name}</p>
                                                     <p className="text-xs text-highlight mt-1 font-bold font-data">{formatCurrency(item.price)}</p>
-                                                    {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-tmain font-bold text-sm">STOKU 0</span></div>}
+                                                    {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-tmain font-bold text-sm">{t('pos.stock_zero_badge')}</span></div>}
                                                 </button>
                                             )
                                         })}
@@ -671,7 +674,7 @@ const PosScreen: React.FC = () => {
                                             <button key={item.id} onClick={() => addToOrder(item)} disabled={isOutOfStock} className={`relative bg-secondary rounded-lg p-2 text-center shadow-lg transition-all transform focus:outline-none flex flex-col justify-center items-center h-20 ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : 'hover:ring-2 hover:ring-highlight hover:-translate-y-1'}`}>
                                                 <p className="text-sm font-semibold text-tmain">{item.name}</p>
                                                 <p className="text-xs text-highlight mt-1 font-data">{formatCurrency(item.price)}</p>
-                                                {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-tmain font-bold text-sm">STOKU 0</span></div>}
+                                                {isOutOfStock && <div className="absolute inset-0 bg-primary/60 rounded-lg flex items-center justify-center"><span className="text-tmain font-bold text-sm">{t('pos.stock_zero_badge')}</span></div>}
                                             </button>
                                         )
                                     })}
@@ -685,21 +688,21 @@ const PosScreen: React.FC = () => {
                 {/* USE STANDARD: Apply .font-data to the entire order panel for consistent number styling. */}
                 <aside className="w-1/2 md:w-1/3 lg:w-1/4 flex-shrink-0 bg-secondary flex flex-col p-4 shadow-inner">
                     <div className="flex-grow overflow-y-auto pt-2">
-                        {currentOrderItems.length === 0 ? <p className="text-tsecondary text-center mt-8">Zgjidhni artikujt për të filluar porosinë.</p> : (
+                        {currentOrderItems.length === 0 ? <p className="text-tsecondary text-center mt-8">{t('pos.empty_cart')}</p> : (
                             <ul className="space-y-2">
                                 {currentOrderItems.map((item) => (
                                     <li key={item.uniqueId} className={`flex items-center p-2 rounded-md ${item.status === 'ordered' ? 'bg-border' : 'bg-primary'}`}>
                                         <div className="flex-grow">
                                             <p className="text-sm font-semibold text-tmain">{item.name}</p>
                                             <p className="text-xs font-data text-tsecondary">{formatCurrency(item.price)}</p>
-                                            <p className="text-xs text-tsecondary">Shtuar nga: {item.addedBy}</p>
+                                            <p className="text-xs text-tsecondary">{t('pos.added_by')}: {item.addedBy}</p>
                                         </div>
                                         {item.status === 'new' ? (
                                             <div className="flex items-center justify-end">
                                                 <button
                                                     onClick={() => item.uniqueId && removeFromOrder(item.uniqueId)}
                                                     className="p-2 text-danger hover:text-danger-hover hover:bg-secondary rounded transition-colors"
-                                                    title="Fshij"
+                                                    title={t('common.delete', 'Fshij')}
                                                 >
                                                     <TrashIcon className="w-5 h-5" />
                                                 </button>
@@ -717,14 +720,14 @@ const PosScreen: React.FC = () => {
                     <div className="flex-shrink-0 pt-4 border-t border-border mt-4">
                         <div className="space-y-1 text-sm">
                             {taxRate > 0 && <>
-                                <div className="flex justify-between text-tsecondary"><span>Nëntotali:</span><span className="font-data">{formatCurrency(orderTotals.subtotal)}</span></div>
-                                <div className="flex justify-between text-tsecondary"><span>Tatimi ({Math.round(taxRate * 100)}%):</span><span className="font-data">{formatCurrency(orderTotals.tax)}</span></div>
+                                <div className="flex justify-between text-tsecondary"><span>{t('pos.subtotal')}:</span><span className="font-data">{formatCurrency(orderTotals.subtotal)}</span></div>
+                                <div className="flex justify-between text-tsecondary"><span>{t('pos.tax')} ({Math.round(taxRate * 100)}%):</span><span className="font-data">{formatCurrency(orderTotals.tax)}</span></div>
                             </>}
-                            <div className="flex justify-between text-lg font-bold text-tmain"><span>Totali:</span><span className="font-data">{formatCurrency(orderTotals.total)}</span></div>
+                            <div className="flex justify-between text-lg font-bold text-tmain"><span>{t('common.total')}:</span><span className="font-data">{formatCurrency(orderTotals.total)}</span></div>
                         </div>
                         <div className="w-full mt-4 flex space-x-2">
-                            <button onClick={() => setPaymentModalOpen(true)} disabled={currentOrderItems.length === 0} className="w-1/2 py-3 bg-border text-tmain font-bold rounded-lg hover:bg-muted transition-colors disabled:bg-muted disabled:cursor-not-allowed">Fatura</button>
-                            <button onClick={handleSaveOrder} className="w-1/2 py-3 bg-highlight text-white font-bold rounded-lg hover:bg-highlight-hover transition-colors">Porosit</button>
+                            <button onClick={() => setPaymentModalOpen(true)} disabled={currentOrderItems.length === 0} className="w-1/2 py-3 bg-border text-tmain font-bold rounded-lg hover:bg-muted transition-colors disabled:bg-muted disabled:cursor-not-allowed">{t('pos.btn_bill')}</button>
+                            <button onClick={handleSaveOrder} className="w-1/2 py-3 bg-highlight text-white font-bold rounded-lg hover:bg-highlight-hover transition-colors">{t('pos.btn_order')}</button>
                         </div>
                     </div>
                 </aside>

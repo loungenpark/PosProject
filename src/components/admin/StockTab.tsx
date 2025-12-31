@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { usePos } from '../../context/PosContext';
 import * as api from '../../utils/api';
 import { MenuItem, StockMovement } from '../../types';
@@ -59,6 +60,7 @@ interface HistoryViewProps {
     onClose: () => void;
 }
 const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<{
         supply: { total: number; details: StockMovement[] };
@@ -78,16 +80,16 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
     }, [item.id]);
 
     return (
-        <Modal isOpen={true} onClose={onClose} title={`Historiku: ${item.name}`}>
+        <Modal isOpen={true} onClose={onClose} title={t('stock.history_modal.title', { item: item.name })}>
             {loading ? (
-                <div className="text-center py-8 text-tsecondary">Duke ngarkuar...</div>
+                <div className="text-center py-8 text-tsecondary">{t('stock.history_modal.loading')}</div>
             ) : (
                 <div className="space-y-2">
                     {[
-                        { type: 'supply', label: 'Furnizim', data: data.supply, color: 'text-success' },
-                        { type: 'waste', label: 'Humbje', data: data.waste, color: 'text-danger' },
-                        { type: 'correction', label: 'Korrigjim', data: data.correction, color: 'text-accent' },
-                        { type: 'sale', label: 'Shitje', data: data.sale, color: 'text-highlight' }
+                        { type: 'supply', label: t('stock.history_modal.supply'), data: data.supply, color: 'text-success' },
+                        { type: 'waste', label: t('stock.history_modal.waste'), data: data.waste, color: 'text-danger' },
+                        { type: 'correction', label: t('stock.history_modal.correction'), data: data.correction, color: 'text-accent' },
+                        { type: 'sale', label: t('stock.history_modal.sale'), data: data.sale, color: 'text-highlight' }
                     ].map(cat => (
                         <div key={cat.type} className="rounded-md overflow-hidden">
                             <div
@@ -104,10 +106,10 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
                                     <table className="w-full text-left text-sm">
                                         <thead className="text-tsecondary">
                                             <tr>
-                                                <th className="p-2">Data</th>
-                                                <th className="p-2">Detaje</th>
-                                                <th className="p-2 text-right">Sasia</th>
-                                                <th className="p-2">User</th>
+                                                <th className="p-2">{t('common.date')}</th>
+                                                <th className="p-2">{t('stock.history_modal.details')}</th>
+                                                <th className="p-2 text-right">{t('common.quantity')}</th>
+                                                <th className="p-2">{t('common.user')}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/30">
@@ -130,7 +132,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
                         </div>
                     ))}
                     {data.supply.total === 0 && data.waste.total === 0 && data.sale.total === 0 && data.correction.total === 0 && (
-                        <p className="text-center text-tsecondary py-4">S'ka të dhëna.</p>
+                        <p className="text-center text-tsecondary py-4">{t('stock.history_modal.no_data')}</p>
                     )}
                 </div>
             )}
@@ -140,6 +142,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ item, onClose }) => {
 
 // --- VIEW 1: PASQYRA (OVERVIEW WITH VALUATION) ---
 const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const [historyItem, setHistoryItem] = useState<ExtendedMenuItem | null>(null);
 
     // Filter only tracked items
@@ -210,14 +213,14 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                 <table className="w-full text-left text-sm">
                     <thead className="bg-border sticky top-0 z-10 text-tsecondary font-medium">
                         <tr>
-                            <th className="p-3">Artikulli</th>
-                            <th className="p-3 text-center">Historiku</th>
-                            <th className="p-3 text-right">Pragu</th>
-                            <th className="p-3 text-right">Stoku Aktual</th>
-                            <th className="p-3 text-right">Cmimi Blerës</th>
-                            <th className="p-3 text-right">Vlera Blerëse</th>
-                            <th className="p-3 text-right">Vlera e Shitjes</th>
-                            <th className="p-3 text-right">Profit</th>
+                            <th className="p-3">{t('common.item')}</th>
+                            <th className="p-3 text-center">{t('stock.overview.history')}</th>
+                            <th className="p-3 text-right">{t('stock.overview.threshold')}</th>
+                            <th className="p-3 text-right">{t('stock.overview.current_stock')}</th>
+                            <th className="p-3 text-right">{t('stock.overview.cost_price')}</th>
+                            <th className="p-3 text-right">{t('stock.overview.cost_value')}</th>
+                            <th className="p-3 text-right">{t('stock.overview.sales_value')}</th>
+                            <th className="p-3 text-right">{t('stock.overview.profit')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border bg-secondary">
@@ -266,14 +269,14 @@ const StockOverview: React.FC<{ items: ExtendedMenuItem[] }> = ({ items }) => {
                             );
                         })}
                         {trackedItems.length === 0 && (
-                            <tr><td colSpan={8} className="p-8 text-center text-tsecondary">Asnjë artikull nuk ndjek stokun.</td></tr>
+                            <tr><td colSpan={8} className="p-8 text-center text-tsecondary">{t('stock.overview.no_tracked_items')}</td></tr>
                         )}
                     </tbody>
 
                     {/* STICKY FOOTER WITH TOTALS */}
                     <tfoot className="sticky bottom-0 bg-secondary border-t-2 border-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
                         <tr className="font-semibold text-tmain">
-                            <td className="p-3" colSpan={3}>TOTALET (Artikuj Unik)</td>
+                            <td className="p-3" colSpan={3}>{t('stock.overview.totals')}</td>
                             <td className="p-3 text-right font-mono slashed-zero text-lg text-highlight">{totals.stock}</td>
                             <td className="p-3"></td>
                             <td className="p-3 text-right font-mono slashed-zero text-lg">{totals.costVal.toFixed(2)}€</td>
@@ -296,6 +299,7 @@ interface StockSupplyProps {
 }
 
 const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const { menuItems, addBulkStock } = usePos();
     const [searchTerm, setSearchTerm] = useState('');
     const [cart, setCart] = useState<ExtendedStockUpdateItem[]>([]);
@@ -334,21 +338,21 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
             const reason = `Furnizim: ${supplier} ${invoiceRef ? `(#${invoiceRef})` : ''}`.trim();
             // The API now accepts totalCost in the payload
             await addBulkStock(cart as any, reason);
-            onAlert("Stoku u përditësua me sukses!", false);
+            onAlert(t('stock.supply.success_alert'), false);
             setCart([]); setSupplier(''); setInvoiceRef('');
-        } catch (e) { onAlert("Gabim gjatë ruajtjes.", true); }
+        } catch (e) { onAlert(t('stock.supply.fail_alert'), true); }
         setIsSaving(false);
     };
 
     return (
         <div className="flex flex-col h-full space-y-4">
             <div className="grid grid-cols-2 gap-4">
-                <input type="text" placeholder="Furnitori" value={supplier} onChange={e => setSupplier(e.target.value)} className="bg-primary border-border rounded p-2 text-tmain placeholder-tsubtle" />
-                <input type="text" placeholder="Nr. Faturës" value={invoiceRef} onChange={e => setInvoiceRef(e.target.value)} className="bg-primary border-border rounded p-2 text-tmain placeholder-tsubtle" />
+                <input type="text" placeholder={t('stock.supply.supplier_placeholder')} value={supplier} onChange={e => setSupplier(e.target.value)} className="bg-primary border-border rounded p-2 text-tmain placeholder-tsubtle" />
+                <input type="text" placeholder={t('stock.supply.invoice_placeholder')} value={invoiceRef} onChange={e => setInvoiceRef(e.target.value)} className="bg-primary border-border rounded p-2 text-tmain placeholder-tsubtle" />
             </div>
 
             <div className="relative">
-                <input ref={searchInputRef} type="text" placeholder="Kërko artikull..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-primary border-border rounded p-3 pl-10 text-tmain focus:ring-highlight" />
+                <input ref={searchInputRef} type="text" placeholder={t('stock.supply.search_placeholder')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-primary border-border rounded p-3 pl-10 text-tmain focus:ring-highlight" />
                 {searchTerm && (
                     <div className="absolute top-full w-full bg-secondary border border-border shadow-xl max-h-60 overflow-y-auto z-50">
                         {filtered.map(item => (
@@ -364,9 +368,9 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                 <table className="w-full text-left">
                     <thead className="bg-border text-tsecondary sticky top-0">
                         <tr>
-                            <th className="p-3">Artikulli</th>
-                            <th className="p-3 text-center">Shto Sasi</th>
-                            <th className="p-3 text-center">Vlera Totale (€)</th>
+                            <th className="p-3">{t('common.item')}</th>
+                            <th className="p-3 text-center">{t('stock.supply.add_qty_header')}</th>
+                            <th className="p-3 text-center">{t('stock.supply.total_value_header')}</th>
                             <th className="p-3"></th>
                         </tr>
                     </thead>
@@ -410,19 +414,19 @@ const StockSupply: React.FC<StockSupplyProps> = ({ onAlert }) => {
                                 </tr>
                             ) : null;
                         })}
-                        {cart.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-tsecondary">Bosh</td></tr>}
+                        {cart.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-tsecondary">{t('stock.supply.empty_cart')}</td></tr>}
                     </tbody>
                 </table>
             </div>
 
             <div className="flex justify-end pt-2 items-center space-x-4">
                 <div className="text-tsecondary text-sm">
-                    {cart.length} artikuj | Totali: <span className="text-tmain font-mono slashed-zero font-bold">
+                    {t('stock.supply.cart_summary', { count: cart.length })} | {t('common.total')}: <span className="text-tmain font-mono slashed-zero font-bold">
                         {cart.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)}€
                     </span>
                 </div>
                 <button onClick={handleSave} disabled={cart.length === 0 || isSaving} className="px-6 py-3 bg-success text-white font-bold rounded hover:bg-success-hover disabled:bg-muted">
-                    {isSaving ? 'Duke ruajtur...' : 'Ruaj Furnizimin'}
+                    {isSaving ? t('common.saving') : t('stock.supply.save_button')}
                 </button>
             </div>
         </div>
@@ -436,6 +440,7 @@ interface SingleActionViewProps {
 }
 
 const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const { menuItems, addWaste, addBulkStock } = usePos();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
@@ -451,28 +456,25 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
         if (!selectedItem || !quantity) return;
         const qty = parseInt(quantity);
         if (qty <= 0) {
-            onAlert("Sasia duhet të jetë më e madhe se 0.", true);
+            onAlert(t('stock.shared.quantity_alert'), true);
             return;
         }
 
         setIsSubmitting(true);
         try {
             if (mode === 'waste') {
-                // Pass 'waste' type explicitly
-                await addWaste(selectedItem.id, qty, reason || 'Humbje (Waste)', 'waste');
+                await addWaste(selectedItem.id, qty, reason || t('stock.waste.title'), 'waste');
             } else {
-                const finalReason = `[KORRIGJIM] ${reason}`.trim();
+                const finalReason = `[${t('stock.correction.title').toUpperCase()}] ${reason}`.trim();
                 if (correctionType === 'add') {
-                    // Pass 'correction' type for addition
                     await addBulkStock([{ itemId: selectedItem.id, quantity: qty, totalCost: 0 }], finalReason, 'correction');
                 } else {
-                    // Pass 'correction' type for removal
                     await addWaste(selectedItem.id, qty, finalReason, 'correction');
                 }
             }
-            onAlert("U regjistrua me sukses!", false);
+            onAlert(t('stock.shared.success_alert'), false);
             setSelectedItem(null); setQuantity(''); setReason(''); setSearchTerm('');
-        } catch (err) { onAlert("Veprimi dështoi.", true); }
+        } catch (err) { onAlert(t('stock.shared.fail_alert'), true); }
         setIsSubmitting(false);
     };
 
@@ -480,14 +482,14 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
         <div className="max-w-xl mx-auto mt-8 p-6 bg-primary rounded-lg border border-border shadow-lg">
             <h3 className="text-xl font-semibold text-tsecondary mb-6 flex items-center gap-2">
                 {mode === 'waste' ? <MinusCircleIcon className="w-6 h-6 text-danger" /> : <CheckIcon className="w-6 h-6 text-highlight" />}
-                {mode === 'waste' ? 'Regjistro Humbje' : 'Korrigjo Stokun'}
+                {mode === 'waste' ? t('stock.waste.title') : t('stock.correction.title')}
             </h3>
 
             <div className="space-y-4">
                 {!selectedItem ? (
                     <div className="relative">
-                        <label className="block text-sm text-tsecondary mb-1">Kërko Artikull</label>
-                        <input type="text" autoFocus value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-tmain focus:ring-highlight" placeholder="Shkruaj emrin..." />
+                        <label className="block text-sm text-tsecondary mb-1">{t('stock.shared.search_item')}</label>
+                        <input type="text" autoFocus value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-tmain focus:ring-highlight" placeholder={t('stock.shared.write_name')} />
                         {searchTerm && (
                             <div className="absolute top-full w-full bg-secondary border border-border shadow-xl max-h-48 overflow-y-auto z-10 mt-1 rounded">
                                 {filtered.map(item => (
@@ -502,9 +504,9 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                     <div className="flex items-center justify-between bg-secondary p-3 rounded border border-border">
                         <div>
                             <span className="font-bold text-lg text-tmain">{selectedItem.name}</span>
-                            <div className="text-sm text-tsecondary">Stoku Aktual: {selectedItem.stock}</div>
+                            <div className="text-sm text-tsecondary">{t('stock.shared.current_stock')}: {selectedItem.stock}</div>
                         </div>
-                        <button onClick={() => setSelectedItem(null)} className="text-sm text-highlight hover:underline">Ndrysho</button>
+                        <button onClick={() => setSelectedItem(null)} className="text-sm text-highlight hover:underline">{t('stock.shared.change_button')}</button>
                     </div>
                 )}
 
@@ -512,11 +514,11 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                     <div className="flex gap-4">
                         <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'add' ? 'bg-success-bg border-success text-success' : 'bg-secondary border-border text-tsecondary'}`}>
                             <input type="radio" name="ctype" className="hidden" checked={correctionType === 'add'} onChange={() => setCorrectionType('add')} />
-                            + Shto (Gjetur)
+                            {t('stock.correction.add_option')}
                         </label>
                         <label className={`flex-1 p-3 rounded border cursor-pointer text-center font-bold transition-colors ${correctionType === 'remove' ? 'bg-danger-bg border-danger text-danger' : 'bg-secondary border-border text-tsecondary'}`}>
                             <input type="radio" name="ctype" className="hidden" checked={correctionType === 'remove'} onChange={() => setCorrectionType('remove')} />
-                            - Zbrit (Humbur)
+                            {t('stock.correction.remove_option')}
                         </label>
                     </div>
                 )}
@@ -524,15 +526,15 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
                 {selectedItem && (
                     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                         <div>
-                            <label className="block text-sm text-tsecondary mb-1">Sasia {mode === 'correction' ? '(Për t\'u korrigjuar)' : '(E Humbur)'}</label>
+                            <label className="block text-sm text-tsecondary mb-1">{mode === 'correction' ? t('stock.correction.quantity_label') : t('stock.waste.quantity_label')}</label>
                             <input type="number" min="1" required autoFocus value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-2xl font-mono slashed-zero font-bold text-center text-tmain focus:ring-highlight" placeholder="0" />
                         </div>
                         <div>
-                            <label className="block text-sm text-tsecondary mb-1">Arsyeja / Shënim</label>
-                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-tmain focus:ring-highlight" placeholder={mode === 'waste' ? "psh. U thye" : "psh. Numërim fizik"} />
+                            <label className="block text-sm text-tsecondary mb-1">{t('stock.shared.reason_label')}</label>
+                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-secondary border-border rounded p-3 text-tmain focus:ring-highlight" placeholder={mode === 'waste' ? t('stock.waste.reason_placeholder') : t('stock.correction.reason_placeholder')} />
                         </div>
                         <button disabled={isSubmitting} className={`w-full py-4 rounded-lg font-bold text-white shadow-lg transition-transform active:scale-95 ${mode === 'waste' || (mode === 'correction' && correctionType === 'remove') ? 'bg-danger hover:bg-danger-hover' : 'bg-success hover:bg-success-hover'}`}>
-                            {isSubmitting ? '...' : 'Konfirmo'}
+                            {isSubmitting ? t('common.submitting') : t('common.confirm')}
                         </button>
                     </form>
                 )}
@@ -543,6 +545,7 @@ const SingleActionView: React.FC<SingleActionViewProps> = ({ mode, onAlert }) =>
 
 // --- MAIN STOCK TAB COMPONENT ---
 const StockTab: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const { menuItems } = usePos();
     const [activeTab, setActiveTab] = useState<'pasqyra' | 'furnizimi' | 'humbje' | 'korrigjimi'>('pasqyra');
     const [alertConfig, setAlertConfig] = useState<{ show: boolean; message: string; isError: boolean }>({
@@ -557,10 +560,10 @@ const StockTab: React.FC = () => {
         <div className="bg-secondary rounded-lg shadow-sm h-full flex flex-col overflow-hidden relative">
             {/* Navigation Header (Sticky) */}
             <div className="flex border-b border-border bg-secondary flex-shrink-0 overflow-x-auto sticky top-0 z-20">
-                <TabButton active={activeTab === 'pasqyra'} onClick={() => setActiveTab('pasqyra')} label="Pasqyra" icon={<BoxIcon className="w-5 h-5" />} />
-                <TabButton active={activeTab === 'furnizimi'} onClick={() => setActiveTab('furnizimi')} label="Furnizimi" icon={<PlusIcon className="w-5 h-5" />} />
-                <TabButton active={activeTab === 'humbje'} onClick={() => setActiveTab('humbje')} label="Humbje" icon={<MinusCircleIcon className="w-5 h-5" />} />
-                <TabButton active={activeTab === 'korrigjimi'} onClick={() => setActiveTab('korrigjimi')} label="Korrigjimi" icon={<CheckIcon className="w-5 h-5" />} />
+                <TabButton active={activeTab === 'pasqyra'} onClick={() => setActiveTab('pasqyra')} label={t('stock.tabs.overview')} icon={<BoxIcon className="w-5 h-5" />} />
+                <TabButton active={activeTab === 'furnizimi'} onClick={() => setActiveTab('furnizimi')} label={t('stock.tabs.supply')} icon={<PlusIcon className="w-5 h-5" />} />
+                <TabButton active={activeTab === 'humbje'} onClick={() => setActiveTab('humbje')} label={t('stock.tabs.waste')} icon={<MinusCircleIcon className="w-5 h-5" />} />
+                <TabButton active={activeTab === 'korrigjimi'} onClick={() => setActiveTab('korrigjimi')} label={t('stock.tabs.correction')} icon={<CheckIcon className="w-5 h-5" />} />
             </div>
 
             {/* Content Area */}
@@ -585,7 +588,7 @@ const StockTab: React.FC = () => {
             <Modal
                 isOpen={alertConfig.show}
                 onClose={() => setAlertConfig(prev => ({ ...prev, show: false }))}
-                title={alertConfig.isError ? "Gabim" : "Sukses"}
+                title={alertConfig.isError ? t('common.error_title') : t('common.success_title')}
             >
                 <div className="flex flex-col items-center space-y-4 p-4">
                     <div className={`p-4 rounded-full ${alertConfig.isError ? 'bg-danger-bg text-danger' : 'bg-success-bg text-success'}`}>
@@ -597,7 +600,7 @@ const StockTab: React.FC = () => {
                         className={`px-8 py-3 rounded-lg font-bold text-white shadow-md transition-transform active:scale-95 ${alertConfig.isError ? 'bg-danger hover:bg-danger-hover' : 'bg-success hover:bg-success-hover'
                             }`}
                     >
-                        Në Rregull
+                        {t('common.ok_button')}
                     </button>
                 </div>
             </Modal>

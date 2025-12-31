@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePos } from '../../context/PosContext';
 import { CloseIcon, ChevronLeftIcon } from '../common/Icons';
 
@@ -10,6 +11,7 @@ interface TransferModalProps {
 }
 
 const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTableId, sourceTableName }) => {
+    const { t } = useTranslation();
     const { tables, sections, transferTable } = usePos();
 
     // Steps: 1 = Select Items, 2 = Select Target Table
@@ -65,7 +67,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
             await transferTable(sourceTableId, targetTableId, idsToSend);
             onClose();
         } catch (error: any) {
-            alert(error.message || "Gabim gjatë transferimit");
+            alert(error.message || t('transfer.error_transfer', "Gabim gjatë transferimit"));
         }
     };
 
@@ -93,7 +95,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                             </button>
                         )}
                         <h2 className="text-xl font-bold text-tmain">
-                            {step === 1 ? `Zgjidh Artikujt (${sourceTableName})` : 'Zgjidh Tavolinën e Re'}
+                            {step === 1 ? t('transfer.select_items', { table: sourceTableName }) : t('transfer.select_target_table', 'Zgjidh Tavolinën e Re')}
                         </h2>
                     </div>
                     <button onClick={onClose} className="p-2 text-tsecondary hover:tmain hover:bg-danger rounded-full transition-colors">
@@ -112,10 +114,10 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                     onClick={toggleSelectAll}
                                     className="text-highlight font-bold hover:underline"
                                 >
-                                    {selectedItemUniqueIds.length === sourceItems.length ? "Hiq të gjitha" : "Zgjidh të gjitha"}
+                                    {selectedItemUniqueIds.length === sourceItems.length ? t('transfer.deselect_all', 'Hiq të gjitha') : t('transfer.select_all', 'Zgjidh të gjitha')}
                                 </button>
                                 <span className="text-tsecondary">
-                                    {selectedItemUniqueIds.length} artikuj të zgjedhur
+                                    {t('transfer.items_selected', { count: selectedItemUniqueIds.length })}
                                 </span>
                             </div>
 
@@ -156,7 +158,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                     disabled={selectedItemUniqueIds.length === 0}
                                     className="px-8 py-3 bg-highlight text-white font-bold rounded-lg hover:bg-highlight-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors shadow-lg"
                                 >
-                                    Vazhdo
+                                    {t('common.continue', 'Vazhdo')}
                                 </button>
                             </div>
                         </div>
@@ -171,7 +173,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                     onClick={() => setActiveSectionId('all')}
                                     className={`px-4 py-2 rounded-full font-bold whitespace-nowrap transition-colors ${activeSectionId === 'all' ? 'bg-highlight text-white' : 'bg-primary text-tsecondary hover:bg-border'}`}
                                 >
-                                    Të gjitha
+                                    {t('common.all', 'Të gjitha')}
                                 </button>
                                 {sections.filter(s => !s.isHidden).map(section => (
                                     <button
@@ -197,11 +199,11 @@ const TransferModal: React.FC<TransferModalProps> = ({ isOpen, onClose, sourceTa
                                             <span className="text-xl font-bold text-tmain">{table.name}</span>
                                             {table.order ? (
                                                 <span className="text-xs text-warning font-bold mt-1">
-                                                    (E Hapur)
+                                                    ({t('transfer.status_open', 'E Hapur')})
                                                 </span>
                                             ) : (
                                                 <span className="text-xs text-success font-bold mt-1">
-                                                    E Lirë
+                                                    {t('transfer.status_free', 'E Lirë')}
                                                 </span>
                                             )}
                                         </button>

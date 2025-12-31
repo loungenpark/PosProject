@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { usePos } from '../../context/PosContext';
 import { TrashIcon, PlusIcon, TableIcon, BoxIcon, PencilIcon, SaveIcon, CloseIcon } from '../common/Icons';
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProps } from 'react-beautiful-dnd';
 import * as api from '../../utils/api';
 
 const TableManager: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     // I am correcting openTables to activeOrders, which is the correct variable from the context.
     // We only need 'tables' for the check. Removing the incorrect 'activeOrders'.
     const {
@@ -75,19 +77,19 @@ const TableManager: React.FC = () => {
                 setIsReorderMode(false);
             } catch (err) {
                 console.error("Failed to save order", err);
-                alert("Gabim gjatë ruajtjes së renditjes.");
+                alert(t('admin.tables.error_save_order'));
             }
         }
     };
 
     const handleResetOrder = async () => {
         if (activeSectionId === 'all') return;
-        if (!confirm("A jeni i sigurt? Kjo do të kthejë renditjen alfabetike.")) return;
+        if (!confirm(t('common.confirm_action'))) return;
 
         try {
             await api.resetSectionOrder(activeSectionId);
         } catch (err) {
-            alert("Gabim gjatë resetimit.");
+            alert(t('admin.tables.error_reset_order'));
         }
     };
 
@@ -150,7 +152,7 @@ const TableManager: React.FC = () => {
             const tableNames = activeTables.map(t => t.name).join(', ');
             setInfoModal({
                 isOpen: true,
-                message: `Nuk mund të fshihet zona. Tavolinat e mëposhtme kanë porosi aktive: \n\n${tableNames}`
+                message: t('admin.tables.info_delete_zone_fail', { tables: tableNames })
             });
             // Close the confirmation modal
             setIsDeleteModalOpen(false);
@@ -182,12 +184,12 @@ const TableManager: React.FC = () => {
         const targetSectionId = typeof activeSectionId === 'number' ? activeSectionId : null;
 
         if (isNaN(start) || isNaN(end) || start > end) {
-            alert("Ju lutemi kontrolloni numrat (Nga -> Deri).");
+            alert(t('admin.tables.error_check_numbers'));
             return;
         }
 
         if (activeSectionId === 'all') {
-            alert("Ju lutemi zgjidhni një zonë specifike për të shtuar tavolina.");
+            alert(t('admin.tables.error_select_zone'));
             return;
         }
 
@@ -218,7 +220,7 @@ const TableManager: React.FC = () => {
             const tableNames = activeTables.map(t => t.name).join(', ');
             setInfoModal({
                 isOpen: true,
-                message: `Veprimi u ndalua. Tavolinat e mëposhtme kanë porosi aktive: \n\n${tableNames}`
+                message: t('admin.tables.info_delete_tables_fail', { tables: tableNames })
             });
             // Close the confirmation modal
             setIsDeleteAllTablesModalOpen(false);
@@ -248,7 +250,7 @@ const TableManager: React.FC = () => {
                 await updateTable(id, trimmedNewName, table.sectionId);
             } catch (error: any) {
                 // If the API call fails (e.g., 409 Conflict), show an alert
-                alert(error.message || 'Ky emër tavoline është tashmë në përdorim.');
+                alert(error.message || t('admin.tables.error_duplicate_name'));
                 // Revert the input field back to the original name
                 event.target.value = currentName;
             }
@@ -264,7 +266,7 @@ const TableManager: React.FC = () => {
             // If it's active, show our new custom modal instead of the browser alert.
             setInfoModal({
                 isOpen: true,
-                message: 'Kjo tavolinë ka një porosi aktive. Ju lutem mbyllni faturën para se ta fshini.'
+                message: t('admin.tables.info_delete_active_table')
             });
             return;
         }
@@ -282,12 +284,12 @@ const TableManager: React.FC = () => {
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-tsecondary flex items-center gap-2">
                         <BoxIcon className="w-5 h-5 text-highlight" />
-                        Zonat
+                        {t('admin.tables.zones_title')}
                     </h3>
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="Shto"
+                            placeholder={t('admin.tables.add_placeholder')}
                             value={newSectionName}
                             onChange={(e) => setNewSectionName(e.target.value)}
                             className="w-24 md:flex-grow bg-primary border-border rounded-md p-2 text-tmain text-sm focus:ring-1 focus:ring-highlight"
@@ -321,14 +323,14 @@ const TableManager: React.FC = () => {
                                     onClick={() => setActiveSectionId('all')}
                                     className={`flex-grow text-left font-bold px-2 py-1 truncate ${activeSectionId === 'all' ? 'text-highlight' : 'text-tmain group-hover:text-highlight'}`}
                                 >
-                                    {allSectionConfig.customName || 'Të gjitha tavolinat'}
+                                    {allSectionConfig.customName || t('admin.tables.all_tables')}
                                 </button>
 
                                 {/* Default Button (Working for All) */}
                                 <button
                                     onClick={(e) => toggleDefault(e, 'all', allSectionConfig.isDefault)}
                                     className={`p-1 transition-opacity ${allSectionConfig.isDefault ? 'text-warning opacity-100' : 'text-tsecondary opacity-0 group-hover:opacity-100 hover:text-warning'}`}
-                                    title={allSectionConfig.isDefault ? "Zona Kryesore" : "Vendos si Kryesore"}
+                                    title={allSectionConfig.isDefault ? t('admin.tables.default_zone_tooltip') : t('admin.tables.set_default_tooltip')}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={allSectionConfig.isDefault ? "currentColor" : "none"} stroke="currentColor" className="w-4 h-4" strokeWidth="2">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
@@ -339,7 +341,7 @@ const TableManager: React.FC = () => {
                                 <button
                                     onClick={(e) => toggleHide(e, 'all')}
                                     className={`p-1 transition-opacity ${allSectionConfig.isHidden ? 'text-danger opacity-100' : 'text-tsecondary opacity-0 group-hover:opacity-100 hover:text-danger'}`}
-                                    title={allSectionConfig.isHidden ? "Shfaq Zonën" : "Fsheh Zonën"}
+                                    title={allSectionConfig.isHidden ? t('admin.tables.show_zone_tooltip') : t('admin.tables.hide_zone_tooltip')}
                                 >
                                     {allSectionConfig.isHidden ? (
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -354,7 +356,7 @@ const TableManager: React.FC = () => {
                                 </button>
 
                                 {/* Edit Button */}
-                                <button onClick={() => handleStartEditSection('all', allSectionConfig.customName || 'Të gjitha tavolinat')} className="p-1 text-tsecondary hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleStartEditSection('all', allSectionConfig.customName || t('admin.tables.all_tables'))} className="p-1 text-tsecondary hover:text-highlight opacity-0 group-hover:opacity-100 transition-opacity">
                                     <PencilIcon className="w-4 h-4" />
                                 </button>
 
@@ -394,7 +396,7 @@ const TableManager: React.FC = () => {
                                     <button
                                         onClick={(e) => toggleDefault(e, section.id, section.isDefault)}
                                         className={`p-1 transition-opacity ${section.isDefault ? 'text-warning opacity-100' : 'text-tsecondary opacity-0 group-hover:opacity-100 hover:text-warning'}`}
-                                        title={section.isDefault ? "Zona Kryesore" : "Vendos si Kryesore"}
+                                        title={section.isDefault ? t('admin.tables.default_zone_tooltip') : t('admin.tables.set_default_tooltip')}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={section.isDefault ? "currentColor" : "none"} stroke="currentColor" className="w-4 h-4" strokeWidth="2">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
@@ -405,7 +407,7 @@ const TableManager: React.FC = () => {
                                     <button
                                         onClick={(e) => toggleHide(e, section.id)}
                                         className={`p-1 transition-opacity ${section.isHidden ? 'text-danger opacity-100' : 'text-tsecondary opacity-0 group-hover:opacity-100 hover:text-danger'}`}
-                                        title={section.isHidden ? "Shfaq Zonën" : "Fsheh Zonën"}
+                                        title={section.isHidden ? t('admin.tables.show_zone_tooltip') : t('admin.tables.hide_zone_tooltip')}
                                     >
                                         {section.isHidden ? (
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -437,7 +439,7 @@ const TableManager: React.FC = () => {
                 <div className="mt-auto pt-4 border-t border-border">
                     <div className="flex items-center justify-between gap-2">
                         <label htmlFor="tablesPerRowInput" className="text-sm font-semibold text-tsecondary whitespace-nowrap">
-                            Tavolina në rresht:
+                            {t('admin.tables.tables_per_row')}:
                         </label>
                         <input
                             id="tablesPerRowInput"
@@ -462,8 +464,8 @@ const TableManager: React.FC = () => {
                         <h3 className="text-xl font-semibold text-tsecondary hidden md:flex items-center gap-2">
                             <TableIcon className="w-6 h-6 text-highlight" />
                             {activeSectionId === 'all'
-                                ? (allSectionConfig.customName || 'Të gjitha tavolinat')
-                                : sections.find(s => s.id === activeSectionId)?.name || 'Zona'}
+                                ? (allSectionConfig.customName || t('admin.tables.all_tables'))
+                                : sections.find(s => s.id === activeSectionId)?.name || t('admin.tables.tables_title')}
                         </h3>
                         {activeSectionId !== 'all' && (
                             <div className="flex items-center gap-2">
@@ -474,11 +476,11 @@ const TableManager: React.FC = () => {
                                         : 'bg-primary border-border text-tsecondary hover:text-tmain'
                                         }`}
                                 >
-                                    {isReorderMode ? 'Ruaj' : 'Rendit'}
+                                    {isReorderMode ? t('admin.tables.save_btn') : t('admin.tables.reorder_btn')}
                                 </button>
                                 {isReorderMode && (
                                     <button onClick={handleResetOrder} className="px-3 py-1 rounded text-sm font-bold bg-primary border border-danger/30 text-danger hover:text-danger-hover transition-colors">
-                                        Reseto
+                                        {t('admin.tables.reset_btn')}
                                     </button>
                                 )}
                             </div>
@@ -493,14 +495,14 @@ const TableManager: React.FC = () => {
                                 value={batchPrefix}
                                 onChange={(e) => setBatchPrefix(e.target.value)}
                                 className="w-10 bg-secondary border-border rounded p-1 text-center text-tmain text-xs font-bold"
-                                placeholder="Pre"
+                                placeholder={t('admin.tables.prefix_placeholder')}
                             />
                             <input
                                 type="number"
                                 value={startNum}
                                 onChange={(e) => setStartNum(e.target.value)}
                                 className="w-12 bg-secondary border-border rounded p-1 text-center text-tmain text-xs font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                placeholder="Nga"
+                                placeholder={t('admin.tables.from_placeholder')}
                             />
                             <span className="text-tsecondary text-xs">-</span>
                             <input
@@ -508,13 +510,13 @@ const TableManager: React.FC = () => {
                                 value={endNum}
                                 onChange={(e) => setEndNum(e.target.value)}
                                 className="w-12 bg-secondary border-border rounded p-1 text-center text-tmain text-xs font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                placeholder="Deri"
+                                placeholder={t('admin.tables.to_placeholder')}
                             />
-                            <button onClick={handleBatchAdd} className="bg-success hover:bg-success-hover text-white w-8 h-8 rounded text-sm font-bold transition-colors ml-1 flex items-center justify-center" title="Shto Tavolina">
+                            <button onClick={handleBatchAdd} className="bg-success hover:bg-success-hover text-white w-8 h-8 rounded text-sm font-bold transition-colors ml-1 flex items-center justify-center" title={t('admin.tables.add_tables_tooltip')}>
                                 +
                             </button>
                             <div className="w-px h-6 bg-border mx-1"></div>
-                            <button onClick={handleDeleteAllInZone} className="bg-danger-bg text-danger hover:bg-danger hover:text-white border border-danger/50 w-8 h-8 rounded text-sm font-bold transition-colors flex items-center justify-center" title="Fshij Të Gjitha">
+                            <button onClick={handleDeleteAllInZone} className="bg-danger-bg text-danger hover:bg-danger hover:text-white border border-danger/50 w-8 h-8 rounded text-sm font-bold transition-colors flex items-center justify-center" title={t('admin.tables.delete_all_tooltip')}>
                                 <TrashIcon className="w-4 h-4" />
                             </button>
                         </div>
@@ -560,7 +562,7 @@ const TableManager: React.FC = () => {
                                                             <button
                                                                 onClick={() => handleDeleteTable(table.id)}
                                                                 className="absolute -top-2 -right-2 p-1.5 bg-secondary rounded-full shadow text-tsecondary hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity z-20 border border-border"
-                                                                title="Fshij Tavolinën"
+                                                                title={t('admin.tables.delete_table_tooltip')}
                                                             >
                                                                 <TrashIcon className="w-3 h-3" />
                                                             </button>
@@ -604,8 +606,8 @@ const TableManager: React.FC = () => {
                     {filteredTables.length === 0 && (
                         <div className="text-center py-20 text-tsecondary opacity-60">
                             <TableIcon className="w-16 h-16 mx-auto mb-4" />
-                            <p className="text-lg">Asnjë tavolinë në {activeSectionId === 'all' ? 'total' : 'këtë zonë'}.</p>
-                            {activeSectionId !== 'all' && <p className="text-sm">Përdorni panelin lart për të shtuar tavolina (psh. 101 deri 110).</p>}
+                            <p className="text-lg">{t('admin.tables.no_tables_msg')}</p>
+                            {activeSectionId !== 'all' && <p className="text-sm">{t('admin.tables.add_tables_hint')}</p>}
                         </div>
                     )}
                 </div>
@@ -615,24 +617,24 @@ const TableManager: React.FC = () => {
             {isDeleteModalOpen && sectionToDelete && (
                 <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
-                        <h3 className="text-xl font-semibold text-tsecondary mb-4">Konfirmo Fshirjen</h3>
+                        <h3 className="text-xl font-semibold text-tsecondary mb-4">{t('admin.tables.delete_zone_title')}</h3>
                         <p className="text-tsecondary mb-6">
-                            Jeni të sigurt që doni të fshini zonën <strong className="text-highlight">{sectionToDelete.name}</strong>?
+                            {t('admin.tables.delete_zone_confirm', { zone: sectionToDelete.name })}
                             <br />
-                            <span className="text-danger mt-2 block">Të gjitha tavolinat brenda saj do të çaktivizohen.</span>
+                            <span className="text-danger mt-2 block">{t('admin.tables.delete_zone_warning')}</span>
                         </p>
                         <div className="flex justify-end gap-4">
                             <button
                                 onClick={handleCancelDelete}
                                 className="px-6 py-2 rounded-md bg-primary text-tmain font-semibold hover:bg-border transition-colors"
                             >
-                                Anulo
+                                {t('common.cancel')}
                             </button>
                             <button
                                 onClick={handleConfirmDelete}
                                 className="px-6 py-2 rounded-md bg-danger text-white font-semibold hover:bg-danger-hover transition-colors"
                             >
-                                Fshij Zonën
+                                {t('admin.tables.btn_delete_zone')}
                             </button>
                         </div>
                     </div>
@@ -643,24 +645,24 @@ const TableManager: React.FC = () => {
             {isDeleteAllTablesModalOpen && activeSectionId !== 'all' && (
                 <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
-                        <h3 className="text-xl font-semibold text-tsecondary mb-4">Konfirmo Fshirjen Masive</h3>
+                        <h3 className="text-xl font-semibold text-tsecondary mb-4">{t('admin.tables.delete_all_tables_title')}</h3>
                         <p className="text-tsecondary mb-6">
-                            Jeni të sigurt që doni të fshini <strong className="text-highlight">{filteredTables.length} tavolina</strong> në zonën <strong className="text-white">{sections.find(s => s.id === activeSectionId)?.name}</strong>?
+                            {t('admin.tables.delete_all_tables_confirm', { count: filteredTables.length, zone: sections.find(s => s.id === activeSectionId)?.name })}
                             <br />
-                            <span className="text-danger mt-2 block">Ky veprim nuk mund të kthehet pas.</span>
+                            <span className="text-danger mt-2 block">{t('admin.tables.action_irreversible')}</span>
                         </p>
                         <div className="flex justify-end gap-4">
                             <button
                                 onClick={() => setIsDeleteAllTablesModalOpen(false)}
                                 className="px-6 py-2 rounded-md bg-primary text-tmain font-semibold hover:bg-border transition-colors"
                             >
-                                Anulo
+                                {t('common.cancel')}
                             </button>
                             <button
                                 onClick={confirmDeleteAllTables}
                                 className="px-6 py-2 rounded-md bg-danger text-white font-semibold hover:bg-danger-hover transition-colors"
                             >
-                                Fshij Të Gjitha
+                                {t('admin.tables.btn_delete_all')}
                             </button>
                         </div>
                     </div>
@@ -671,7 +673,7 @@ const TableManager: React.FC = () => {
             {infoModal.isOpen && (
                 <div className="fixed inset-0 bg-primary/70 flex items-center justify-center z-50">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl max-w-md w-full border border-border">
-                        <h3 className="text-xl font-bold text-danger mb-4">Veprimi u Ndalua</h3>
+                        <h3 className="text-xl font-bold text-danger mb-4">{t('admin.tables.action_stopped_title')}</h3>
                         <p className="text-tsecondary mb-6 whitespace-pre-line">
                             {infoModal.message}
                         </p>

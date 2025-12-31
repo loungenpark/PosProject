@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { usePos } from '../context/PosContext';
 import { RestaurantIcon, BackspaceIcon } from '../components/common/Icons';
 
 const LoginScreen: React.FC = () => {
+  const { t } = useTranslation(); // LEFT: Init translation
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const { login } = usePos();
@@ -49,13 +51,13 @@ const LoginScreen: React.FC = () => {
     if (success) {
       enterFullScreen(); // Trigger full screen on success
     } else {
-      setError('PIN i pavlefshëm');
+      setError(t('login.invalid_pin')); // LEFT: Dynamic Error Message
       setTimeout(() => {
         setPin('');
         setError('');
       }, 1000);
     }
-  }, [login, pin]);
+  }, [login, pin, t]);
 
   useEffect(() => {
     if (pin.length === 4) {
@@ -101,12 +103,13 @@ const LoginScreen: React.FC = () => {
   const buttonClasses = "p-4 text-2xl font-bold font-data text-tmain bg-primary rounded-lg border border-transparent hover:border-highlight focus:outline-none focus:ring-2 focus:ring-highlight transition-all duration-150 ease-in-out active:bg-highlight-hover active:scale-95";
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-primary">
+    <div className="relative flex flex-col items-center justify-center min-h-screen bg-primary">
+
       <div className="w-full max-w-xs p-8 space-y-6 bg-secondary rounded-xl shadow-lg">
         <div className="flex flex-col items-center space-y-2">
           <RestaurantIcon className="w-16 h-16 text-highlight" />
-          <h1 className="text-2xl font-bold text-tmain">Mirë se vini</h1>
-          <p className="text-tsecondary">Futni PIN-in tuaj për t'u identifikuar</p>
+          <h1 className="text-2xl font-bold text-tmain">{t('login.welcome')}</h1>
+          <p className="text-tsecondary text-center">{t('login.subtitle')}</p>
         </div>
 
         <div className="space-y-6">

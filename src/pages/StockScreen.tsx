@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { usePos } from '../context/PosContext';
 import StockTab from '../components/admin/StockTab'; // Reusing the existing component
 import { Package, Settings, BarChart4 } from 'lucide-react';
@@ -9,6 +10,7 @@ import {
 } from '../components/common/Icons';
 
 const StockScreen: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const { loggedInUser, setActiveScreen, logout } = usePos();
 
     return (
@@ -17,7 +19,7 @@ const StockScreen: React.FC = () => {
             <header className="flex-shrink-0 bg-secondary flex items-center justify-between p-2 md:p-4 shadow-md z-40">
                 <h1 className="hidden md:flex text-xl font-semibold text-highlight items-center gap-2">
                     <Package className="w-6 h-6 text-highlight" />
-                    Stoku
+                    {t('nav.stock')}
                 </h1>
 
                 {/* Navigation Buttons */}
@@ -28,7 +30,7 @@ const StockScreen: React.FC = () => {
                         className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2"
                     >
                         <GridIcon className="w-5 h-5" />
-                        <span className="hidden md:inline">POS</span>
+                        <span className="hidden md:inline">{t('nav.pos')}</span>
                     </button>
 
                     {/* Go to Reports */}
@@ -37,7 +39,7 @@ const StockScreen: React.FC = () => {
                         className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2"
                     >
                         <BarChart4 className="w-5 h-5" />
-                        <span className="hidden md:inline">Raporte</span>
+                        <span className="hidden md:inline">{t('nav.reports')}</span>
                     </button>
 
                     {/* Stoku Button (Active) */}
@@ -46,7 +48,7 @@ const StockScreen: React.FC = () => {
                         className="px-4 h-11 bg-primary text-highlight font-semibold rounded-lg border-2 border-highlight transition-colors flex items-center gap-2 shadow-sm"
                     >
                         <Package className="w-5 h-5" />
-                        <span className="hidden md:inline">Stoku</span>
+                        <span className="hidden md:inline">{t('nav.stock')}</span>
                     </button>
 
                     {/* Go to Menaxhimi (Admin) */}
@@ -55,7 +57,7 @@ const StockScreen: React.FC = () => {
                         className="px-4 h-11 bg-primary text-tsecondary font-semibold rounded-lg border-2 border-transparent hover:border-highlight hover:text-highlight transition-colors flex items-center gap-2"
                     >
                         <Settings className="w-5 h-5" />
-                        <span className="hidden md:inline">Menaxhimi</span>
+                        <span className="hidden md:inline">{t('nav.admin')}</span>
                     </button>
 
                     {/* User */}
@@ -63,7 +65,7 @@ const StockScreen: React.FC = () => {
                     <span className="hidden md:inline text-tsecondary"> {loggedInUser?.username}</span>
 
                     {/* Logout Button */}
-                    <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors" title="Dil">
+                    <button onClick={logout} className="p-2 rounded-full text-tsecondary hover:bg-border hover:text-tmain transition-colors" title={t('nav.logout')}>
                         <LogoutIcon className="w-6 h-6" />
                     </button>
                 </div>

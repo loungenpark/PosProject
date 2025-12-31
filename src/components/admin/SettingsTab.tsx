@@ -1,12 +1,14 @@
 // src/components/admin/SettingsTab.tsx
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { usePos } from '../../context/PosContext';
 import ToggleSwitch from '../common/ToggleSwitch';
 import { TrashIcon, PlusIcon } from '../common/Icons';
 
 // --- Tax Settings ---
 export const TaxSettings: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const { taxRate, setTaxRate } = usePos();
     const [tax, setTax] = useState(taxRate * 100);
     const [isSaving, setIsSaving] = useState(false);
@@ -16,9 +18,9 @@ export const TaxSettings: React.FC = () => {
         try {
             const newTax = Math.max(0, tax);
             await setTaxRate(newTax);
-            alert(`Norma e tatimit u ruajt: ${newTax}%.`);
+            alert(t('admin.settings.tax_success', { taxRate: newTax }));
         } catch (error) {
-            alert("Ruajtja e normës së tatimit dështoi.");
+            alert(t('admin.settings.tax_fail'));
         } finally {
             setIsSaving(false);
         }
@@ -26,10 +28,10 @@ export const TaxSettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-4 text-tsecondary">Tatimi</h3>
+            <h3 className="text-xl font-semibold mb-4 text-tsecondary">{t('admin.settings.tax_title')}</h3>
             <div className="space-y-6 bg-primary p-6 rounded-lg">
                 <div>
-                    <label htmlFor="taxRate" className="block text-sm font-medium text-tsecondary">Norma e Tatimit (%)</label>
+                    <label htmlFor="taxRate" className="block text-sm font-medium text-tsecondary">{t('admin.settings.tax_label')}</label>
                     <input
                         type="number"
                         id="taxRate"
@@ -39,11 +41,11 @@ export const TaxSettings: React.FC = () => {
                         step="0.1"
                         className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight"
                     />
-                    <p className="text-xs text-tsecondary mt-1">Vendosni 0 për të çaktivizuar tatimin dhe fshehur rreshtat e nëntotalit/tatimit. Mos e përfshini simbolin %.</p>
+                    <p className="text-xs text-tsecondary mt-1">{t('admin.settings.tax_desc')}</p>
                 </div>
                 <div className="flex justify-end pt-2">
                     <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-highlight-hover transition-colors disabled:bg-muted">
-                        {isSaving ? 'Duke ruajtur...' : 'Ruaj Ndryshimet'}
+                        {isSaving ? t('common.saving') : t('admin.settings.btn_save')}
                     </button>
                 </div>
             </div>
@@ -53,6 +55,7 @@ export const TaxSettings: React.FC = () => {
 
 // --- Printing Settings Component ---
 export const PrintingSettings: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const [isPrintStation, setIsPrintStation] = useState(false);
     const [printOrdersEnabled, setPrintOrdersEnabled] = useState(false);
     const [printReceiptsEnabled, setPrintReceiptsEnabled] = useState(false);
@@ -80,24 +83,24 @@ export const PrintingSettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-2 text-tsecondary">Konfigurimi i Printimit</h3>
-            <p className="text-tsecondary mb-6">Menaxho se si dhe ku printohen porositë dhe faturat për këtë pajisje.</p>
+            <h3 className="text-xl font-semibold mb-2 text-tsecondary">{t('admin.settings.print_title')}</h3>
+            <p className="text-tsecondary mb-6">{t('admin.settings.print_subtitle')}</p>
             <div className="bg-primary rounded-lg p-6">
                 <ToggleSwitch
-                    label="Stacion Printimi"
-                    description="Aktivizo këtë nëse ky kompjuter është i lidhur direkt me printerët."
+                    label={t('admin.settings.station_label')}
+                    description={t('admin.settings.station_desc')}
                     enabled={isPrintStation}
                     onChange={handlePrintStationChange}
                 />
                 <ToggleSwitch
-                    label="Printimi i Porosisë (Kuzhinë/Shank)"
-                    description="Printo automatikisht një fletë-porosi kur dërgohen artikuj të rinj."
+                    label={t('admin.settings.order_label')}
+                    description={t('admin.settings.order_desc')}
                     enabled={printOrdersEnabled}
                     onChange={handleOrderPrintingChange}
                 />
                 <ToggleSwitch
-                    label="Printimi i Faturës"
-                    description="Printo automatikisht faturën për klientin pasi të finalizohet shitja."
+                    label={t('admin.settings.receipt_label')}
+                    description={t('admin.settings.receipt_desc')}
                     enabled={printReceiptsEnabled}
                     onChange={handleReceiptPrintingChange}
                 />
@@ -108,6 +111,7 @@ export const PrintingSettings: React.FC = () => {
 
 // --- Operational Day Settings Component ---
 export const OperationalDaySettings: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const { operationalDayStartHour, updateOperationalDayStartHour } = usePos();
     const [hour, setHour] = useState(operationalDayStartHour);
     const [isSaving, setIsSaving] = useState(false);
@@ -122,9 +126,9 @@ export const OperationalDaySettings: React.FC = () => {
         try {
             const newHour = Math.max(0, Math.min(23, hour));
             await updateOperationalDayStartHour(newHour);
-            alert(`Ora e fillimit të ditës operacionale u ruajt: ${newHour}:00.`);
+            alert(t('admin.settings.op_day_success', { hour: newHour }));
         } catch (error) {
-            alert("Ruajtja dështoi. Ju lutemi provoni përsëri.");
+            alert(t('admin.settings.op_day_fail'));
         } finally {
             setIsSaving(false);
         }
@@ -132,10 +136,10 @@ export const OperationalDaySettings: React.FC = () => {
 
     return (
         <div className="bg-secondary p-6 rounded-lg max-w-2xl mx-auto">
-            <h3 className="text-xl font-semibold mb-4 text-tsecondary">Dita Operacionale</h3>
+            <h3 className="text-xl font-semibold mb-4 text-tsecondary">{t('admin.settings.op_day_title')}</h3>
             <div className="space-y-6 bg-primary p-6 rounded-lg">
                 <div>
-                    <label htmlFor="startHour" className="block text-sm font-medium text-tsecondary">Ora e Fillimit të Ditës</label>
+                    <label htmlFor="startHour" className="block text-sm font-medium text-tsecondary">{t('admin.settings.op_day_label')}</label>
                     <input
                         type="number"
                         id="startHour"
@@ -146,12 +150,12 @@ export const OperationalDaySettings: React.FC = () => {
                         className="mt-1 block w-full bg-secondary border-border rounded-md p-2 text-tmain focus:ring-highlight focus:border-highlight"
                     />
                     <p className="text-xs text-tsecondary mt-1">
-                        Cakto orën (0-23) kur fillon dita e punës. P.sh., vlera '5' do të thotë që dita zgjat nga ora 5:00 e mëngjesit deri në 4:59 të ditës tjetër.
+                        {t('admin.settings.op_day_desc')}
                     </p>
                 </div>
                 <div className="flex justify-end pt-2">
                     <button onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-highlight text-white font-bold hover:bg-highlight-hover transition-colors disabled:bg-muted">
-                        {isSaving ? 'Duke ruajtur...' : 'Ruaj Ndryshimet'}
+                        {isSaving ? t('common.saving') : t('admin.settings.btn_save')}
                     </button>
                 </div>
             </div>

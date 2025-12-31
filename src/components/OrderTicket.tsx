@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { Table, OrderItem, User } from '../types';
 
 interface OrderTicketProps {
@@ -12,6 +13,7 @@ interface OrderTicketProps {
 // We wrap the component in `React.forwardRef` so the printing library can access it.
 // ==========================================================================
 const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(({ table, newItems, user }, ref) => {
+  const { t } = useTranslation(); // LEFT: Init translation
   const now = new Date();
 
   const total = useMemo(() => {
@@ -21,12 +23,12 @@ const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(({ table,
   return (
     <div className="order-ticket-container max-w-xs mx-auto text-xs" ref={ref}>
       <div className="text-center mb-2">
-        <h2 className="text-2xl font-bold">Porosia</h2>
+        <h2 className="text-2xl font-bold">{t('ticket.order_title')}</h2>
         <hr className="my-2 border-t border-dashed border-black" />
       </div>
       <div className="mt-8 mb-4">
         <p>
-          Data: {now.toLocaleString(undefined, {
+          {t('ticket.date')}: {now.toLocaleString(undefined, {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -35,17 +37,17 @@ const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(({ table,
             hour12: true
           })}
         </p>
-        {user && <p>Shfrytëzuesi: {user.username}</p>}
-        <p>Tavolina: {table.name}</p>
+        {user && <p>{t('ticket.user')}: {user.username}</p>}
+        <p>{t('ticket.table')}: {table.name}</p>
       </div>
       <hr className="my-4 border-t border-dashed border-black" />
       <table className="w-full">
         <thead>
           <tr className="text-[10px] font-bold">
-            <th className="text-left">Artikulli</th>
-            <th className="text-center">Sasia</th>
-            <th className="text-right">Çmimi</th>
-            <th className="text-right">Totali</th>
+            <th className="text-left">{t('ticket.item')}</th>
+            <th className="text-center">{t('ticket.quantity')}</th>
+            <th className="text-right">{t('ticket.price')}</th>
+            <th className="text-right">{t('ticket.total')}</th>
           </tr>
         </thead>
         <tbody className="mt-2">
@@ -74,7 +76,7 @@ const OrderTicket = React.forwardRef<HTMLDivElement, OrderTicketProps>(({ table,
         <hr className="my-4 border-t border-dashed border-black" />
       </div>
       <div className="flex justify-between font-bold text-xl mt-2">
-        <span>Totali:</span>
+        <span>{t('ticket.total')}:</span>
         <span>{total.toFixed(2)} €</span>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next'; // LEFT: Import translation hook
 import { usePos } from '../../context/PosContext';
 import { User, UserRole } from '../../types';
 import { TrashIcon, EditIcon, CheckIcon, PlusIcon, CloseIcon } from '../common/Icons';
 
 const UsersTab: React.FC = () => {
+    const { t } = useTranslation(); // LEFT: Init translation
     const { users: contextUsers, sections } = usePos();
 
     // We maintain a local list of users to allow UI updates without reloading the page
@@ -78,8 +80,8 @@ const UsersTab: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (!formData.username) return alert("Emri është i detyrueshëm");
-        if (!editingUser && !formData.pin) return alert("PIN është i detyrueshëm për përdoruesit e rinj");
+        if (!formData.username) return alert(t('admin.users.alert_name_required'));
+        if (!editingUser && !formData.pin) return alert(t('admin.users.alert_pin_required'));
 
         // --- NEW LOGIC: Prepare the payload ---
         // Create a copy of the form data to avoid mutating state directly.
@@ -108,7 +110,7 @@ const UsersTab: React.FC = () => {
                 body: JSON.stringify(payload) // Use the processed payload
             });
 
-            if (!response.ok) throw new Error("Gabim gjatë ruajtjes");
+            if (!response.ok) throw new Error(t('admin.users.alert_save_error'));
 
             // FIX: Do not reload page (causes logout). 
             // Instead, manually fetch updated users list.
@@ -119,13 +121,13 @@ const UsersTab: React.FC = () => {
             setIsModalOpen(false);
         } catch (error) {
             console.error(error);
-            alert("Ndodhi një gabim.");
+            alert((error as Error).message || t('common.error'));
         }
     };
 
     const handleDelete = async () => {
         if (!editingUser) return;
-        if (!window.confirm(`A jeni i sigurt që doni të fshini përdoruesin ${editingUser.username}?`)) return;
+        if (!window.confirm(t('common.confirm_action_delete', { item: editingUser.username }))) return;
 
         try {
             await fetch(`/api/users/${editingUser.id}`, { method: 'DELETE' });
@@ -138,20 +140,20 @@ const UsersTab: React.FC = () => {
             setIsModalOpen(false);
         } catch (error) {
             console.error(error);
-            alert("Ndodhi një gabim gjatë fshirjes.");
+            alert(t('admin.users.alert_delete_error'));
         }
     };
 
     return (
         <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-tmain">Përdoruesit</h2>
+                <h2 className="text-xl font-bold text-tmain">{t('admin.tabs.users')}</h2>
                 <button
                     onClick={handleAddClick}
                     className="flex items-center space-x-2 px-4 py-2 bg-highlight text-white rounded-lg hover:bg-highlight-hover transition-colors shadow-md"
                 >
                     <PlusIcon className="w-5 h-5" />
-                    <span>Shto Përdorues</span>
+                    <span>{t('admin.users.add_user')}</span>
                 </button>
             </div>
 
@@ -159,9 +161,9 @@ const UsersTab: React.FC = () => {
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-secondary sticky top-0 z-10">
                         <tr>
-                            <th className="p-4 border-b border-border text-tsecondary font-semibold">Emri</th>
-                            <th className="p-4 border-b border-border text-tsecondary font-semibold">Roli</th>
-                            <th className="p-4 border-b border-border text-tsecondary font-semibold text-right">Veprimet</th>
+                            <th className="p-4 border-b border-border text-tsecondary font-semibold">{t('common.name')}</th>
+                            <th className="p-4 border-b border-border text-tsecondary font-semibold">{t('admin.users.table_role')}</th>
+                            <th className="p-4 border-b border-border text-tsecondary font-semibold text-right">{t('common.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -177,7 +179,7 @@ const UsersTab: React.FC = () => {
                                     <button
                                         onClick={() => handleEditClick(user)}
                                         className="p-2 text-highlight hover:bg-highlight/10 rounded-full transition-colors"
-                                        title="Ndrysho"
+                                        title={t('admin.users.edit_tooltip')}
                                     >
                                         <EditIcon className="w-5 h-5" />
                                     </button>
@@ -194,7 +196,7 @@ const UsersTab: React.FC = () => {
                     <div className="bg-secondary w-full max-w-md rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center p-4 border-b border-border bg-primary">
                             <h3 className="text-lg font-bold text-tmain">
-                                {editingUser ? 'Ndrysho Përdoruesin' : 'Shto Përdorues'}
+                                {editingUser ? t('admin.users.modal_edit_title') : t('admin.users.modal_add_title')}
                             </h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-tsecondary hover:text-tmain">
                                 <CloseIcon className="w-6 h-6" />
@@ -204,7 +206,7 @@ const UsersTab: React.FC = () => {
                         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                             {/* Username */}
                             <div>
-                                <label className="block text-sm font-medium text-tsecondary mb-1">Emri</label>
+                                <label className="block text-sm font-medium text-tsecondary mb-1">{t('common.name')}</label>
                                 <input
                                     type="text"
                                     value={formData.username}
@@ -216,7 +218,7 @@ const UsersTab: React.FC = () => {
                             {/* PIN */}
                             <div>
                                 <label className="block text-sm font-medium text-tsecondary mb-1">
-                                    {editingUser ? 'PIN i ri (Lëre bosh për të mos ndryshuar)' : 'PIN'}
+                                    {editingUser ? t('admin.users.form_pin_new') : t('admin.users.form_pin')}
                                 </label>
                                 <input
                                     type="text"
@@ -230,7 +232,7 @@ const UsersTab: React.FC = () => {
 
                             {/* Role */}
                             <div>
-                                <label className="block text-sm font-medium text-tsecondary mb-1">Roli</label>
+                                <label className="block text-sm font-medium text-tsecondary mb-1">{t('admin.users.form_role')}</label>
                                 <select
                                     value={formData.role}
                                     onChange={e => setFormData({ ...formData, role: e.target.value as UserRole })}
@@ -244,7 +246,7 @@ const UsersTab: React.FC = () => {
                             {/* SECTIONS / ZONES */}
                             <div>
                                 <label className="block text-sm font-medium text-tsecondary mb-2">
-                                    Zonat e Lejuara
+                                    {t('admin.users.form_zones')}
                                 </label>
                                 <div className="flex flex-col space-y-2 max-h-60 overflow-y-auto">
                                     {/* OPTION: Të Gjitha (All Tables View) - ID 0 */}
@@ -256,7 +258,7 @@ const UsersTab: React.FC = () => {
                                         <div className={`w-5 h-5 rounded border flex items-center justify-center mr-2 ${formData.allowed_section_ids.includes(0) ? 'bg-highlight border-highlight text-white' : 'border-tsecondary'}`}>
                                             {formData.allowed_section_ids.includes(0) && <CheckIcon className="w-3 h-3" />}
                                         </div>
-                                        <span className="text-sm font-semibold truncate">Të gjitha</span>
+                                        <span className="text-sm font-semibold truncate">{t('admin.users.all_zones')}</span>
                                     </button>
 
                                     {/* Real Sections */}
@@ -286,17 +288,17 @@ const UsersTab: React.FC = () => {
                                     onClick={handleDelete}
                                     className="px-4 py-2 bg-primary border border-danger text-danger rounded-lg hover:bg-danger hover:text-white transition-colors"
                                 >
-                                    Fshij Përdoruesin
+                                    {t('admin.users.btn_delete')}
                                 </button>
                             ) : (
                                 <div></div> // Spacer
                             )}
                             <div className="flex gap-2">
                                 <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-border text-tmain rounded-lg hover:bg-muted">
-                                    Anulo
+                                    {t('common.cancel')}
                                 </button>
                                 <button onClick={handleSave} className="px-6 py-2 bg-highlight text-white rounded-lg hover:bg-highlight-hover shadow-lg">
-                                    Ruaj
+                                    {t('common.save')}
                                 </button>
                             </div>
                         </div>

@@ -18,12 +18,22 @@
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ]
     },
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "src/**/*",
+    "src/**/*.json"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
